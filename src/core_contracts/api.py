@@ -381,6 +381,8 @@ class API:
                 "queue_size": runtime.queue.qsize(),
                 "commit_duration_s": runtime.commit_duration,
                 "bridge_version": runtime.bridge_version,
+                "bridge_protocol_selected": runtime.bridge_protocol_selected,
+                "bridge_features": runtime.bridge_features,
                 "bridge_subscriptions": runtime.bridge_subscriptions,
                 "ingest_overflow_count": runtime.overflow_serial,
                 "refresh_overflow_count": runtime.refresh_overflow,

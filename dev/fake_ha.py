@@ -4,12 +4,13 @@ from aiohttp import web
 
 
 class FakeHA:
-    def __init__(self, states=None, protocol=1, missing=False, registries=None):
+    def __init__(self, states=None, protocol=1, missing=False, registries=None, v2=False):
         self.states = states or {}
         self.protocol, self.missing = protocol, missing
         self.requests = []
         self.sockets = set()
         self.registries = registries or {}
+        self.v2 = v2
 
     def application(self):
         app = web.Application()
@@ -31,6 +32,28 @@ class FakeHA:
                 self.requests.append(data)
                 kind = data["type"]
                 result = {}
+                if kind == "bifrost/negotiate":
+                    if not self.v2:
+                        await socket.send_json(
+                            {
+                                "id": data["id"],
+                                "type": "result",
+                                "success": False,
+                                "error": {"code": "unknown_command"},
+                            }
+                        )
+                        continue
+                    result = {
+                        "protocol_selected": 2,
+                        "bridge_version": "test",
+                        "features": ["calendar_events"],
+                    }
+                if kind == "bifrost/service_call":
+                    result = {
+                        "request_id": data["request_id"],
+                        "outcome": "completed",
+                        "data": {"calendar.example": {"events": []}},
+                    }
                 if kind == "get_states":
                     result = [
                         {"entity_id": key, **value} for key, value in self.states.items() if value

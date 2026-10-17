@@ -5,6 +5,7 @@ import logging
 from datetime import datetime
 from math import isfinite
 from typing import Any
+from uuid import uuid4
 
 import aiohttp
 
@@ -58,6 +59,10 @@ class BridgeAdapter:
         self.states: dict[str, dict[str, Any] | None] = {}
         self.sequence = 0
         self.bridge_version: str | None = None
+        self.protocol_selected = 1
+        self.socket: aiohttp.ClientWebSocketResponse | None = None
+        self.requests: dict[int, asyncio.Future[Any]] = {}
+        self.request_number = 1000
         self.subscription_count = 0
         self.retry_delay = 1.0
         self.discovery_cache: list[dict[str, Any]] = []
@@ -306,6 +311,58 @@ class BridgeAdapter:
         return response.get("result")
 
     async def connect(self, config: RegistryConfig) -> None:
+        try:
+            await self._connect(config)
+        finally:
+            self.socket = None
+            for future in self.requests.values():
+                if not future.done():
+                    future.set_result({"outcome": "indeterminate", "error_code": "ha_unavailable"})
+            self.requests.clear()
+
+    async def service_call(
+        self,
+        operation: str,
+        target_ids: list[str],
+        arguments: dict[str, Any],
+        *,
+        request_id: str | None = None,
+    ) -> dict[str, Any]:
+        """One attempt only. Callers persist intent before reaching this boundary."""
+        identifier = request_id or str(uuid4())
+        if self.protocol_selected != 2 or self.socket is None or self.socket.closed:
+            return {
+                "request_id": identifier,
+                "outcome": "rejected",
+                "error_code": "unsupported_protocol",
+            }
+        self.request_number += 1
+        number = self.request_number
+        future = asyncio.get_running_loop().create_future()
+        self.requests[number] = future
+        try:
+            async with asyncio.timeout(12):
+                await self.socket.send_json(
+                    {
+                        "id": number,
+                        "type": "bifrost/service_call",
+                        "protocol_version": 2,
+                        "request_id": identifier,
+                        "operation": operation,
+                        "target_ids": target_ids,
+                        "arguments": arguments,
+                    }
+                )
+                response = await future
+                if not isinstance(response, dict):
+                    raise ValueError("bridge_invalid_response")
+                return {"request_id": identifier, **response}
+        except TimeoutError, aiohttp.ClientError, ConnectionError:
+            return {"request_id": identifier, "outcome": "indeterminate", "error_code": "timeout"}
+        finally:
+            self.requests.pop(number, None)
+
+    async def _connect(self, config: RegistryConfig) -> None:
         revision = self.runtime.state.active_revision
         self.runtime.resubscribe.clear()
         self.runtime.revision_changed.clear()
@@ -322,6 +379,24 @@ class BridgeAdapter:
                 raise ConnectionError("bridge_incompatible")
             self.bridge_version = info["bridge_version"]
             self.runtime.bridge_version = self.bridge_version
+            await socket.send_json(
+                {"id": 6, "type": "bifrost/negotiate", "supported_versions": [2, 1]}
+            )
+            negotiated = await socket.receive_json()
+            if negotiated.get("id") != 6:
+                raise ConnectionError("bridge_negotiation_protocol")
+            self.protocol_selected = 1
+            features: list[str] = []
+            if negotiated.get("success"):
+                selected = negotiated.get("result", {})
+                if selected.get("protocol_selected") not in (1, 2):
+                    raise ConnectionError("bridge_incompatible")
+                self.protocol_selected = selected["protocol_selected"]
+                features = list(selected.get("features", []))
+            elif negotiated.get("error", {}).get("code") != "unknown_command":
+                raise ConnectionError("bridge_negotiation_failed")
+            self.runtime.bridge_protocol_selected = self.protocol_selected
+            self.runtime.bridge_features = features
             await self._result(socket, {"id": 2, "type": "get_config"})
             for number, event_type in enumerate(("homeassistant_started", "homeassistant_stop"), 3):
                 await self._result(
@@ -343,7 +418,7 @@ class BridgeAdapter:
                 {
                     "id": 5,
                     "type": "bifrost/subscribe",
-                    "protocol_version": 1,
+                    "protocol_version": self.protocol_selected,
                     "entity_ids": entities,
                     "report_entity_ids": sorted(
                         {
@@ -365,6 +440,7 @@ class BridgeAdapter:
             )
             self.retry_delay = 1.0
             LOGGER.info("bridge_connected")
+            self.socket = socket
             while True:
                 receive = asyncio.create_task(socket.receive_json())
                 change = asyncio.create_task(self.runtime.revision_changed.wait())
@@ -375,6 +451,15 @@ class BridgeAdapter:
                     if change in done or overflow in done:
                         return
                     message = receive.result()
+                    if message.get("type") == "result" and message.get("id") in self.requests:
+                        future = self.requests[message["id"]]
+                        if not future.done():
+                            future.set_result(
+                                message.get("result")
+                                if message.get("success")
+                                else {"outcome": "rejected", "error_code": "ha_unavailable"}
+                            )
+                        continue
                     if message.get("type") == "event":
                         if message["id"] == 5:
                             await self.event(message["event"], config, revision)

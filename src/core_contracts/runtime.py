@@ -101,6 +101,8 @@ class Runtime:
         self.first_snapshot = False
         self.bridge = "not_needed"
         self.bridge_version: str | None = None
+        self.bridge_protocol_selected: int | None = None
+        self.bridge_features: list[str] = []
         self.bridge_subscriptions = 0
         self.dependency_connections: dict[str, bool] = {}
         self.ha = "not_needed"

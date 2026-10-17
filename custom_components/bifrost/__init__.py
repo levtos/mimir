@@ -1,5 +1,8 @@
 """Admin-only transport. No quality, normalization, retention or domain state."""
 
+import json
+from pathlib import Path
+
 import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.const import __version__ as HA_VERSION
@@ -9,21 +12,102 @@ from homeassistant.helpers.event import (
     async_track_state_report_event,
 )
 
+from .service_channel import OPERATIONS, Rejected, ServiceChannel
+
 DOMAIN = "bifrost"
-VERSION = "1.0.0a1"
+VERSION = json.loads(Path(__file__).with_name("manifest.json").read_text(encoding="utf-8"))[
+    "version"
+]
 
 
 async def async_setup_entry(hass, entry):
     active = set()
+    channels = {}
     hass.data[DOMAIN] = active
 
     @callback
     def unload():
         hass.data.pop(DOMAIN, None)
+        for channel in channels.values():
+            channel.close()
+        channels.clear()
         for disconnect in tuple(active):
             disconnect()
 
     entry.async_on_unload(unload)
+
+    async def execute(domain, service, data, response):
+        if domain == "refresh":
+            from homeassistant.helpers.entity_component import DATA_INSTANCES
+
+            entity_id = data["entity_id"]
+            component = hass.data.get(DATA_INSTANCES, {}).get(entity_id.partition(".")[0])
+            entity = component.get_entity(entity_id) if component else None
+            if service != "entity_poll" or entity is None or not entity.should_poll:
+                raise Rejected("not_allowed")
+            domain, service = "homeassistant", "update_entity"
+        return await hass.services.async_call(
+            domain, service, data, blocking=True, return_response=response
+        )
+
+    @callback
+    @websocket_api.websocket_command(
+        {vol.Required("type"): f"{DOMAIN}/negotiate", vol.Required("supported_versions"): [int]}
+    )
+    @websocket_api.require_admin
+    def negotiate(hass, connection, msg):
+        if DOMAIN not in hass.data:
+            connection.send_error(msg["id"], "bridge_unloaded", "Bridge is not loaded")
+            return
+        selected = next(
+            (version for version in (2, 1) if version in msg["supported_versions"]), None
+        )
+        if selected is None:
+            connection.send_error(msg["id"], "unsupported_protocol", "No common protocol")
+            return
+        old = channels.pop(id(connection), None)
+        if old:
+            old.close()
+        if selected == 2:
+            channel = channels[id(connection)] = ServiceChannel(execute)
+
+            @callback
+            def disconnected():
+                channel.close()
+                if channels.get(id(connection)) is channel:
+                    channels.pop(id(connection), None)
+
+            connection.subscriptions[msg["id"]] = disconnected
+        connection.send_result(
+            msg["id"],
+            {
+                "protocol_selected": selected,
+                "bridge_version": VERSION,
+                "features": list(OPERATIONS) + ["ha_context", "area_metadata"]
+                if selected == 2
+                else [],
+            },
+        )
+
+    @websocket_api.websocket_command(
+        {
+            vol.Required("type"): f"{DOMAIN}/service_call",
+            vol.Required("protocol_version"): int,
+            vol.Required("request_id"): str,
+            vol.Required("operation"): str,
+            vol.Required("target_ids"): [str],
+            vol.Required("arguments"): dict,
+        }
+    )
+    @websocket_api.async_response
+    @websocket_api.require_admin
+    async def service_call(hass, connection, msg):
+        channel = channels.get(id(connection))
+        if channel is None or msg["protocol_version"] != 2:
+            connection.send_error(msg["id"], "unsupported_protocol", "Negotiate protocol 2 first")
+            return
+        request = {key: msg[key] for key in ("request_id", "operation", "target_ids", "arguments")}
+        connection.send_result(msg["id"], await channel.call(request))
 
     @callback
     @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/info"})
@@ -56,7 +140,9 @@ async def async_setup_entry(hass, entry):
         if DOMAIN not in hass.data:
             connection.send_error(msg["id"], "bridge_unloaded", "Bridge is not loaded")
             return
-        if msg["protocol_version"] != 1:
+        if msg["protocol_version"] not in (1, 2) or (
+            msg["protocol_version"] == 2 and id(connection) not in channels
+        ):
             connection.send_error(msg["id"], "unsupported_protocol", "Bridge protocol 1 required")
             return
         entities = tuple(dict.fromkeys(msg["entity_ids"]))
@@ -90,6 +176,9 @@ async def async_setup_entry(hass, entry):
                     "old_last_reported": event.data["old_last_reported"].isoformat(),
                     "time_fired": event.time_fired.isoformat(),
                     "context_id": event.context.id,
+                    **(
+                        {"context": event.context.as_dict()} if msg["protocol_version"] == 2 else {}
+                    ),
                 },
             )
 
@@ -129,6 +218,8 @@ async def async_setup_entry(hass, entry):
         )
 
     websocket_api.async_register_command(hass, info)
+    websocket_api.async_register_command(hass, negotiate)
+    websocket_api.async_register_command(hass, service_call)
     websocket_api.async_register_command(hass, subscribe)
     return True
 

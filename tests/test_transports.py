@@ -174,6 +174,7 @@ async def test_bridge_snapshot_absent_changed_report_order(runtime, config, aioh
         )
         assert [r["type"] for r in fake.requests] == [
             "bifrost/info",
+            "bifrost/negotiate",
             "get_config",
             "subscribe_events",
             "subscribe_events",
@@ -200,6 +201,39 @@ async def test_bridge_missing_or_incompatible_no_fallback(
         with pytest.raises(ConnectionError):
             await adapter.connect(runtime.config)
     assert len(fake.requests) == 1
+
+
+async def test_v2_client_multiplexes_service_reply_and_legacy_client_stays_readonly(
+    runtime, config, aiohttp_server
+):
+    await activate(runtime, config)
+    fake = FakeHA(v2=True)
+    server = await aiohttp_server(fake.application())
+    async with aiohttp.ClientSession() as session:
+        adapter = BridgeAdapter(
+            runtime,
+            session,
+            str(server.make_url("/websocket")).replace("http:", "ws:"),
+            "test-token",
+        )
+        task = asyncio.create_task(adapter.connect(runtime.config))
+        async with asyncio.timeout(3):
+            while adapter.socket is None:
+                await asyncio.sleep(0)  # noqa: TID251
+        result = await adapter.service_call(
+            "calendar_events",
+            ["calendar.example"],
+            {"start": "2026-10-17T00:00:00Z", "end": "2026-10-18T00:00:00Z"},
+        )
+        assert result["outcome"] == "completed"
+        assert result["data"] == {"calendar.example": {"events": []}}
+        assert runtime.bridge_protocol_selected == 2
+        runtime.resubscribe.set()
+        await task
+        assert adapter.socket is None
+        assert (await adapter.service_call("calendar_events", ["calendar.example"], {}))[
+            "outcome"
+        ] == "rejected"
 
 
 async def test_mqtt_retain_dedup_old_source_time(runtime, config):
