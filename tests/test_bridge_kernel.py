@@ -13,6 +13,7 @@ import pytest
 pytest.importorskip("homeassistant")
 from homeassistant.components import websocket_api
 from homeassistant.core import Context, HomeAssistant, SupportsResponse, callback
+from homeassistant.exceptions import Unauthorized
 
 from custom_components.bifrost import async_setup_entry
 
@@ -133,8 +134,10 @@ async def test_v2_negotiation_manifest_admin_services_and_context(tmp_path, monk
     await hass.async_block_till_done()
     assert errors[-1][1] == "unsupported_protocol"
     connection.user.is_admin = False
-    commands["negotiate"](hass, connection, {"id": 8, "supported_versions": [2]})
-    assert errors[-1][1] == "unauthorized"
+    with pytest.raises(Unauthorized):
+        commands["negotiate"](hass, connection, {"id": 8, "supported_versions": [2]})
+    with pytest.raises(Unauthorized):
+        commands["service_call"](hass, connection, {**msg, "id": 8})
     connection.user.is_admin = True
     commands["negotiate"](hass, connection, {"id": 9, "supported_versions": [2]})
     commands["subscribe"](
