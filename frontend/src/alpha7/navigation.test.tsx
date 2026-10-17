@@ -19,7 +19,7 @@ describe('P1: separate module routes and retained links', () => {
   it('assigns every sidebar subpage an explicit route rather than the fallback', () => {
     const routes = workbenchRoutes(() => {});
     const pages = NAVIGATION.flatMap(module => module.children);
-    expect(new Set(pages.map(page => page.to)).size).toBe(18);
+    expect(new Set(pages.map(page => page.to)).size).toBe(pages.length);
     for (const page of pages) {
       expect(legacyTarget(page.to), page.to).toBe(page.to);
       const matched = matchRoutes(routes, page.to);
