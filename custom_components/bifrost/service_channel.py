@@ -67,7 +67,7 @@ def action(request):
 class ServiceChannel:
     """One connection, four running + sixteen waiting, short-lived idempotency cache."""
 
-    def __init__(self, execute, *, timeout_s=10, now=None):
+    def __init__(self, execute, *, timeout_s=10, now=None, installation_id=None):
         self.execute = execute
         self.timeout_s = timeout_s
         self.now = now or asyncio.get_running_loop().time
@@ -75,6 +75,7 @@ class ServiceChannel:
         self.pending = {}
         self.cache = OrderedDict()
         self.closed = False
+        self.installation_id = str(UUID(installation_id)) if installation_id else None
 
     def close(self):
         self.closed = True
@@ -91,6 +92,13 @@ class ServiceChannel:
             if len(signature.encode()) > 65536:
                 raise Rejected("invalid_arguments")
             mapped = action(request)
+            if request["operation"].startswith("problem_notice_") and request["target_ids"][
+                0
+            ] not in {
+                f"mimir_{self.installation_id}_signal",
+                f"mimir_{self.installation_id}_configuration",
+            }:
+                raise Rejected("not_allowed")
         except Rejected as error:
             return result("rejected", error_code=str(error))
         except KeyError, TypeError, ValueError, OverflowError:

@@ -88,6 +88,8 @@ class Runtime:
     ) -> None:
         self.store, self.clock, self.types = store, clock, types
         self.require_history_retention = require_history_retention
+        self.installation_id: str | None = None
+        self.ingress_slug: str | None = None
         self.state = State()
         self._config_cache: tuple[int, str, RegistryConfig | None] | None = None
         self._plans: dict[tuple[Any, ...], tuple[dict[str, str], TypeRegistry, list[Contract]]] = {}
@@ -438,6 +440,18 @@ class Runtime:
         if config is None:
             return False
         needed = required_sources(config)
+        if any(
+            key.startswith("notice:") and (row.get("acknowledged") or row.get("desired"))
+            for key, row in self.state.tables["service_state"].items()
+        ) or any(
+            job.get("kind") == "notice" and job["status"] in {"planned", "sent"}
+            for job in self.state.tables["service_job"].values()
+        ):
+            return True
+        if config.notifications and (
+            config.notifications.signal.enabled or config.notifications.configuration.enabled
+        ):
+            return True
         return any(
             (b.source_id in needed or b.adapter.kind == "ha_calendar")
             and (b.adapter.kind.startswith("ha_") or b.adapter.kind == "connectivity")
@@ -461,6 +475,7 @@ class Runtime:
         LOGGER.warning("history_gap", extra={"reason": reason})
 
     async def _restore(self, reason: str) -> None:
+        self.first_snapshot = False
         state = self.state.clone()
         old_epoch = state.epoch_id
         state.epoch_id = str(uuid4())
@@ -738,7 +753,18 @@ class Runtime:
             if self.bridge != "connected" or self.bridge_protocol_selected != 2:
                 return None
             job = next(
-                (job for job in state.tables["service_job"].values() if job["status"] == "planned"),
+                (
+                    job
+                    for job in state.tables["service_job"].values()
+                    if job["status"] == "planned"
+                    and (
+                        job["kind"] != "notice"
+                        or state.tables["service_state"]
+                        .get(job["state_key"], {})
+                        .get("eligible_epoch")
+                        == state.epoch_id
+                    )
+                ),
                 None,
             )
             if job is None:
@@ -755,8 +781,14 @@ class Runtime:
                 return None
             job["status"] = "finished"
             job["completed_at"] = now.isoformat()
+            if job["kind"] == "notice":
+                from .notifications import complete_notice
+
+                complete_notice(state, job, payload["response"], now)
             service_observation = (
-                complete_calendar(state, config, job, payload["response"], now) if config else None
+                complete_calendar(state, config, job, payload["response"], now)
+                if config and job["kind"] == "calendar"
+                else None
             )
             if service_observation is not None:
                 state.tables["source_observation_current"][service_observation.binding_id] = (
@@ -1051,6 +1083,8 @@ class Runtime:
             await self._commit(state)
         if operation == "snapshot":
             self.first_snapshot = True
+            if self.installation_id and config and config.notifications:
+                await self._commit(self.state.clone())
             self._broadcast(self.service_state())
         return None
 
@@ -1419,6 +1453,10 @@ class Runtime:
                 "epoch_id": state.epoch_id,
                 "registry_revision": state.active_revision,
             }
+        if self.installation_id and self.first_snapshot and origin not in {"restore", "revision"}:
+            from .notifications import plan_notices
+
+            plan_notices(state, config, now, self.installation_id, self.ingress_slug)
         return evaluation_errors
 
     def _dispose(self, contract: Contract, node: dict[str, Any], state: State) -> None:
@@ -1548,6 +1586,14 @@ class Runtime:
         self, state: State, *, publication: bool = False, resync: bool = False
     ) -> None:
         started = self.clock.monotonic()
+        config = self._config(state)
+        if config and self.installation_id:
+            from .notifications import plan_notices
+
+            if self.first_snapshot or not self.requires_ha_snapshot:
+                plan_notices(
+                    state, config, self.clock.now_utc(), self.installation_id, self.ingress_slug
+                )
         try:
             await self.store.commit(state)
         except Exception:

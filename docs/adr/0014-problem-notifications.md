@@ -65,3 +65,19 @@ keine Testmeldung ohne bewusste Aktion. Akte M30-01/M30-27/M30-36, P4-32;
 Build-Spezifikation §7/§13/§19/§21, Probleme-API, Runtime/Outbox, Formular.
 
 Quelle: [Persistent Notification](https://www.home-assistant.io/integrations/persistent_notification/).
+
+## Umsetzung A2
+
+Schema-2-Block `notifications`; Abwesenheit bleibt ausgeschaltet. Eigene Tabellen
+`service_state` und `service_job` (Migration 004) speichern Problem-Anfänge je
+Kennung, gewünschten/übermittelten Digest und den Versandstatus. Der Worker muss
+den Auftrag zuerst über den seriellen Writer als gesendet committen. Feste
+Hinweiskennungen werden bei der Protokollaushandlung an installation_id gebunden.
+Nach dem Ausschalten bleibt die HA-Anbindung bis zum Entfernen des eigenen
+Hinweises bestehen. Neustart wartet vor Hinweisversand auf den aktuellen Snapshot.
+
+Das normale Formular liegt unter Einstellungen → Benachrichtigungen. Beide Achsen
+haben eigene Sekundenfelder mit Minutenhilfe und eine lokale Vorschau ohne Versand.
+Änderungen gehen ausschließlich in den Entwurf; Übernehmen bleibt der gemeinsame
+Konfigurationsschritt. Der App-Hostname liefert bei Supervisor-Ausführung den
+Ingress-Slug für den Link; keine fest eingebaute Repository-Kennung.

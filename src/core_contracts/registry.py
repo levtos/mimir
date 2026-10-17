@@ -13,6 +13,7 @@ from .declarative_models import MAX_DEFINITIONS, DeclarativeDefinition
 from .evidence import Freshness
 from .lifecycle import Lifecycle
 from .model import Model, canonical, semantic_fingerprint
+from .notifications import Notifications
 from .retention import RetentionPolicy
 from .schema import ContractType, FieldSchema, TypeRegistry
 
@@ -100,11 +101,15 @@ class RegistryConfig(Model):
     contracts: tuple[Contract, ...]
     catalogs: tuple[Catalog, ...]
     definitions: tuple[DeclarativeDefinition, ...] = Field(default=(), max_length=MAX_DEFINITIONS)
+    notifications: Notifications | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
     @model_validator(mode="after")
     def versioned_capabilities(self) -> Self:
-        if self.config_schema_version == 1 and any(
-            b.adapter.kind == "ha_calendar" for b in self.bindings
+        if self.config_schema_version == 1 and (
+            self.notifications is not None
+            or any(b.adapter.kind == "ha_calendar" for b in self.bindings)
         ):
             raise ValueError("registry_schema_2_required")
         return self

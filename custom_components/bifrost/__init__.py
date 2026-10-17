@@ -52,7 +52,11 @@ async def async_setup_entry(hass, entry):
 
     @callback
     @websocket_api.websocket_command(
-        {vol.Required("type"): f"{DOMAIN}/negotiate", vol.Required("supported_versions"): [int]}
+        {
+            vol.Required("type"): f"{DOMAIN}/negotiate",
+            vol.Required("supported_versions"): [int],
+            vol.Optional("installation_id"): str,
+        }
     )
     @websocket_api.require_admin
     def negotiate(hass, connection, msg):
@@ -69,7 +73,14 @@ async def async_setup_entry(hass, entry):
         if old:
             old.close()
         if selected == 2:
-            channel = channels[id(connection)] = ServiceChannel(execute)
+            try:
+                channel = ServiceChannel(execute, installation_id=msg.get("installation_id"))
+            except ValueError:
+                connection.send_error(
+                    msg["id"], "invalid_arguments", "Invalid installation identity"
+                )
+                return
+            channels[id(connection)] = channel
 
             @callback
             def disconnected():

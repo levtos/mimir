@@ -120,15 +120,17 @@ async def test_concurrent_duplicates_and_queue_bound():
 
 async def test_own_notice_only_and_provider_errors_are_redacted():
     calls = []
+    installation = str(uuid4())
 
     async def execute(*args):
         calls.append(args)
         raise RuntimeError("private event title and password")
 
-    result = await ServiceChannel(execute).call(
+    channel = ServiceChannel(execute, installation_id=installation)
+    result = await channel.call(
         request(
             operation="problem_notice_put",
-            target_ids=[f"mimir_{uuid4()}_configuration"],
+            target_ids=[f"mimir_{installation}_configuration"],
             arguments={
                 "title": "Konfiguration unvollständig",
                 "message": "Ein Vertrag braucht eine Zuordnung.",
@@ -138,3 +140,10 @@ async def test_own_notice_only_and_provider_errors_are_redacted():
     assert calls[0][:2] == ("persistent_notification", "create")
     assert result["error_code"] == "ha_unavailable"
     assert "private" not in str(result)
+    rejected = await channel.call(
+        request(
+            operation="problem_notice_remove", target_ids=[f"mimir_{uuid4()}_signal"], arguments={}
+        )
+    )
+    assert rejected["error_code"] == "not_allowed"
+    assert len(calls) == 1

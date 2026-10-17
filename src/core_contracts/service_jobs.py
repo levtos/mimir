@@ -83,6 +83,8 @@ def plan_calendars(state: State, config: RegistryConfig, now: datetime) -> None:
         if identity.startswith("calendar:") and identity not in active:
             del rows[identity]
     for job in jobs.values():
+        if job["kind"] != "calendar":
+            continue
         row = rows.get(job["state_key"], {})
         if job["status"] in {"planned", "sent"} and (
             job["revision"] != state.active_revision or row.get("job_id") != job["job_id"]
@@ -181,11 +183,14 @@ def restore_jobs(state: State, now: datetime) -> None:
             row = state.tables["service_state"].get(job["state_key"])
             if row and row.get("job_id") == job["job_id"]:
                 row["next_at"] = (now + timedelta(seconds=5)).isoformat()
+                if job["kind"] == "notice":
+                    row["retry_at"] = (now + timedelta(seconds=30)).isoformat()
 
 
 def due_dates(state: State) -> list[datetime]:
-    dates = []
+    dates: list[datetime] = []
     for row in state.tables["service_state"].values():
+        dates.extend(datetime.fromisoformat(value) for value in row.get("deadlines", []))
         for name in ("next_at", "expires_at", "day_change_at"):
             if row.get(name):
                 dates.append(datetime.fromisoformat(row[name]))

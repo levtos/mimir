@@ -2259,5 +2259,19 @@
   "alpha9.calendar.expired": "Der Kalender konnte nicht rechtzeitig neu gelesen werden. Die bisherigen Termine sind nicht mehr als aktuell bestätigt.",
   "alpha9.calendar.empty": "Für diesen Zeitraum sind keine Termine eingetragen.",
   "alpha9.form.unavailable": "Diese Einstellung konnte nicht verarbeitet werden. Prüfe die markierten Felder.",
-  "codes.ha_calendar": "Kalender aus Home Assistant"
+  "codes.ha_calendar": "Kalender aus Home Assistant",
+  "alpha9.notifications.title": "Benachrichtigungen",
+  "alpha9.notifications.description": "Hier kannst du festlegen, welche Hinweise Mimir in Home Assistant zeigt.",
+  "alpha9.notifications.signal": "Bei gestörten Signalen benachrichtigen",
+  "alpha9.notifications.configuration": "Auf fehlende Angaben hinweisen",
+  "alpha9.notifications.configurationHelp": "Ein verwendbarer Wert mit fehlender Zuordnung ist kein gestörtes Signal. Hinweise dazu werden getrennt gesammelt.",
+  "alpha9.notifications.delay": "Erst melden, wenn das Problem so lange besteht (Sekunden)",
+  "alpha9.notifications.clearDelay": "Als behoben melden nach (Sekunden)",
+  "alpha9.notifications.updateDelay": "Geänderte Meldung frühestens nach (Sekunden)",
+  "alpha9.notifications.maxItems": "Höchstens so viele Verträge in einer Meldung nennen",
+  "alpha9.notifications.preview": "So sieht der Hinweis aus. Es wird keine Nachricht gesendet.",
+  "alpha9.notifications.signalTitle": "Mimir: Signal gestört",
+  "alpha9.notifications.configTitle": "Mimir: Angaben fehlen",
+  "alpha9.notifications.signalSummary": "{count} Werte sind nicht sicher bekannt. Öffne die Problemliste, um die Ursachen zu prüfen.",
+  "alpha9.notifications.configSummary": "Bei {count} Werten fehlen noch Angaben. Die Hinweise stehen getrennt von gestörten Signalen."
 }

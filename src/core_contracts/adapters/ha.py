@@ -383,7 +383,16 @@ class BridgeAdapter:
             self.bridge_version = info["bridge_version"]
             self.runtime.bridge_version = self.bridge_version
             await socket.send_json(
-                {"id": 6, "type": "bifrost/negotiate", "supported_versions": [2, 1]}
+                {
+                    "id": 6,
+                    "type": "bifrost/negotiate",
+                    "supported_versions": [2, 1],
+                    **(
+                        {"installation_id": self.runtime.installation_id}
+                        if self.runtime.installation_id
+                        else {}
+                    ),
+                }
             )
             negotiated = await socket.receive_json()
             if negotiated.get("id") != 6:

@@ -14,6 +14,9 @@ Benachrichtigungsregeln, Herkunftsbewertung und Wiederholungsplanung gehören Mi
 Keine Gerätebedienung, freien Service-Namen, Skripte, Templates oder allgemeinen Apply-Aufrufe.
 
 `bifrost/negotiate` erhält `supported_versions:[2,1]`, antwortet mit gewählter Version,
+für eigene Hinweise zusätzlich `installation_id` (UUID). Diese bindet die beiden
+zulässigen Hinweiskennungen an die Verbindung; fremde Mimir-Installationen sind
+ebenfalls gesperrt. Reine Leseverbindungen brauchen keine Installationskennung.
 Fähigkeiten und tatsächlicher Programmversion aus dem Manifest. Fehlt das Kommando bei alter
 Bridge, darf Mimir `info`/Protokoll 1 verwenden; Funktionen mit erforderlichem Protokoll 2
 bleiben sichtbar nicht verfügbar. Unparametrisiertes `bifrost/info` meldet weiterhin
