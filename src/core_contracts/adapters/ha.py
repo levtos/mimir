@@ -10,6 +10,7 @@ from uuid import uuid4
 import aiohttp
 
 from ..evidence import Observation
+from ..ha_context import ContextIndex, HAContext
 from ..model import utc
 from ..registry import Binding, RegistryConfig
 from ..runtime import Runtime
@@ -63,6 +64,8 @@ class BridgeAdapter:
         self.socket: aiohttp.ClientWebSocketResponse | None = None
         self.requests: dict[int, asyncio.Future[Any]] = {}
         self.request_number = 1000
+        self.contexts = ContextIndex()
+        runtime.context_index = self.contexts
         self.subscription_count = 0
         self.retry_delay = 1.0
         self.discovery_cache: list[dict[str, Any]] = []
@@ -234,6 +237,14 @@ class BridgeAdapter:
             except ValueError, TypeError, OverflowError:
                 times[key] = None
                 invalid_timestamp = True
+        context = None
+        attribution = None
+        if self.protocol_selected == 2:
+            raw_context = (
+                (state or {}).get("context") if kind == "snapshot" else event.get("context")
+            )
+            context = HAContext.model_validate(raw_context or {"id": event.get("context_id")})
+            attribution = self.contexts.attribution(context, self.runtime.clock.now_utc())
         return Observation.model_validate(
             {
                 "source_id": binding.source_id,
@@ -246,7 +257,12 @@ class BridgeAdapter:
                 **times,
                 "invalid_timestamp": invalid_timestamp,
                 "transform_error": transform_error,
-                "ha_context_id": event.get("context_id", event.get("context", {}).get("id")),
+                "ha_context_id": event.get("context_id", (event.get("context") or {}).get("id")),
+                **(
+                    {"ha_context": context, "attribution": attribution, "ha_context_id": context.id}
+                    if context
+                    else {}
+                ),
                 "received_at": self.runtime.clock.now_utc(),
                 "observation_kind": kind,
                 "ha_restored": bool(attributes.get("restored", False)),
@@ -265,6 +281,17 @@ class BridgeAdapter:
         self, event: dict[str, Any], config: RegistryConfig, revision: int | None = None
     ) -> None:
         kind = event["kind"]
+        if kind == "automatic_context":
+            if self.protocol_selected != 2 or event.get("ha_epoch_id") != self.contexts.epoch:
+                return
+            if str(event.get("producer_id", "")).partition(".")[0] not in {"automation", "script"}:
+                return
+            self.contexts.register(
+                HAContext.model_validate(event.get("context", {})),
+                self.runtime.clock.now_utc(),
+                basis="ha_run",
+            )
+            return
         if kind == "bridge_reloaded":
             raise ConnectionError("bridge_reloaded")
         if kind == "snapshot":
@@ -404,9 +431,12 @@ class BridgeAdapter:
                 if selected.get("protocol_selected") not in (1, 2):
                     raise ConnectionError("bridge_incompatible")
                 self.protocol_selected = selected["protocol_selected"]
+                self.contexts.set_epoch(selected.get("ha_epoch_id"))
                 features = list(selected.get("features", []))
             elif negotiated.get("error", {}).get("code") != "unknown_command":
                 raise ConnectionError("bridge_negotiation_failed")
+            if self.protocol_selected == 1:
+                self.contexts.set_epoch(None)
             self.runtime.bridge_protocol_selected = self.protocol_selected
             self.runtime.bridge_features = features
             await self._result(socket, {"id": 2, "type": "get_config"})

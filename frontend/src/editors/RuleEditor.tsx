@@ -59,6 +59,7 @@ export function operatorDefaults(caps: Capabilities | undefined): OperatorDefaul
 
 const OP_LABELS: Record<string, string> = {
   input: uiText("editors.RuleEditor.eingang_d8af5e"),
+  known_automatic: uiText('alpha9.context.automatic'),
   ref: uiText('editors.RuleEditor.interne_regel_verweis'),
   literal: uiText("editors.RuleEditor.konstante_2e2736"),
   and: uiText("editors.RuleEditor.und_fd2908"),

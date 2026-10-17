@@ -303,6 +303,19 @@ class API:
             result = await runtime.submit("validate", await request.json())
         elif path == "definitions" and method == "GET":
             result = [d.model_dump(mode="json") for d in config.definitions] if config else []
+        elif path == "ha/contexts" and method == "GET":
+            result = {
+                "ha_epoch_id": runtime.context_index.epoch if runtime.context_index else None,
+                "producers": [
+                    producer.model_dump(mode="json") for producer in config.context_producers
+                ]
+                if config
+                else [],
+            }
+        elif path == "ha/contexts" and method == "POST":
+            result = await runtime.submit(
+                "context_register", {"request": await request.json(), "_actor": request["actor"]}
+            )
         elif path == "ha/entities" and method == "GET":
             if runtime.entity_discovery is None:
                 return web.json_response({"error": "ha_discovery_unavailable"}, status=503)

@@ -156,6 +156,22 @@ async def test_v2_negotiation_manifest_admin_services_and_context(tmp_path, monk
         next(event for event in events if event.get("kind") == "reported")["context"]
         == context.as_dict()
     )
+    automatic = Context(parent_id=context.id)
+    hass.data["automation"] = SimpleNamespace(
+        get_entity=lambda identifier: SimpleNamespace(_context=automatic)
+    )
+    hass.bus.async_fire(
+        "automation_triggered", {"entity_id": "automation.fixture"}, context=automatic
+    )
+    await hass.async_block_till_done()
+    proof = next(event for event in events if event.get("kind") == "automatic_context")
+    assert proof["context"] == automatic.as_dict() and proof["ha_epoch_id"]
+    before = len([event for event in events if event.get("kind") == "automatic_context"])
+    hass.bus.async_fire(
+        "automation_triggered", {"entity_id": "automation.fixture"}, context=Context()
+    )
+    await hass.async_block_till_done()
+    assert len([event for event in events if event.get("kind") == "automatic_context"]) == before
     unload[0]()
 
 

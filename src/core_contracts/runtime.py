@@ -18,6 +18,7 @@ from .declarative import GuardEvaluationError, all_rules
 from .declarative_models import FormulaRule
 from .engines import FORMULA_SCHEMAS
 from .evidence import Observation, assess, is_new, is_older
+from .ha_context import ContextIndex
 from .lifecycle import EDITORIAL, transition_allowed
 from .model import Model, canonical, checksum, utc
 from .persistence import State, Store
@@ -90,6 +91,7 @@ class Runtime:
         self.require_history_retention = require_history_retention
         self.installation_id: str | None = None
         self.ingress_slug: str | None = None
+        self.context_index: ContextIndex | None = None
         self.state = State()
         self._config_cache: tuple[int, str, RegistryConfig | None] | None = None
         self._plans: dict[tuple[Any, ...], tuple[dict[str, str], TypeRegistry, list[Contract]]] = {}
@@ -476,6 +478,8 @@ class Runtime:
 
     async def _restore(self, reason: str) -> None:
         self.first_snapshot = False
+        if self.context_index:
+            self.context_index.clear_registered()
         state = self.state.clone()
         old_epoch = state.epoch_id
         state.epoch_id = str(uuid4())
@@ -749,6 +753,37 @@ class Runtime:
         state = self.state.clone()
         now = self.clock.now_utc()
         config = self._config(state)
+        if operation == "context_register":
+            from .ha_context import ContextRegistration
+
+            registration = ContextRegistration.model_validate(payload["request"])
+            index = self.context_index
+            if (
+                config is None
+                or index is None
+                or self.bridge_protocol_selected != 2
+                or self.bridge != "connected"
+            ):
+                raise ValueError("ha_context_unavailable")
+            if registration.producer_id not in {
+                producer.producer_id for producer in config.context_producers
+            }:
+                raise ValueError("context_producer_not_allowed")
+            if registration.ha_epoch_id != index.epoch or registration.context.id is None:
+                raise ValueError("ha_context_epoch_conflict")
+            self._audit(
+                state,
+                "context_register_attempt",
+                {"_actor": payload.get("_actor")},
+                producer_id=registration.producer_id,
+                context_digest=checksum(registration.context.id),
+            )
+            await self._commit(state)
+            index.register(registration.context, now, lifetime_s=registration.lifetime_s)
+            return {
+                "registered": True,
+                "expires_at": index.proofs[registration.context.id][1].isoformat(),
+            }
         if operation == "service_claim":
             if self.bridge != "connected" or self.bridge_protocol_selected != 2:
                 return None
@@ -1602,6 +1637,11 @@ class Runtime:
             self._unavailable()
             raise
         previous_seq = self.state.publication_seq
+        previous_producers = self.config.context_producers if self.config else ()
+        if self.context_index and previous_producers != (
+            config.context_producers if config else ()
+        ):
+            self.context_index.clear_registered()
         previous_contracts = self.state.tables["contract_state_current"]
         previously_needed_ha = self.requires_ha_snapshot
         self.state = state

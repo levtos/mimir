@@ -86,6 +86,7 @@ export function ContractSummary({ envelope, stale, fields, config, machine }: { 
       <div className="flex flex-wrap gap-x-12 gap-y-5 p-6">{Object.entries(envelope.fields).map(([name, field]) => <div key={name}>
         {Object.keys(envelope.fields).length > 1 && <p className="mb-1 text-sm text-muted">{fieldLabel(name)}</p>}
         <p className="text-4xl font-semibold tabular-nums" data-testid={`value-${name}`}>{displayValue(field, typeof fields[name]?.unit === 'string' ? fields[name].unit : undefined)}</p>
+        {(field.attribution || sources.some(source => source.entityId)) && <p className="mt-2 text-xs text-muted">{t(field.attribution?.kind === 'known_automatic' ? 'alpha9.context.automatic' : 'alpha9.context.unknown')}</p>}
       </div>)}</div>
       <p className="px-6 pb-4 text-xs text-muted">{t('alpha7.contract.liveVersion', { version: envelope.registry_revision, time: formatTime(envelope.published_at) })}</p>
     </Panel>

@@ -282,7 +282,7 @@ def enrich_definition_schema(schema: dict[str, Any]) -> dict[str, Any]:
 def capabilities(config: RegistryConfig | None, base: TypeRegistry) -> dict[str, Any]:
     return {
         "capability_version": 1,
-        "language_versions": [1, 2],
+        "language_versions": [1, 2, 3],
         "api_protocol": 1,
         "config_schema_version": 1,
         "config_schema_versions": [1, 2],
@@ -329,6 +329,7 @@ def capabilities(config: RegistryConfig | None, base: TypeRegistry) -> dict[str,
                 ("input", "InputRule"),
                 ("parameter", "ParameterRule"),
                 ("time_reached", "TimeReachedRule"),
+                ("known_automatic", "KnownAutomaticRule"),
                 ("configuration_hint", "ConfigurationHintRule"),
                 *(
                     (name, "TextRule")

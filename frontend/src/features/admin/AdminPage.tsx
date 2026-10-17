@@ -22,6 +22,7 @@ import { BRIDGE_LABELS } from '@/setup/SetupWizard';
 import { setupRequest } from '@/setup/setup';
 import type { HaEntityPage, TokenRotation } from '@/lib/types';
 import { EventFeed } from '@/features/overview/EventFeed';
+import { ContextProducersPanel } from './ContextProducersPanel';
 
 function InstallationPanel() {
   const info = useInfo();
@@ -239,7 +240,7 @@ export default function AdminPage() {
       {section === 'connections' && <div className="space-y-5"><BridgePanel /><Panel><PanelHeader title={uiText('alpha7.settings.databaseMqtt')} /><div className="p-5"><KeyValue items={[
         { label: uiText('alpha7.settings.database'), value: connectionLabel(live.service?.persistence ?? 'unknown') },
         { label: uiText('alpha7.settings.mqtt'), value: connectionLabel(live.service?.mqtt ?? 'unknown') },
-      ]} /></div></Panel></div>}
+      ]} /></div></Panel><ContextProducersPanel /></div>}
       {section === 'keys' && <TokensPanel />}
       {section === 'log' && <AuditPanel />}
     </>

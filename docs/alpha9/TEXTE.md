@@ -2532,3 +2532,16 @@ Zusammen mit der Änderungstabelle oben ist dies das vollständige Verzeichnis a
 | alpha8.formula.unit | Formular für Vorlage / Quelle / Vertrag |  ({unit}) | wie bisher | Geprüft; beibehalten. |
 | alpha8.formula.addInput | Formular für Vorlage / Quelle / Vertrag | Eingang {name} hinzufügen | wie bisher | Geprüft; beibehalten. |
 | alpha8.formula.removeInput | Formular für Vorlage / Quelle / Vertrag | Optionalen Eingang {name} entfernen | wie bisher | Geprüft; beibehalten. |
+
+## Ergänzungen beim A2-Bau
+
+Die freigegebene Herkunftsregistrierung braucht zusätzliche Feldnamen im Bereich
+Einstellungen → HA-Anbindung → Erweitert. Dafür gelten dieselben deutschen
+Bezeichnungen für die beiden getrennten Rollen; keine Policy-/Apply-Ausführung.
+
+| Schlüssel | Ort | alt | neu | Grund |
+|---|---|---|---|---|
+| `fields.producer_id` | HA-Anbindung → Erweitert | — | Kennung des Dienstes | Typisiertes Formular ohne JSON; technische Kennungen bleiben unter Erweitert. |
+| `fields.context_producers` | HA-Anbindung → Erweitert | — | Bekannte Automatikdienste | Typisiertes Formular ohne JSON; technische Kennungen bleiben unter Erweitert. |
+| `codes.policy` | HA-Anbindung → Erweitert | — | Entscheidender Dienst | Typisiertes Formular ohne JSON; technische Kennungen bleiben unter Erweitert. |
+| `codes.apply` | HA-Anbindung → Erweitert | — | Ausführender Dienst | Typisiertes Formular ohne JSON; technische Kennungen bleiben unter Erweitert. |

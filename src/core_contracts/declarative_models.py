@@ -266,6 +266,11 @@ class TimeReachedRule(Model):
     at: Rule
 
 
+class KnownAutomaticRule(Model):
+    op: Literal["known_automatic"]
+    arg: Rule
+
+
 class ConfigurationHintRule(Model):
     op: Literal["configuration_hint"]
     arg: Rule
@@ -306,6 +311,7 @@ Rule = Annotated[
     | MachineRule
     | NotApplicableRule
     | TimeReachedRule
+    | KnownAutomaticRule
     | TextRule
     | ConfigurationHintRule,
     Field(discriminator="op"),
@@ -379,7 +385,7 @@ class MachineDefinition(Model):
 class DeclarativeDefinition(DeclarativeModel):
     type_id: str = Field(pattern=r"^[a-zA-Z][a-zA-Z0-9_-]*\.[a-zA-Z0-9_.-]+$", max_length=128)
     type_version: int = Field(ge=1)
-    language_version: Literal[1, 2] = 1
+    language_version: Literal[1, 2, 3] = 1
     display_name: str = ""
     description: str = ""
     inputs: tuple[TypedInput, ...] = Field(default=(), max_length=MAX_INPUTS)
@@ -409,7 +415,7 @@ class DeclarativeDefinition(DeclarativeModel):
             raise ValueError("output_schema_mismatch")
         if self.output_schema.grace_capable:
             raise ValueError("declarative_grace_uses_rule_duration")
-        if self.parameter_schema and self.language_version != 2:
+        if self.parameter_schema and self.language_version < 2:
             raise ValueError("language_version_2_required")
         for name in self.parameter_schema:
             if name.startswith("model_") or hasattr(Model, name):
@@ -449,6 +455,7 @@ for _model in (
     MachineDefinition,
     NotApplicableRule,
     TimeReachedRule,
+    KnownAutomaticRule,
     TextRule,
     ConfigurationHintRule,
     DeclarativeDefinition,

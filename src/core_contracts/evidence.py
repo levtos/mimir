@@ -5,6 +5,7 @@ from typing import Any, Literal, Self
 
 from pydantic import Field, field_validator, model_validator
 
+from .ha_context import Attribution, HAContext
 from .model import Model, utc
 from .quality import FieldValue, ReasonCode, unknown
 
@@ -40,6 +41,8 @@ class Observation(Model):
     ha_last_reported: datetime | None = None
     ha_time_fired: datetime | None = None
     ha_context_id: str | None = None
+    ha_context: HAContext | None = Field(default=None, exclude_if=lambda value: value is None)
+    attribution: Attribution | None = Field(default=None, exclude_if=lambda value: value is None)
     mqtt_retained: bool = False
     mqtt_qos: int | None = Field(default=None, ge=0, le=2)
     received_at: datetime
@@ -196,6 +199,7 @@ def assess(
         value=observation.value,
         quality="healthy",
         measured_at=observation.measurement,
+        attribution=observation.attribution,
         evidence=(observation.reference,),
         freshness="fresh",
         since_at=observation.ha_last_changed if observation.adapter == "ha_state" else None,

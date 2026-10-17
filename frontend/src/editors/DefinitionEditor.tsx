@@ -18,6 +18,7 @@ import {
   ruleContext,
   str,
   uniqueName,
+  withMinimumLanguage,
   type FieldSchema,
   type Rule,
 } from '@/features/authoring/model';
@@ -70,7 +71,7 @@ export function DefinitionEditor({
       if (v === undefined) delete next[k];
       else next[k] = v;
     }
-    onChange(next);
+    onChange(withMinimumLanguage(next));
   };
 
   const outputsTab = (
@@ -129,7 +130,7 @@ export function DefinitionEditor({
               {(p) => <Input {...p} disabled={locked} type="number" min={1} step={1} value={Number(value.type_version ?? 1)} onChange={(e) => set({ type_version: Math.max(1, Math.trunc(Number(e.target.value) || 1)) })} />}
             </Fld>
             <Fld label={uiText("editors.DefinitionEditor.sprachversion_4adccf")} pointer={join(pointer, 'language_version')}>
-              {(p) => <Select {...p} disabled={locked} value={String(value.language_version ?? 1)} onChange={event => set({ language_version: Number(event.target.value) })}><option value="1">1</option><option value="2">2</option></Select>}
+              {(p) => <Select {...p} disabled={locked} value={String(value.language_version ?? 1)} onChange={event => set({ language_version: Number(event.target.value) })}><option value="1">1</option><option value="2">2</option><option value="3">3</option></Select>}
             </Fld>
           </div>
           <Fld label={uiText("editors.DefinitionEditor.anzeigename_redaktionell_44433b")} pointer={join(pointer, 'display_name')} hint={uiText("editors.DefinitionEditor.redaktionelle_felder_andern_die_semantik_nicht_u_20b198")}>

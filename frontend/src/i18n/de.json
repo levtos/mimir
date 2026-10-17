@@ -2273,5 +2273,11 @@
   "alpha9.notifications.signalTitle": "Mimir: Signal gestört",
   "alpha9.notifications.configTitle": "Mimir: Angaben fehlen",
   "alpha9.notifications.signalSummary": "{count} Werte sind nicht sicher bekannt. Öffne die Problemliste, um die Ursachen zu prüfen.",
-  "alpha9.notifications.configSummary": "Bei {count} Werten fehlen noch Angaben. Die Hinweise stehen getrennt von gestörten Signalen."
+  "alpha9.notifications.configSummary": "Bei {count} Werten fehlen noch Angaben. Die Hinweise stehen getrennt von gestörten Signalen.",
+  "alpha9.context.automatic": "Änderung durch bekannte Automatik",
+  "alpha9.context.unknown": "Auslöser nicht sicher bekannt",
+  "fields.producer_id": "Kennung des Dienstes",
+  "fields.context_producers": "Bekannte Automatikdienste",
+  "codes.policy": "Entscheidender Dienst",
+  "codes.apply": "Ausführender Dienst"
 }

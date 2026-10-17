@@ -39,6 +39,7 @@ export interface Reason {
 }
 
 export interface FieldValue {
+  attribution?: { kind: 'known_automatic' | 'known_user' | 'unknown'; basis: string; matched_context_id?: string | null };
   configuration?: { complete: boolean; hints: { code: string; message: string }[] };
   status: FieldStatus;
   value: Json;

@@ -42,6 +42,7 @@ export function ContractLiveState({ envelope, stale, fields = {} }: { envelope: 
                   {field.since_at && (<><dt>{uiText("components.ContractLiveState.seit_b00312")}</dt><dd>{formatTime(field.since_at)}</dd></>)}
                   {field.held_until && (<><dt>{uiText("components.ContractLiveState.gehalten_bis_c18ae5")}</dt><dd>{formatTime(field.held_until)}</dd></>)}
                 </dl>
+                {field.attribution && <pre className="max-w-full overflow-auto text-xs">{JSON.stringify(field.attribution, null, 2)}</pre>}
                 {field.reasons.length > 0 && (
                   <ul className="flex flex-col gap-0.5 text-xs">
                     {field.reasons.map((reason, i) => (

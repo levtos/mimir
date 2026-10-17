@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from uuid import uuid4
 
 import voluptuous as vol
 from homeassistant.components import websocket_api
@@ -15,6 +16,7 @@ from homeassistant.helpers.event import (
 from .service_channel import OPERATIONS, Rejected, ServiceChannel
 
 DOMAIN = "bifrost"
+HA_EPOCH_ID = str(uuid4())
 VERSION = json.loads(Path(__file__).with_name("manifest.json").read_text(encoding="utf-8"))[
     "version"
 ]
@@ -94,6 +96,7 @@ async def async_setup_entry(hass, entry):
             {
                 "protocol_selected": selected,
                 "bridge_version": VERSION,
+                "ha_epoch_id": HA_EPOCH_ID,
                 "features": list(OPERATIONS) + ["ha_context", "area_metadata"]
                 if selected == 2
                 else [],
@@ -198,6 +201,38 @@ async def async_setup_entry(hass, entry):
         remove_report = (
             async_track_state_report_event(hass, reports, reported) if reports else lambda: None
         )
+        remove_contexts = []
+        if msg["protocol_version"] == 2:
+
+            @callback
+            def automatic_context(event):
+                producer = event.data.get("entity_id", "")
+                domain = producer.partition(".")[0]
+                component = hass.data.get(domain)
+                entity = (
+                    component.get_entity(producer)
+                    if component and hasattr(component, "get_entity")
+                    else None
+                )
+                owned_context = getattr(entity, "_context", None)
+                if (
+                    domain not in {"automation", "script"}
+                    or owned_context is None
+                    or owned_context.id != event.context.id
+                ):
+                    return
+                connection.send_event(
+                    msg["id"],
+                    {
+                        "kind": "automatic_context",
+                        "producer_id": producer,
+                        "context": event.context.as_dict(),
+                        "ha_epoch_id": HA_EPOCH_ID,
+                    },
+                )
+
+            for event_type in ("automation_triggered", "script_started"):
+                remove_contexts.append(hass.bus.async_listen(event_type, automatic_context))
         removed = False
 
         @callback
@@ -207,6 +242,8 @@ async def async_setup_entry(hass, entry):
                 removed = True
                 remove_change()
                 remove_report()
+                for remove_context in remove_contexts:
+                    remove_context()
                 active.discard(reload_disconnect)
 
         @callback

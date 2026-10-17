@@ -102,7 +102,7 @@ export default function DefinitionDetailPage() {
           locked={locked}
           readOnly={!src.editable}
           lockReason={lockedSince !== null ? uiText("features.contracts.DefinitionDetailPage.diese_version_war_in_revision_v0_aktiv_7f3ad4", { v0: (lockedSince) }) : src.editable ? undefined : uiText("features.contracts.DefinitionDetailPage.schreibgeschutzte_ansicht_der_aktiven_registry_10e355")}
-          onChange={(next) => doc.edit((c) => setAt(c, pointer, next))}
+          onChange={(next) => doc.edit((c) => ({ ...setAt(c, pointer, next), ...(Number(next.language_version) >= 3 ? { config_schema_version: 2 } : {}) }))}
         />
       </div>
       </LayoutPanel><LayoutPanel id="usage" title={uiText("features.contracts.DefinitionDetailPage.verwendung_947c0a")}><section className="text-sm text-muted">

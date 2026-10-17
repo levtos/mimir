@@ -11,6 +11,7 @@ from pydantic import Field, model_validator
 from .adapters import AdapterConfig
 from .declarative_models import MAX_DEFINITIONS, DeclarativeDefinition
 from .evidence import Freshness
+from .ha_context import ContextProducer
 from .lifecycle import Lifecycle
 from .model import Model, canonical, semantic_fingerprint
 from .notifications import Notifications
@@ -107,12 +108,22 @@ class RegistryConfig(Model):
 
     @model_validator(mode="after")
     def versioned_capabilities(self) -> Self:
+        if len({producer.producer_id for producer in self.context_producers}) != len(
+            self.context_producers
+        ):
+            raise ValueError("duplicate_context_producer")
         if self.config_schema_version == 1 and (
             self.notifications is not None
+            or bool(self.context_producers)
+            or any(definition.language_version == 3 for definition in self.definitions)
             or any(b.adapter.kind == "ha_calendar" for b in self.bindings)
         ):
             raise ValueError("registry_schema_2_required")
         return self
+
+    context_producers: tuple[ContextProducer, ...] = Field(
+        default=(), max_length=64, exclude_if=lambda value: not value
+    )
 
 
 def storage_document(config: RegistryConfig) -> dict[str, Any]:

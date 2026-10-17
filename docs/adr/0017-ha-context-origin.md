@@ -70,3 +70,30 @@ unknown bleibt unknown, positiv bekannte Automatik ausgeschlossen, direkte
 Sensorereignisse, unveränderte Werte-/Freshness-Semantik und Datenschutz.
 Betroffen: Akte oben; Build-Spezifikation §8/§13/§14/§21, Bridge/HA-Adapter,
 Observation/Erklärung, deklarative Projektion und History. Keine neue Aktorsteuerung.
+
+## Umsetzung A2
+
+Protokoll 2 meldet eine Prozesskennung `ha_epoch_id`. Bifröst transportiert
+zusätzlich nur die beiden HA-Laufereignisse `automation_triggered`/`script_started`,
+wenn deren Context zum tatsächlich geladenen HA-Objekt gehört. Keine allgemeine
+Serviceüberwachung. Mimir hält höchstens 1024 kurzlebige Context-Verknüpfungen und
+Proofs, prüft bis zu acht Elternstufen und verwirft widersprüchliche/zyklische Ketten.
+
+Explizite registrierte Dienste stehen in `context_producers` (Schema 2), mit
+Kennung, Anzeigename und Rolle. Das typisierte Formular ist unter HA-Anbindung →
+Erweitert erreichbar; es führt keine Aktion aus. Nur Admin darf über
+`POST /api/v1/ha/contexts` einen Context eines dort bestätigten Dienstes und der
+aktuellen HA-Prozesskennung registrieren. Der Auditversuch wird vor Freigabe der
+flüchtigen Zuordnung committed; ein Commitfehler erteilt keine Zuordnung. Neustart,
+DB-Wiederherstellung und Änderungen der bestätigten Dienste entfernen diese Proofs.
+
+`known_automatic(arg)` liefert in Sprachversion 3 einen Ja/Nein-Befund: ausdrücklich
+erkannt = Ja; bei verwendbarem Wert ohne positiven Beleg = Nein. Ein gestörter
+Eingang bleibt unbekannt. Seine Herkunft bleibt dabei ausdrücklich unknown und
+wird nicht als menschlich bezeichnet. Die Oberfläche wählt die erforderliche
+Sprachversion beim Bearbeiten; Schema 2 wird mit übernommen. Alte Definitionen
+werden beim Lesen nicht umgeschrieben. Beobachtungen speichern `ha_context` und
+`attribution` additiv; fehlende Zusatzfelder bleiben in alten Dokumenten ausgelassen.
+
+Implementierungsgrundlage: [HA-Automationslauf](https://github.com/home-assistant/core/blob/2026.10.0/homeassistant/components/automation/__init__.py),
+[HA-Script-Lauf](https://github.com/home-assistant/core/blob/2026.10.0/homeassistant/components/script/__init__.py).

@@ -7,6 +7,7 @@ from typing import Any, Literal, Self
 from pydantic import Field as PField
 from pydantic import field_validator, model_validator
 
+from .ha_context import Attribution
 from .model import Model, utc
 
 
@@ -71,6 +72,7 @@ class FieldValue(Model):
     reasons: tuple[Reason, ...] = ()
     evidence: tuple[str, ...] = ()
     measured_at: datetime | None = None
+    attribution: Attribution | None = PField(default=None, exclude_if=lambda value: value is None)
     grace_declared: bool = False
     positively_not_applicable: bool = False
     configuration: ConfigurationStatus = PField(
@@ -144,5 +146,8 @@ def derive(value: Any, inputs: list[FieldValue], now: datetime) -> FieldValue:
         reasons=tuple(r for i in inputs for r in i.reasons),
         evidence=tuple(dict.fromkeys(e for i in inputs for e in i.evidence)),
         measured_at=min(times) if times else None,
+        attribution=inputs[0].attribution
+        if inputs and all(item.attribution == inputs[0].attribution for item in inputs)
+        else None,
         configuration=configuration,
     )

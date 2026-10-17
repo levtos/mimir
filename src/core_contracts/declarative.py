@@ -80,7 +80,7 @@ def rule_children(rule: dm.Rule) -> list[tuple[str, dm.Rule]]:
         return [("at", rule.at)]
     if isinstance(rule, dm.CompareRule):
         return [("left", rule.left), ("right", rule.right)]
-    if isinstance(rule, (dm.MapRule, dm.BucketRule, dm.NotApplicableRule)):
+    if isinstance(rule, (dm.MapRule, dm.BucketRule, dm.NotApplicableRule, dm.KnownAutomaticRule)):
         return [("arg", rule.arg)]
     if isinstance(rule, dm.FirstMatchRule):
         return [
@@ -229,7 +229,7 @@ def check_definition(definition: dm.DeclarativeDefinition) -> None:
         if isinstance(rule, dm.ParameterRule):
             parameter_declaration = definition.parameter_schema.get(rule.name)
             if (
-                definition.language_version != 2
+                definition.language_version < 2
                 or not parameter_declaration
                 or not parameter_declaration.field_schema.required
             ):
@@ -251,19 +251,23 @@ def check_definition(definition: dm.DeclarativeDefinition) -> None:
         if isinstance(rule, dm.LiteralRule):
             return rule.field_schema
         args = [infer(child, guard=guard, depth=depth + 1) for child in children(rule)]
+        if isinstance(rule, dm.KnownAutomaticRule):
+            if definition.language_version < 3:
+                raise ValueError("language_version_3_required")
+            return scalar("bool")
         if isinstance(rule, dm.ConfigurationHintRule):
-            if definition.language_version != 2:
+            if definition.language_version < 2:
                 raise ValueError("language_version_2_required")
             require(args[1], scalar("bool"))
             return args[0]
         if isinstance(rule, dm.TextRule):
-            if definition.language_version != 2:
+            if definition.language_version < 2:
                 raise ValueError("language_version_2_required")
             for arg in args:
                 require(arg, scalar("text"))
             return scalar("bool" if rule.op in {"contains", "matches"} else "text")
         if isinstance(rule, dm.TimeReachedRule):
-            if definition.language_version != 2:
+            if definition.language_version < 2:
                 raise ValueError("language_version_2_required")
             require(args[0], FieldSchema(type="timestamp", required=True, physical_state=False))
             return scalar("bool")
@@ -305,7 +309,7 @@ def check_definition(definition: dm.DeclarativeDefinition) -> None:
         if isinstance(rule, dm.BucketRule):
             require(args[0], scalar("number"))
             if rule.classes:
-                if definition.language_version != 2:
+                if definition.language_version < 2:
                     raise ValueError("language_version_2_required")
                 for arg in args[1:]:
                     require(arg, args[0])
@@ -319,7 +323,7 @@ def check_definition(definition: dm.DeclarativeDefinition) -> None:
                 raise ValueError("unknown_formula_version")
             declaration = FORMULA_SCHEMAS[rule.name, rule.version]
             if declaration.inputs:
-                if definition.language_version != 2 or not isinstance(rule.args, dict):
+                if definition.language_version < 2 or not isinstance(rule.args, dict):
                     raise ValueError("named_formula_arguments_required")
                 specifications = {item.name: item for item in declaration.inputs}
                 if set(rule.args) - specifications.keys() or any(
@@ -555,6 +559,12 @@ class Evaluation:
                 )
             return self.memo["$machine"]
         args = [self.evaluate(child) for child in children(rule)]
+        if isinstance(rule, dm.KnownAutomaticRule):
+            return derive(
+                bool(args[0].attribution and args[0].attribution.kind == "known_automatic"),
+                args,
+                now,
+            )
         if isinstance(rule, dm.ConfigurationHintRule):
             result = args[0]
             if not args[1].usable(now) or args[1].value is True:
