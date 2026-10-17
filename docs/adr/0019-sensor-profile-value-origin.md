@@ -1,6 +1,6 @@
 # ADR 0019 — G8/G9: auffällige Sensorwerte und Art ihrer Herkunft
 
-18.10.2026 · **A1-Vorschlag, Review offen; kein Bau.** Grundlage: M14-05,
+18.10.2026 · **A2 freigegeben: Claude (Technik), Benni (Texte), 18.10.2026.** Grundlage: M14-05,
 M21-17, M30-46 §11 Katalog #8–13, CP-15; Matrix G8/G9.
 
 ## Ziel und getrennte Achsen

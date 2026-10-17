@@ -1,6 +1,6 @@
 # ADR 0018 — G16: begrenzte erneute Quellenabfrage
 
-18.10.2026 · **A1-Vorschlag, Review offen; kein Bau.** Grundlage: M30-43 §7,
+18.10.2026 · **A2 freigegeben: Claude (Technik), Benni (Texte), 18.10.2026.** Grundlage: M30-43 §7,
 Matrix G16, [ADR 0005](0005-ha-outage-connectivity.md),
 [0012](0012-bifrost-service-channel.md). Keine Presence-Fachlogik oder Tür-/Unlock-Aktion.
 

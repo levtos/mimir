@@ -1,6 +1,6 @@
 # ADR 0015 — G12: Fristen eines Ablaufs
 
-18.10.2026 · **A1-Vorschlag, Review offen; kein Bau.** Bezug: M30-18/19,
+18.10.2026 · **A2 freigegeben: Claude (Technik), Benni (Texte), 18.10.2026.** Bezug: M30-18/19,
 M30-41 §5/§8/§9, A-05/A-06; [ADR 0006](0006-instance-parameters.md),
 [0010](0010-clock-calendar-inputs.md). Die private Akte wurde am Stand P4-65 abgeglichen;
 ihre Fachbeispiele werden nicht als Verträge implementiert.

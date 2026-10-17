@@ -1,6 +1,6 @@
 # ADR 0014 — G7: verständliche HA-Problemmeldungen
 
-18.10.2026 · **A1-Vorschlag, Review offen; kein Bau.** Grundlage: M30-01,
+18.10.2026 · **A2 freigegeben: Claude (Technik), Benni (Texte), 18.10.2026.** Grundlage: M30-01,
 G7/G14, [ADR 0007](0007-hybrid-catalog-decision.md),
 [0012](0012-bifrost-service-channel.md). Zeitwerte und Voreinstellungen zur Prüfung vorgeschlagen.
 

@@ -1,6 +1,6 @@
 # ADR 0013 — G2: Kalender als Quelle über Bifröst
 
-18.10.2026 · **A1-Vorschlag, Review offen; kein Bau.** Bezug: Matrix G2,
+18.10.2026 · **A2 freigegeben: Claude (Technik), Benni (Texte), 18.10.2026.** Bezug: Matrix G2,
 M30-41 §9, M19-19 (Zielbild durch M30-41 fortgeschrieben),
 [ADR 0012](0012-bifrost-service-channel.md), [0005](0005-ha-outage-connectivity.md),
 [0010](0010-clock-calendar-inputs.md). Keine Wake-Fachlogik oder Kalenderbearbeitung.

@@ -1,6 +1,6 @@
 # ADR 0020 — Kategorien und Raum ohne Wirkung auf Vertragslogik
 
-18.10.2026 · **A1-Vorschlag, Review offen; kein Bau.** Benni zieht diesen
+18.10.2026 · **A2 freigegeben: Claude (Technik), Benni (Texte), 18.10.2026.** Benni zieht diesen
 redaktionellen Teil aus Alpha 10 nach Alpha 9 vor. Grundlage: APP-01, M30-03/A-06,
 M30-30, Matrix §5/§6 (Abgrenzung G4), [ADR 0006](0006-instance-parameters.md).
 
@@ -40,7 +40,15 @@ des kanonischen Registry-Dokuments. So ändern Kategorie/Raum **weder** dessen
 gespeicherte Prüfsumme **noch** den Semantik-Fingerprint. Vollständiger fachlicher
 Restore, Baselines, Fristen und Episoden werden nicht neu gestartet. Eine
 Metadatenprüfung/-version zur Konkurrenzkontrolle ist kein neuer Fach-Fingerprint.
-Audit protokolliert Vorher/Nachher separat. Backup/Restore umfasst beide Speicher.
+Audit protokolliert Vorher/Nachher separat. Backup/Restore, Zurücksetzen auf eine
+frühere Konfiguration und Entwurf aus einer früheren Konfiguration behalten die
+aktuellen Kategorien und Räume. Die Konfigurationsoperationen dürfen den eigenen
+redaktionellen Speicher weder leeren noch mit älteren Angaben überschreiben.
+Ein vollständiges Desaster-Recovery sichert den redaktionellen Speicher separat;
+beim Einspielen eines älteren Fachstands bleiben neuere redaktionelle Angaben
+erhalten. Export/Import nimmt Kategorien/Räume erst in Alpha 10 mit (Folgeauftrag
+in #24). Pflichtregression: aktueller Raum/Kategorie bleibt beim Zurücksetzen
+und beim Entwurf aus einer früheren Konfiguration unverändert.
 
 Bei neuen Objekten im Entwurf sind Metadaten an draft_id/draft_version gebunden;
 erst erfolgreiche Übernahme macht sie gemeinsam mit dem Objekt sichtbar.

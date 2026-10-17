@@ -1,6 +1,6 @@
 # ADR 0016 — G10: ausdrückliche manuelle Quelle
 
-18.10.2026 · **A1-Vorschlag, Review offen; kein Bau.** Grundlage: M30-25,
+18.10.2026 · **A2 freigegeben: Claude (Technik), Benni (Texte), 18.10.2026.** Grundlage: M30-25,
 Matrix G10, [ADR 0006](0006-instance-parameters.md) und [0019](0019-sensor-profile-value-origin.md).
 
 ## Ziel und Modell

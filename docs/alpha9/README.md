@@ -7,7 +7,13 @@ Basis: `main = v1.0.0a8 = 6fcde2a83def3e5cde93d3dea46638d755cbf1e6`.
 Ein Branch `agent/codex-alpha9-mimir`, ein gemeinsamer PR, eigene Commits je Block.
 Aktiver Umsetzungsagent bleibt Codex; Claude prüft Technik, Benni die Texte.
 
-**A1 liefert ausschließlich Vorschläge in Dokumenten. STOPP für Review.**
+**A1 ist freigegeben; A2 läuft seit 18.10.2026.** Claude hat Technik und Benni
+TEXTE.md mit sechs Korrekturen freigegeben. ADR 0020 bewahrt aktuelle Kategorien/
+Räume auch bei Zurücksetzen, historischem Entwurf und Backup/Restore. Zuerst wurde
+die Programmversion synchron auf 1.0.0a9 gestellt; das reguläre Versionsgate ist grün.
+Die folgenden A1-Abgrenzungen dokumentieren den historischen Review-Schritt.
+
+**A1 lieferte ausschließlich Vorschläge in Dokumenten.**
 Keine neuen Produkttexte, entfernten Übersetzungsschlüssel, Produktversionen,
 Tests, Migrationen, Images, HA-Aufrufe oder Live-Änderungen in diesem Schritt.
 A2 beginnt erst nach ausdrücklicher Freigabe; Texte nur gemäß Bennis bestätigter

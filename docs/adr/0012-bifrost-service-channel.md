@@ -1,6 +1,6 @@
 # ADR 0012 — Bifröst: begrenzter Servicekanal und Protokoll 2
 
-18.10.2026 · **A1-Vorschlag, Claude-Review offen; kein Bau.** Grundlage:
+18.10.2026 · **A2 freigegeben: Claude (Technik), Benni (Texte), 18.10.2026.** Grundlage:
 [#24](https://github.com/Levtos/mimir/issues/24), Matrix §4–6, APP-01,
 [ADR 0005](0005-ha-outage-connectivity.md) und [0009](0009-prerelease-version-gate.md).
 Zahlen/Limits sind technische Vorschläge für den Review, keine bereits beschlossenen Fachparameter.

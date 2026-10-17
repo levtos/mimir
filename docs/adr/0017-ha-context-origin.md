@@ -1,6 +1,6 @@
 # ADR 0017 — G15: belegbare Herkunft von HA-Änderungen
 
-18.10.2026 · **A1-Vorschlag, Review offen; kein Bau.** Grundlage: M30-34 §2,
+18.10.2026 · **A2 freigegeben: Claude (Technik), Benni (Texte), 18.10.2026.** Grundlage: M30-34 §2,
 M30-41 §2, Matrix G15; [ADR 0012](0012-bifrost-service-channel.md).
 
 ## Ziel und Modell
