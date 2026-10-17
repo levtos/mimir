@@ -99,8 +99,8 @@ async def async_setup_entry(hass, entry):
             vol.Required("arguments"): dict,
         }
     )
-    @websocket_api.async_response
     @websocket_api.require_admin
+    @websocket_api.async_response
     async def service_call(hass, connection, msg):
         channel = channels.get(id(connection))
         if channel is None or msg["protocol_version"] != 2:
