@@ -10,7 +10,7 @@ import { ConfirmDialog } from '@/components/ui/dialog';
 import { Empty, PageHeader } from '@/components/ui/layout';
 import { ReadOnlyNotice } from '@/features/authoring/DraftBar';
 import { useAllIssues } from '@/features/authoring/issues';
-import { asArray, str, uniqueName } from '@/features/authoring/model';
+import { asArray, asObject, str, uniqueName } from '@/features/authoring/model';
 import { bindingsUsingCatalog, consumersOfSource, sourcesUsingDependency } from '@/features/authoring/usage';
 import { useAuthoringSource } from '@/features/authoring/useAuthoringSource';
 import { useWorkingDocument } from '@/features/authoring/WorkingDocument';
@@ -19,6 +19,7 @@ import { clone, isObject, setAt, type JsonObject } from '@/lib/json';
 import { useCapabilities } from '@/lib/queries';
 import { describeError } from '@/lib/api';
 import { DeviceWizard } from './DeviceWizard';
+import { CalendarSourceDialog } from './CalendarSourceDialog';
 import { codeLabel } from '@/i18n/codes';
 import { useSourceSelection } from './useSourceSelection';
 import { SourceMigrationDialog } from './SourceMigrationDialog';
@@ -154,6 +155,7 @@ export default function SourcesPage() {
   const pageTitle = NAVIGATION.find(module => module.id === 'sources')?.children.find(item => item.to === location.pathname)?.label ?? uiText('alpha7.nav.devices');
   const [picker, setPicker] = useState<null | ((entityId: string, attributes: string[]) => void)>(null);
   const [addingDevice, setAddingDevice] = useState(false);
+  const [addingCalendar, setAddingCalendar] = useState(false);
   const [deviceError, setDeviceError] = useState('');
   const [movingSource, setMovingSource] = useState<string | null>(null);
   const doc = useWorkingDocument();
@@ -180,7 +182,8 @@ export default function SourcesPage() {
     <>
       <PageHeader title={pageTitle} actions={location.pathname === '/sources/devices' && <Button variant="primary" onClick={() => void addDevice()}>{uiText('alpha7.device.title')}</Button>} />
       {deviceError && <p role="alert" className="mb-3 text-sm text-bad">{deviceError}</p>}
-      <DeviceWizard open={addingDevice} onOpenChange={setAddingDevice} manualOption={<Button onClick={() => void addWithoutDevice()}>{uiText('alpha7.device.withoutDevice')}</Button>} onAdded={result => setParams({ tab: 'sources', item: String(result.sourceIndex) }, { replace: true })} />
+      <DeviceWizard open={addingDevice} onOpenChange={setAddingDevice} manualOption={<><Button onClick={() => { setAddingDevice(false); setAddingCalendar(true); }}>{uiText('alpha9.calendar.add')}</Button><Button onClick={() => void addWithoutDevice()}>{uiText('alpha7.device.withoutDevice')}</Button></>} onAdded={result => setParams({ tab: 'sources', item: String(result.sourceIndex) }, { replace: true })} />
+      <CalendarSourceDialog open={addingCalendar} onOpenChange={setAddingCalendar} onAdded={index => setParams({ tab: 'sources', item: String(index) }, { replace: true })} />
       {movingSource && <SourceMigrationDialog key={movingSource} sourceId={movingSource} onClose={() => setMovingSource(null)} />}
       <ReadOnlyNotice what={uiText("features.sources.SourcesPage.sources_bindings_613cff")} />
       <SourceSection
@@ -238,7 +241,13 @@ export default function SourcesPage() {
                   <BindingEditor
                     value={item}
                     pointer={pointer}
-                    onChange={onChange}
+                    onChange={next => {
+                      const adapter = asObject(next.adapter);
+                      if (adapter.kind !== 'ha_calendar') return onChange(next);
+                      doc.edit(current => ({ ...setAt(current, pointer, next), config_schema_version: 2,
+                        sources: asArray(current.sources).map(source => isObject(source) && source.source_id === next.source_id
+                          ? { ...source, freshness: { ...asObject(source.freshness), mode: 'periodic_ttl', interval_s: adapter.max_age_s ?? 3600 } } : source) }));
+                    }}
                     schema={registrySchema}
                     sourceIds={asArray(config.sources).filter(isObject).map((s) => str(s.source_id))}
                     catalogIds={asArray(config.catalogs).filter(isObject).map((c) => str(c.catalog_id))}

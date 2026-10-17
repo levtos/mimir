@@ -16,6 +16,7 @@ import { useHaEntities } from '@/lib/queries';
 import { sourceCast } from '@/lib/sourceCast';
 import { formatNumber } from '@/lib/format';
 import { DEVICE_PRESETS, freshnessPreset, type DevicePreset } from '@/features/sources/devicePlan';
+import { CalendarFields } from '@/features/sources/CalendarSourceDialog';
 import { AddButton, Fld, IconButton, IssuesAt, NumberField, SectionTitle } from './common';
 import { FieldSchemaEditor } from './FieldSchemaEditor';
 import { ValueEditor } from './ValueEditor';
@@ -247,7 +248,7 @@ export function BindingEditor({ value, onChange, pointer, sourceIds, sources = [
         <Fld label={uiText("editors.RegistryObjects.art_75df35")} pointer={join(ap, 'kind')} className="max-w-xs">
           {(p) => (
             <Select {...p} value={kind} onChange={(e) => setAdapter({ kind: e.target.value })}>
-              {enumAt(schema, 'AdapterConfig', 'kind', ['ha_state', 'ha_attribute', 'mqtt']).filter((k) => k !== 'scheduler').map((k) => (
+              {enumAt(schema, 'AdapterConfig', 'kind', ['ha_state', 'ha_attribute', 'ha_calendar', 'mqtt']).filter((k) => k !== 'scheduler').map((k) => (
                 <option key={k} value={k}>{codeLabel(k)}</option>
               ))}
             </Select>
@@ -274,6 +275,7 @@ export function BindingEditor({ value, onChange, pointer, sourceIds, sources = [
             </Fld>
           </div>
         )}
+        {kind === 'ha_calendar' && <CalendarFields value={{ past: Number(asObject(adapter.window).past_days ?? 1), future: Number(asObject(adapter.window).future_days ?? 14), refreshMinutes: Number(adapter.refresh_s ?? 900)/60, validMinutes: Number(adapter.max_age_s ?? 3600)/60 }} onChange={next => setAdapter({ window: { timezone: 'Europe/Berlin', past_days: next.past, future_days: next.future }, refresh_s: next.refreshMinutes*60, max_age_s: next.validMinutes*60 })} />}
         {kind === 'mqtt' && (
           <div className="grid gap-3 sm:grid-cols-3">
             <Fld label={uiText("editors.RegistryObjects.topic_7b08c3")} pointer={join(ap, 'mqtt_topic')}>

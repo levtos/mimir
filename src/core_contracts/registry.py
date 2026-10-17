@@ -89,7 +89,7 @@ class Catalog(Model):
 
 
 class RegistryConfig(Model):
-    config_schema_version: Literal[1]
+    config_schema_version: Literal[1, 2]
     fingerprint_version: Literal[1, 2] = 1
     history_retention: RetentionPolicy | None = Field(
         default=None, exclude_if=lambda value: value is None
@@ -100,6 +100,14 @@ class RegistryConfig(Model):
     contracts: tuple[Contract, ...]
     catalogs: tuple[Catalog, ...]
     definitions: tuple[DeclarativeDefinition, ...] = Field(default=(), max_length=MAX_DEFINITIONS)
+
+    @model_validator(mode="after")
+    def versioned_capabilities(self) -> Self:
+        if self.config_schema_version == 1 and any(
+            b.adapter.kind == "ha_calendar" for b in self.bindings
+        ):
+            raise ValueError("registry_schema_2_required")
+        return self
 
 
 def storage_document(config: RegistryConfig) -> dict[str, Any]:

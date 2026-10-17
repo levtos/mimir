@@ -132,6 +132,7 @@ class Runtime:
         self.pending_refresh: set[str] = set()
         self.refresh_overflow = 0
         self.entity_discovery: Callable[..., Awaitable[list[dict[str, Any]]]] | None = None
+        self.service_jobs_changed = asyncio.Event()
 
     @property
     def config(self) -> RegistryConfig | None:
@@ -438,7 +439,7 @@ class Runtime:
             return False
         needed = required_sources(config)
         return any(
-            b.source_id in needed
+            (b.source_id in needed or b.adapter.kind == "ha_calendar")
             and (b.adapter.kind.startswith("ha_") or b.adapter.kind == "connectivity")
             for b in config.bindings
         )
@@ -471,9 +472,13 @@ class Runtime:
         }
         for observation_data in state.tables["source_observation_current"].values():
             await self._record_observation(state, Observation.model_validate(observation_data))
+        from .service_jobs import restore_jobs
+
+        restore_jobs(state, self.clock.now_utc())
         if reason == "process_restart":
             for observation in state.tables["source_observation_current"].values():
-                observation["observation_kind"] = "restore"
+                if observation["adapter"] != "ha_calendar":
+                    observation["observation_kind"] = "restore"
         for node in state.tables["node_state"].values():
             for context in self._temporal_contexts(node):
                 if "temporal" in context:
@@ -597,7 +602,8 @@ class Runtime:
             self.persistence = True
             self.first_snapshot = False
             for observation in self.state.tables["source_observation_current"].values():
-                observation["observation_kind"] = "restore"
+                if observation["adapter"] != "ha_calendar":
+                    observation["observation_kind"] = "restore"
             # Coalesced outage input is snapshot evidence, never replayed as events.
             buffered = dict(self.latest)
             for obs in buffered.values():
@@ -626,6 +632,10 @@ class Runtime:
             self._broadcast(self.service_state())
             if previous_state != payload and self.persistence and self.config:
                 staged = self.state.clone()
+                if self.bridge == "connected":
+                    for key, calendar_cache in staged.tables["service_state"].items():
+                        if key.startswith("calendar:"):
+                            calendar_cache["next_at"] = self.clock.now_utc().isoformat()
                 bindings = {
                     b.binding_id for b in self.config.bindings if b.adapter.kind.startswith("ha_")
                 }
@@ -724,6 +734,44 @@ class Runtime:
         state = self.state.clone()
         now = self.clock.now_utc()
         config = self._config(state)
+        if operation == "service_claim":
+            if self.bridge != "connected" or self.bridge_protocol_selected != 2:
+                return None
+            job = next(
+                (job for job in state.tables["service_job"].values() if job["status"] == "planned"),
+                None,
+            )
+            if job is None:
+                return None
+            job["status"] = "sent"
+            job["sent_at"] = now.isoformat()
+            await self._commit(state)
+            return copy.deepcopy(job)
+        if operation == "service_complete":
+            from .service_jobs import complete_calendar
+
+            job = state.tables["service_job"].get(payload["job_id"])
+            if job is None or job["status"] != "sent":
+                return None
+            job["status"] = "finished"
+            job["completed_at"] = now.isoformat()
+            service_observation = (
+                complete_calendar(state, config, job, payload["response"], now) if config else None
+            )
+            if service_observation is not None:
+                state.tables["source_observation_current"][service_observation.binding_id] = (
+                    service_observation.storage_document()
+                )
+                await self._record_observation(state, service_observation)
+            if config:
+                self._evaluate(
+                    state,
+                    config,
+                    origin="input" if service_observation else "timer",
+                    trigger_source=service_observation.source_id if service_observation else None,
+                )
+            await self._commit(state, publication=True)
+            return None
         if operation in {"draft_create", "draft_update"}:
             document = payload["config"]
             # Drafts can be incomplete, but cannot carry credentials or invalid JSON.
@@ -1105,6 +1153,23 @@ class Runtime:
             if ref in visited:
                 return unknown(ReasonCode.DEPENDENCY_UNAVAILABLE, ref, now)
             source = sources[ref]
+            calendar_binding = next(
+                (
+                    binding
+                    for binding in config.bindings
+                    if binding.source_id == ref and binding.adapter.kind == "ha_calendar"
+                ),
+                None,
+            )
+            if calendar_binding:
+                cache = state.tables["service_state"].get(
+                    f"calendar:{calendar_binding.binding_id}", {}
+                )
+                if (
+                    not cache.get("expires_at")
+                    or datetime.fromisoformat(cache["expires_at"]) <= now
+                ):
+                    return unknown(ReasonCode.INPUT_STALE, ref, now)
             dependency = dependencies[source.dependency_id]
             available = self.dependency_connections.get(dependency.kind, True)
             if dependency.kind == "ha" and dependency.monitor == "internal":
@@ -1147,6 +1212,9 @@ class Runtime:
     ) -> set[str]:
         """Return transaction-local failures after discarding their staged producer effects."""
         evaluation_errors: set[str] = set()
+        from .service_jobs import plan_calendars
+
+        plan_calendars(state, config, self.clock.now_utc())
         calendar_changed = self._calendar_observations(state, config, origin)
         now, seq = self.clock.now_utc(), state.publication_seq + 1
         self.pending_latches = copy.deepcopy(
@@ -1513,6 +1581,7 @@ class Runtime:
         self.pending_refresh.clear()
         self.commit_duration = self.clock.monotonic() - started
         self._plan_evaluation()
+        self.service_jobs_changed.set()
         for key, envelope in state.tables["contract_state_current"].items():
             previous_fields = previous_contracts.get(key, {}).get("fields", {})
             for name, field in envelope["fields"].items():
@@ -1589,6 +1658,9 @@ class Runtime:
     def _plan_evaluation(self) -> None:
         now = self.clock.now_utc()
         due: list[datetime] = []
+        from .service_jobs import due_dates
+
+        due.extend(due_dates(self.state))
         config = self.config
         if config:
             if config.history_retention:
@@ -1641,6 +1713,7 @@ class Runtime:
             and config
             and (
                 any(b.adapter.calendar for b in config.bindings)
+                or bool(self.state.tables["service_state"])
                 or any(node.get("clock_due") for node in self.state.tables["node_state"].values())
             )
         ):

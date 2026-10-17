@@ -39,7 +39,7 @@ def action(request):
         if (
             start.tzinfo is None
             or end.tzinfo is None
-            or not 0 < (end - start).total_seconds() <= 31 * 86400
+            or not 0 < (end - start).total_seconds() <= 31 * 86400 + 3600
         ):
             raise Rejected("invalid_arguments")
         return "calendar", "get_events", {"entity_id": target, **args}, True

@@ -272,7 +272,7 @@ class BridgeAdapter:
             observations = []
             for binding in config.bindings:
                 entity = binding.adapter.ha_entity_id
-                if entity:
+                if entity and binding.adapter.kind in {"ha_state", "ha_attribute"}:
                     observations.append(
                         self.observation(
                             binding, self.states.get(entity), "snapshot", {}, config, revision
@@ -289,7 +289,10 @@ class BridgeAdapter:
                 "last_reported": event["last_reported"],
             }
         for binding in config.bindings:
-            if binding.adapter.ha_entity_id == entity:
+            if binding.adapter.ha_entity_id == entity and binding.adapter.kind in {
+                "ha_state",
+                "ha_attribute",
+            }:
                 self.runtime.ingest(
                     self.observation(
                         binding,
@@ -532,3 +535,17 @@ class BridgeAdapter:
                 LOGGER.warning("refresh_failed", extra={"error_type": type(error).__name__})
             finally:
                 self.runtime.refresh_requests.task_done()
+
+    async def service_worker(self) -> None:
+        while True:
+            self.runtime.service_jobs_changed.clear()
+            job = await self.runtime.submit("service_claim")
+            if job is None:
+                await self.runtime.service_jobs_changed.wait()
+                continue
+            response = await self.service_call(
+                job["operation"], job["target_ids"], job["arguments"], request_id=job["request_id"]
+            )
+            await self.runtime.submit(
+                "service_complete", {"job_id": job["job_id"], "response": response}
+            )

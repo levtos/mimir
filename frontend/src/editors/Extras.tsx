@@ -34,7 +34,7 @@ export const HANDLED = {
   Source: ['source_id', 'source_type', 'source_origin', 'freshness', 'dependency_id', 'physical_source_key', 'display_name', 'value_schema'],
   Freshness: ['mode', 'future_tolerance_s', 'interval_s', 'liveness_source'],
   Binding: ['binding_id', 'source_id', 'adapter', 'transform', 'display_name'],
-  AdapterConfig: ['kind', 'ha_entity_id', 'ha_attribute', 'ha_time_attribute', 'mqtt_topic', 'mqtt_value_path', 'mqtt_time_path'],
+  AdapterConfig: ['kind', 'ha_entity_id', 'ha_attribute', 'ha_time_attribute', 'mqtt_topic', 'mqtt_value_path', 'mqtt_time_path', 'window', 'refresh_s', 'max_age_s'],
   Transform: ['kind', 'target', 'factor', 'offset', 'catalog_id'],
   Catalog: ['catalog_id', 'kind', 'version', 'entries'],
   Contract: ['contract_id', 'type_id', 'type_version', 'enabled', 'inputs', 'parameters', 'display_name', 'description'],

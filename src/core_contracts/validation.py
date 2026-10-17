@@ -313,6 +313,20 @@ def validate_document(
     addresses: set[tuple[str | None, ...]] = set()
     for index, binding in enumerate(config.bindings):
         path, key, adapter = f"/bindings/{index}", binding.binding_id, binding.adapter
+        if adapter.kind == "ha_calendar" and (calendar_source := sources.get(binding.source_id)):
+            if (
+                calendar_source.value_schema is None
+                or calendar_source.value_schema.type != "object"
+                or calendar_source.freshness.mode != "periodic_ttl"
+                or calendar_source.freshness.interval_s != adapter.max_age_s
+                or binding.transform is not None
+            ):
+                add(
+                    "calendar_source_schema",
+                    path,
+                    "calendar requires object value and matching finite freshness",
+                    key,
+                )
         if adapter.kind == "scheduler" and (
             declared_source_clock := sources.get(binding.source_id)
         ):

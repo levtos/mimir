@@ -215,10 +215,25 @@ async def bridge_status(token: str) -> dict[str, Any]:
                 result = await socket.receive_json()
                 if result.get("success"):
                     info = result["result"]
+                    selected, features = 1, []
+                    compatible = info.get("protocol_version") == 1
+                    if compatible:
+                        await socket.send_json(
+                            {"id": 2, "type": "bifrost/negotiate", "supported_versions": [2, 1]}
+                        )
+                        negotiation = await socket.receive_json()
+                        if negotiation.get("success"):
+                            selected = negotiation.get("result", {}).get("protocol_selected")
+                            compatible = selected in (1, 2)
+                            features = negotiation.get("result", {}).get("features", [])
+                        elif negotiation.get("error", {}).get("code") != "unknown_command":
+                            compatible = False
                     return {
-                        "state": "active" if info.get("protocol_version") == 1 else "incompatible",
+                        "state": "active" if compatible else "incompatible",
                         "bridge_version": info.get("bridge_version"),
-                        "release_blocker": info.get("protocol_version") != 1,
+                        "protocol_selected": selected if compatible else None,
+                        "features": features,
+                        "release_blocker": not compatible,
                     }
                 async with session.get(
                     "http://supervisor/core/api/config/config_entries/flow_handlers",

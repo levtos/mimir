@@ -44,6 +44,8 @@ TABLES = (
     "command_log",
     "history_gap",
     "diagnostic_event",
+    "service_job",
+    "service_state",
 )
 IMMUTABLE = {
     "registry_revision",
