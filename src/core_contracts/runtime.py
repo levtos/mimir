@@ -1824,6 +1824,7 @@ class Runtime:
             and config
             and (
                 any(b.adapter.calendar for b in config.bindings)
+                or any(d.machine and d.machine.unknown_deadline for d in config.definitions)
                 or bool(self.state.tables["service_state"])
                 or any(node.get("clock_due") for node in self.state.tables["node_state"].values())
             )

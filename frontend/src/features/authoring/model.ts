@@ -195,6 +195,8 @@ export function definitionRoots(definition: JsonObject): { path: (string | numbe
 /** An explicit edit opts into new capabilities; simply loading an old definition changes nothing. */
 export function withMinimumLanguage(definition: JsonObject): JsonObject {
   let version = Number(definition.language_version ?? 1);
+  const machine = asObject(definition.machine);
+  if (machine.unknown_deadline || machine.absolute_transition || Object.keys(asObject(machine.deadline_by_state)).length) version = Math.max(version, 3);
   for (const { rule } of definitionRoots(definition)) walkRule(rule, node => {
     if (node.op === 'known_automatic') version = Math.max(version, 3);
   });

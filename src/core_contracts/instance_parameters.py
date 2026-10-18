@@ -90,3 +90,7 @@ def validate_slots(definition: dm.DeclarativeDefinition, parameters: dict[str, A
     if definition.machine and definition.machine.deadline_s is not None:
         if not 0 < number_slot(definition.machine.deadline_s, parameters) <= 31_536_000:
             raise ValueError("duration_out_of_bounds")
+    if definition.machine:
+        for deadline in definition.machine.deadline_by_state.values():
+            if not 0 < number_slot(deadline.duration, parameters) <= 31_536_000:
+                raise ValueError("duration_out_of_bounds")

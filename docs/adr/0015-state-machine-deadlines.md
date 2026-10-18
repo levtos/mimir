@@ -86,3 +86,30 @@ gültig on/off nach unknown, Restart/DB-Recovery/Commit-Fehler, alte Alarme,
 unveränderte Ergebnisse und gespeicherte Prüfsummen alter Definitionen.
 Betroffen: Build-Spezifikation §9/§10/§18/§21; SM, Compiler, Clock, Restore,
 Erklärung/Verlauf, Formulare und API. Formate/Tests bleiben A1-Vorschläge.
+
+## Umsetzung A2
+
+Die Dauern verwenden denselben typisierten G19-Verweis wie andere Dauerfelder:
+`{"duration":{"op":"parameter","name":"wait_s"}}`. Das Formular bietet die
+deklarierten Zahlenparameter an. `unknown_deadline:keep_and_block_transition`
+aktiviert das neue Modell ausdrücklich; neue und alte Fristfelder zusammen sind
+ungültig. Format 1/2 und seine gespeicherten Dokumente bleiben unverändert.
+
+Ein Reset braucht eine belegte Nein→Ja-Flanke seiner Bedingung. Ein dauerhaftes
+Ja, Restore, Snapshot oder Konfigurationsübernahme spielt keinen Reset nach.
+Eine neue Frist-ID und aufsteigende Generation ersetzen den alten Alarm; dessen
+Callback liest ausschließlich den aktuellen committed Zustand. Ein reiner Reset
+behält Zustandsbeginn, Episode und Sitzung bei. Der Termin eines absoluten
+Eingangs wird bei Änderung oder ungültigem Eingang ersetzt bzw. entfernt.
+
+Das neue Modell wartet bei fehlenden erforderlichen Eingängen. Eine fällige
+Frist bleibt unverarbeitet erhalten und wird bei neuen verwendbaren Nachweisen
+erneut geprüft. Bei zeitgleichen verschieden gerichteten Übergängen ist
+`absolute_transition.priority` Pflicht; Eingangsänderungen werden davor geprüft.
+Genau ein Clock-Alarm gilt für den frühesten nächsten Termin. Der nächste Termin
+ist als Dauerfrist oder Zeitpunkt-Eingang aus dem Ablaufzustand erklärbar.
+
+Getestet: voller Reset, dauerhaftes Ja, gleicher Episoden-/Sitzungsbeginn,
+zustandsabhängige Dauer, Fristende bei unknown und Rückkehr gültiger Evidence,
+unveränderter Restoretermin, echte Uhrzeit mit beiden DST-Offsets,
+Terminänderung/-entfernung, Priorität und Ablehnung ungültiger Definitionen.

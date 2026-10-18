@@ -1,7 +1,7 @@
 """Declarative, code-owned state machines; commands request guarded transitions."""
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Literal
 from uuid import uuid4
@@ -26,6 +26,7 @@ class Transition:
     ends_episode: bool = False
     argument_guard: Callable[[dict[str, Any]], bool] | None = None
     data_confirmation: Guard | None = None
+    deadline_action: Literal["keep", "reset", "clear"] = "keep"
 
 
 @dataclass(frozen=True)
@@ -37,6 +38,10 @@ class Definition:
     deadline_seconds: float | None = None
     sessions: bool = False
     allow_manual_restart: bool = False
+    deadline_v2: bool = False
+    deadline_by_state: dict[str, float] = field(default_factory=dict)
+    absolute_transition: dict[str, Any] | None = None
+    required_inputs: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if self.initial not in self.states or len(set(self.states)) != len(self.states):
@@ -64,6 +69,11 @@ class MachineState(Model):
     deadline: Deadline | None = None
     manual_restart: bool = Field(default=False, exclude_if=lambda value: not value)
     manual_restart_at: datetime | None = Field(default=None, exclude_if=lambda value: value is None)
+    deadline_generation: int = Field(default=0, exclude_if=lambda value: not value)
+    absolute_at: datetime | None = Field(default=None, exclude_if=lambda value: value is None)
+    reset_levels: dict[str, bool | None] = Field(
+        default_factory=dict, exclude_if=lambda value: not value
+    )
 
 
 class Machine:
@@ -84,11 +94,15 @@ class Machine:
             origin="automatic",
             fingerprint=fingerprint,
             session_id=str(uuid4()) if self.definition.sessions else None,
-            deadline=self._deadline(episode, now),
+            deadline=self._deadline(episode, now, self.definition.initial),
         )
 
-    def _deadline(self, episode: str, now: datetime) -> Deadline | None:
-        seconds = self.definition.deadline_seconds
+    def _deadline(self, episode: str, now: datetime, state: str = "") -> Deadline | None:
+        seconds = (
+            self.definition.deadline_by_state.get(state)
+            if self.definition.deadline_v2
+            else self.definition.deadline_seconds
+        )
         return (
             Deadline(
                 deadline_id=str(uuid4()), episode_id=episode, at=now + timedelta(seconds=seconds)
@@ -96,6 +110,51 @@ class Machine:
             if seconds is not None
             else None
         )
+
+    def prepare(
+        self,
+        state: MachineState,
+        inputs: dict[str, FieldValue],
+        now: datetime,
+        *,
+        baseline: bool = False,
+    ) -> MachineState:
+        if not self.definition.deadline_v2:
+            return state
+        absolute = self.definition.absolute_transition
+        at = None
+        if absolute and state.state in absolute["states"]:
+            value = inputs.get(absolute["at_input"])
+            if value and value.usable(now) and isinstance(value.value, str):
+                parsed = datetime.fromisoformat(value.value.replace("Z", "+00:00"))
+                if parsed.tzinfo is not None:
+                    at = parsed
+        levels = dict(state.reset_levels)
+        if baseline:
+            for index, rule in enumerate(self.definition.transitions):
+                if rule.deadline_action == "reset" and rule.source == state.state:
+                    levels[str(index)] = rule.guard(inputs, now)
+        return state.model_copy(
+            update={
+                "absolute_at": at,
+                "reset_levels": levels,
+                "deadline_generation": state.deadline_generation + int(at != state.absolute_at),
+            }
+        )
+
+    def due_event(self, state: MachineState, now: datetime) -> str | None:
+        duration = state.deadline.at if state.deadline and state.deadline.due(now) else None
+        absolute = state.absolute_at if state.absolute_at and state.absolute_at <= now else None
+        if duration and absolute:
+            policy = self.definition.absolute_transition or {}
+            return (
+                "absolute"
+                if absolute < duration
+                or absolute == duration
+                and policy.get("priority") == "absolute"
+                else "deadline"
+            )
+        return "absolute" if absolute else "deadline" if duration else None
 
     def step(
         self,
@@ -110,12 +169,49 @@ class Machine:
     ) -> tuple[MachineState, str]:
         if manual and event not in self.definition.commands:
             return state, "not_supported"
-        for rule in self.definition.transitions:
+        if (
+            self.definition.deadline_v2
+            and not manual
+            and any(
+                name not in inputs or not inputs[name].usable(now)
+                for name in self.definition.required_inputs
+            )
+        ):
+            return state, "guard_unknown"
+        rules = self.definition.transitions
+        if event == "absolute":
+            absolute = self.definition.absolute_transition
+            if (
+                not absolute
+                or state.state not in absolute["states"]
+                or not state.absolute_at
+                or state.absolute_at > now
+            ):
+                return state, "unchanged"
+            rules = (
+                Transition(
+                    state.state,
+                    absolute["target"],
+                    "absolute",
+                    lambda inputs, now: True,
+                    "absolute_time_reached",
+                ),
+            )
+        for index, rule in enumerate(rules):
             if rule.source != state.state or rule.event != event:
                 continue
             if rule.argument_guard is not None and not rule.argument_guard(args or {}):
                 return state, "guard_rejected"
             allowed = rule.guard(inputs, now)
+            if rule.deadline_action == "reset":
+                previous = state.reset_levels.get(str(index))
+                state = state.model_copy(
+                    update={"reset_levels": {**state.reset_levels, str(index): allowed}}
+                )
+                if allowed and (
+                    previous is not False or not any(value.evidence for value in inputs.values())
+                ):
+                    return state, "unchanged"
             if allowed is None:
                 return state, "guard_unknown"
             if not allowed:
@@ -125,14 +221,27 @@ class Machine:
                     ), "unchanged"
                 return state, "guard_rejected"
             episode = str(uuid4()) if rule.new_episode else state.episode_id
-            deadline = self._deadline(episode, now) if rule.new_episode else state.deadline
-            if event == "deadline" and deadline:
+            replace_deadline = (
+                rule.new_episode
+                or self.definition.deadline_v2
+                and (rule.target != state.state or rule.deadline_action == "reset")
+            )
+            deadline = (
+                self._deadline(episode, now, rule.target) if replace_deadline else state.deadline
+            )
+            if rule.deadline_action == "clear":
+                deadline = None
+            if event == "deadline" and deadline and not replace_deadline:
                 deadline = deadline.model_copy(update={"fired": True})
             return state.model_copy(
                 update={
                     "state": rule.target,
                     "previous_state": state.state,
-                    "since_at": now,
+                    "since_at": state.since_at
+                    if self.definition.deadline_v2
+                    and rule.target == state.state
+                    and not rule.new_episode
+                    else now,
                     "episode_id": episode,
                     "episode_started_at": now if rule.new_episode else state.episode_started_at,
                     "episode_ended_at": now if rule.ends_episode else None,
@@ -150,6 +259,15 @@ class Machine:
                         and rule.data_confirmation(inputs, now) is True
                     ),
                     "deadline": deadline,
+                    **(
+                        {
+                            "deadline_generation": state.deadline_generation
+                            + int(replace_deadline or rule.deadline_action == "clear"),
+                            "absolute_at": None,
+                        }
+                        if self.definition.deadline_v2
+                        else {}
+                    ),
                 }
             ), "accepted"
         if event == "deadline" and state.deadline:

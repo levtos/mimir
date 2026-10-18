@@ -22,6 +22,8 @@ import { AddButton, Fld, IconButton, IssueCount, IssuesAt, NumberField, RowActio
 import { FieldSchemaEditor } from './FieldSchemaEditor';
 import { operatorDefaults, RuleEditor, RuleEnvProvider } from './RuleEditor';
 import { Extras } from './Extras';
+import { MachineDeadlinesEditor } from './MachineDeadlinesEditor';
+import { minuteHint } from '@/components/SecondsField';
 
 const RESERVED_EVENTS = ['input', 'deadline'];
 
@@ -48,7 +50,8 @@ export function MachineEditor({
   const states = asArray(value.states).map(String);
   const transitions = asArray(value.transitions).map(asObject);
   const commands = asObject(value.commands);
-  const hasDeadline = typeof value.deadline_s === 'number' || isObject(value.deadline_s);
+  const extended = value.unknown_deadline === 'keep_and_block_transition';
+  const hasDeadline = typeof value.deadline_s === 'number' || isObject(value.deadline_s) || Object.keys(asObject(value.deadline_by_state)).length > 0;
   const events = ['input', ...(hasDeadline ? ['deadline'] : []), ...Object.keys(commands)];
   const env = { ctx: ruleContext(definition, true), caps };
   const defaults = operatorDefaults(caps);
@@ -69,10 +72,12 @@ export function MachineEditor({
       ...value,
       states: states.map((s) => (s === from ? to : s)),
       initial: value.initial === from ? to : (value.initial ?? ''),
+      ...(value.deadline_by_state ? { deadline_by_state: renameKey(asObject(value.deadline_by_state), from, to) } : {}),
+      ...(value.absolute_transition ? { absolute_transition: { ...asObject(value.absolute_transition), states: asArray(asObject(value.absolute_transition).states).map(state => state === from ? to : state), target: asObject(value.absolute_transition).target === from ? to : asObject(value.absolute_transition).target ?? '' } } : {}),
       transitions: transitions.map((t) => ({ ...t, source: t.source === from ? to : (t.source ?? ''), target: t.target === from ? to : (t.target ?? '') })),
     });
   };
-  const stateUsed = (name: string) => value.initial === name || transitions.some((t) => t.source === name || t.target === name);
+  const stateUsed = (name: string) => value.initial === name || name in asObject(value.deadline_by_state) || asArray(asObject(value.absolute_transition).states).includes(name) || asObject(value.absolute_transition).target === name || transitions.some((t) => t.source === name || t.target === name);
 
   const renameCommand = (from: string, to: string) => {
     if (!to || to in commands || RESERVED_EVENTS.includes(to)) return;
@@ -104,10 +109,12 @@ export function MachineEditor({
           </Fld>
           <div className="flex flex-col justify-end gap-2 pb-1.5">
             <Checkbox checked={value.sessions === true} onCheckedChange={(on) => set({ sessions: on })} label={uiText("editors.MachineEditor.sessions_fuhren_a20d63")} />
-            <Checkbox checked={hasDeadline} onCheckedChange={(on) => set({ deadline_s: on ? 60 : undefined })} label={uiText("editors.MachineEditor.deadline_verwenden_f1deab")} />
+            {!extended && <Checkbox checked={hasDeadline} onCheckedChange={(on) => set({ deadline_s: on ? 60 : undefined })} label={uiText("editors.MachineEditor.deadline_verwenden_f1deab")} />}
           </div>
-          {hasDeadline && (isObject(value.deadline_s) ? <Fld label={uiText('alpha8.parameters.deadlineName')} pointer={join(pointer, 'deadline_s', 'name')}>{props => <Input {...props} value={str(asObject(value.deadline_s).name)} onChange={event => set({ deadline_s: { op: 'parameter', name: event.target.value } })} />}</Fld> : <NumberField label={uiText("editors.MachineEditor.deadline_s_5ebf14")} pointer={join(pointer, 'deadline_s')} value={Number(value.deadline_s)} min={0} hint={uiText("editors.MachineEditor.eine_deadline_pro_contract_994bde")} onChange={(n) => set({ deadline_s: n })} />)}
+          {hasDeadline && !extended && (isObject(value.deadline_s) ? <Fld label={uiText('alpha8.parameters.deadlineName')} pointer={join(pointer, 'deadline_s', 'name')}>{props => <Input {...props} value={str(asObject(value.deadline_s).name)} onChange={event => set({ deadline_s: { op: 'parameter', name: event.target.value } })} />}</Fld> : <NumberField label={uiText("editors.MachineEditor.deadline_s_5ebf14")} pointer={join(pointer, 'deadline_s')} value={Number(value.deadline_s)} min={0} hint={minuteHint(Number(value.deadline_s))} onChange={(n) => set({ deadline_s: n })} />)}
         </section>
+
+        <MachineDeadlinesEditor value={value} definition={definition} onChange={onChange} />
 
         <section className="space-y-2">
           <Checkbox checked={value.allow_manual_restart === true} onCheckedChange={on => set({ allow_manual_restart: on ? true : undefined })} label={uiText('alpha7.restart.allow')} />
@@ -302,6 +309,7 @@ export function MachineEditor({
                     <Checkbox checked={transition.new_episode === true} onCheckedChange={(on) => patch({ new_episode: on || undefined })} label={uiText("editors.MachineEditor.beginnt_neue_episode_aa43cc")} />
                     <Checkbox checked={transition.ends_episode === true} onCheckedChange={(on) => patch({ ends_episode: on || undefined })} label={uiText("editors.MachineEditor.beendet_episode_92986e")} />
                   </div>
+                  {extended && <Fld label={uiText('alpha9.deadline.action')} pointer={join(tp, 'deadline_action')}>{props => <Select {...props} value={str(transition.deadline_action) || 'keep'} onChange={event => patch({ deadline_action: event.target.value === 'keep' ? undefined : event.target.value })}><option value="keep">{uiText('alpha9.deadline.keep')}</option><option value="reset">{uiText('alpha9.deadline.reset')}</option><option value="clear">{uiText('alpha9.deadline.clear')}</option></Select>}</Fld>}
                   {isCommand && Object.keys(command).length > 0 && (
                     <div className="flex flex-col gap-2">
                       <SectionTitle>{uiText("editors.MachineEditor.bedingungen_an_die_befehlsargumente_08ced2")}</SectionTitle>

@@ -2297,5 +2297,18 @@
   "alpha9.refresh.permission": "Ich habe geprüft, dass das Handy Standortabfragen im Hintergrund erlaubt.",
   "alpha9.refresh.offset": "Wartezeit seit Beginn (Sekunden)",
   "alpha9.refresh.stop": "Beenden, sobald dieser Vertrag Ja meldet",
-  "alpha9.refresh.reference": "{name} · {field}"
+  "alpha9.refresh.reference": "{name} · {field}",
+  "alpha9.deadline.duration": "Zeit bis zum nächsten Schritt",
+  "alpha9.deadline.reset": "Frist neu beginnen",
+  "alpha9.deadline.absolute": "Zeitpunkt aus einem Eingang",
+  "alpha9.deadline.unknown": "Bei fehlenden Werten warten",
+  "alpha9.deadline.unknownHelp": "Der Ablauf wartet auf gültige Werte. Das bisherige Fristende bleibt bestehen; die Frist beginnt nicht von vorn.",
+  "alpha9.deadline.stateDuration": "Zeit bis zum nächsten Schritt in „{state}“",
+  "alpha9.deadline.fixed": "Feste Dauer",
+  "alpha9.deadline.target": "Danach zu diesem Schritt",
+  "alpha9.deadline.from": "Gilt im Schritt „{state}“",
+  "alpha9.deadline.priority": "Bei gleichem Zeitpunkt zuerst",
+  "alpha9.deadline.action": "Was passiert mit der Frist?",
+  "alpha9.deadline.keep": "Frist beibehalten",
+  "alpha9.deadline.clear": "Frist beenden"
 }

@@ -2557,3 +2557,16 @@ braucht das konkrete Formular folgende ergänzende Beschriftungen:
 | `alpha9.refresh.permission` | Verknüpfung / Vertrag → Quellen erneut abfragen | — | Ich habe geprüft, dass das Handy Standortabfragen im Hintergrund erlaubt. | Feste Verfahren, ausdrückliche Voraussetzung, Zeitfelder mit Minutenhilfe. |
 | `alpha9.refresh.offset` | Verknüpfung / Vertrag → Quellen erneut abfragen | — | Wartezeit seit Beginn (Sekunden) | Feste Verfahren, ausdrückliche Voraussetzung, Zeitfelder mit Minutenhilfe. |
 | `alpha9.refresh.stop` | Verknüpfung / Vertrag → Quellen erneut abfragen | — | Beenden, sobald dieser Vertrag Ja meldet | Feste Verfahren, ausdrückliche Voraussetzung, Zeitfelder mit Minutenhilfe. |
+
+### Formularbeschriftungen A2: Fristen
+
+| Schlüssel | Ort | alt | neu | Grund |
+|---|---|---|---|---|
+| alpha9.deadline.stateDuration | Vorlage → Ablauf | — | Zeit bis zum nächsten Schritt in „{state}“ | Auswahl im freigegebenen Fristenformular. |
+| alpha9.deadline.fixed | Vorlage → Ablauf | — | Feste Dauer | Auswahl im freigegebenen Fristenformular. |
+| alpha9.deadline.target | Vorlage → Ablauf | — | Danach zu diesem Schritt | Auswahl im freigegebenen Fristenformular. |
+| alpha9.deadline.from | Vorlage → Ablauf | — | Gilt im Schritt „{state}“ | Auswahl im freigegebenen Fristenformular. |
+| alpha9.deadline.priority | Vorlage → Ablauf | — | Bei gleichem Zeitpunkt zuerst | Auswahl im freigegebenen Fristenformular. |
+| alpha9.deadline.action | Vorlage → Ablauf | — | Was passiert mit der Frist? | Auswahl im freigegebenen Fristenformular. |
+| alpha9.deadline.keep | Vorlage → Ablauf | — | Frist beibehalten | Auswahl im freigegebenen Fristenformular. |
+| alpha9.deadline.clear | Vorlage → Ablauf | — | Frist beenden | Auswahl im freigegebenen Fristenformular. |

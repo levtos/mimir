@@ -155,6 +155,8 @@ def check_definition(definition: dm.DeclarativeDefinition) -> None:
     slots = [r.duration_s for r in rules if isinstance(r, dm.TemporalRule)]
     if definition.machine and definition.machine.deadline_s is not None:
         slots.append(definition.machine.deadline_s)
+    if definition.machine:
+        slots.extend(item.duration for item in definition.machine.deadline_by_state.values())
     for slot in slots:
         if isinstance(slot, dm.ParameterRule):
             declaration = definition.parameter_schema.get(slot.name)
@@ -766,6 +768,19 @@ def compile_machine(
             else None,
             sessions=machine.sessions,
             allow_manual_restart=machine.allow_manual_restart,
+            deadline_by_state={
+                name: number_slot(
+                    item.duration, evaluation.parameters if evaluation else parameters or {}
+                )
+                for name, item in machine.deadline_by_state.items()
+            },
+            absolute_transition=machine.absolute_transition.model_dump()
+            if machine.absolute_transition
+            else None,
+            deadline_v2=machine.unknown_deadline is not None,
+            required_inputs=tuple(
+                item.name for item in definition.inputs if item.field_schema.required
+            ),
             transitions=tuple(
                 Transition(
                     source=t.source,
@@ -777,6 +792,7 @@ def compile_machine(
                     ends_episode=t.ends_episode,
                     argument_guard=argument_guard(t.argument_equals) if t.argument_equals else None,
                     data_confirmation=data_confirmation(t.guard),
+                    deadline_action=t.deadline_action,
                 )
                 for t in machine.transitions
             ),

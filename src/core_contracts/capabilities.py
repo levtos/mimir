@@ -112,6 +112,15 @@ def machine_description(machine: Machine) -> dict[str, Any]:
         "deadline_seconds": machine.definition.deadline_seconds,
         "sessions": machine.definition.sessions,
         "allow_manual_restart": machine.definition.allow_manual_restart,
+        **(
+            {
+                "deadline_by_state": machine.definition.deadline_by_state,
+                "absolute_transition": machine.definition.absolute_transition,
+                "unknown_deadline": "keep_and_block_transition",
+            }
+            if machine.definition.deadline_v2
+            else {}
+        ),
         "transitions": [
             {
                 "source": t.source,
@@ -283,6 +292,7 @@ def capabilities(config: RegistryConfig | None, base: TypeRegistry) -> dict[str,
     return {
         "capability_version": 1,
         "language_versions": [1, 2, 3],
+        "machine_deadline_v2": True,
         "api_protocol": 1,
         "config_schema_version": 1,
         "config_schema_versions": [1, 2],
