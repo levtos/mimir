@@ -11,6 +11,7 @@ from pydantic import ConfigDict, Field, model_validator
 from .lifecycle import Lifecycle
 from .model import Model
 from .schema import FieldSchema, Schema
+from .value_origin import OriginDeclaration
 
 MAX_NODES = 256
 MAX_DEPTH = 16
@@ -455,6 +456,9 @@ class DeclarativeDefinition(DeclarativeModel):
     output_schema: Schema = Field(alias="schema")
     rules: dict[Identifier, Rule] = Field(default_factory=dict, max_length=MAX_NODES)
     outputs: dict[Identifier, Rule] = Field(min_length=1, max_length=MAX_FIELDS)
+    output_origins: dict[Identifier, OriginDeclaration] = Field(
+        default_factory=dict, max_length=MAX_FIELDS, exclude_if=lambda value: not value
+    )
     machine: MachineDefinition | None = None
     parameter_schema: dict[Identifier, ParameterDefinition] = Field(
         default_factory=dict, max_length=MAX_INPUTS, exclude_if=lambda value: not value
@@ -465,6 +469,15 @@ class DeclarativeDefinition(DeclarativeModel):
 
     @model_validator(mode="after")
     def coherent(self) -> Self:
+        if self.output_origins and (
+            self.language_version < 3
+            or self.output_origins.keys() - self.outputs.keys()
+            or any(
+                origin.kind not in {"model", "replacement"}
+                for origin in self.output_origins.values()
+            )
+        ):
+            raise ValueError("explicit_computed_origin_required")
         if len({item.name for item in self.inputs}) != len(self.inputs):
             raise ValueError("duplicate_input")
         if set(self.refresh_inputs) - {item.name for item in self.inputs}:

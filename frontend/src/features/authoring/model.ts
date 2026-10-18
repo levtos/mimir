@@ -196,7 +196,7 @@ export function definitionRoots(definition: JsonObject): { path: (string | numbe
 export function withMinimumLanguage(definition: JsonObject): JsonObject {
   let version = Number(definition.language_version ?? 1);
   const machine = asObject(definition.machine);
-  if (machine.unknown_deadline || machine.absolute_transition || Object.keys(asObject(machine.deadline_by_state)).length) version = Math.max(version, 3);
+  if (Object.keys(asObject(definition.output_origins)).length || machine.unknown_deadline || machine.absolute_transition || Object.keys(asObject(machine.deadline_by_state)).length) version = Math.max(version, 3);
   for (const { rule } of definitionRoots(definition)) walkRule(rule, node => {
     if (node.op === 'known_automatic') version = Math.max(version, 3);
   });

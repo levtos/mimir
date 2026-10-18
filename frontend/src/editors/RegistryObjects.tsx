@@ -1,3 +1,4 @@
+import { SourceQualityEditor } from './SourceQualityEditor';
 import { codeLabel, fieldLabel } from '@/i18n/codes';
 import { t as uiText } from '@/i18n';
 import { Search, Trash2 } from 'lucide-react';
@@ -83,7 +84,7 @@ export function DependencyEditor({ value, onChange, pointer, sourceIds, schema }
 
 /* ─────────────────────────────── Source ─────────────────────────────── */
 
-export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceIds, livenessSourceIds = sourceIds, schema }: { value: JsonObject; onChange: (n: JsonObject) => void; pointer: string; dependencyIds: string[]; sourceIds: string[]; livenessSourceIds?: string[]; schema?: JsonSchema }) {
+export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceIds, livenessSourceIds = sourceIds, sources = [], schema }: { value: JsonObject; onChange: (n: JsonObject) => void; pointer: string; dependencyIds: string[]; sourceIds: string[]; livenessSourceIds?: string[]; sources?: JsonObject[]; schema?: JsonSchema }) {
   const set = patcher(value, onChange);
   const freshness = asObject(value.freshness);
   const mode = str(freshness.mode);
@@ -192,6 +193,7 @@ export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceId
         <p className="text-xs text-muted">{uiText("editors.RegistryObjects.quellen_der_typen_boolean_numeric_text_haben_ihr_e970bc")}</p>
         {hasSchema && <FieldSchemaEditor pointer={join(pointer, 'value_schema')} value={asObject(value.value_schema) as FieldSchema} onChange={(next) => set({ value_schema: next })} />}
       </Collapsible>
+      <SourceQualityEditor value={value} onChange={onChange} sources={sources} />
       <Extras def="Source" value={value} pointer={pointer} onChange={onChange} />
     </div>
   );

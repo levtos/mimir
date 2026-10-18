@@ -92,3 +92,47 @@ Intervallende/DST, Timestamp-Fehler, fehlende Alt-Metadaten, Commit-Fehler.
 Betroffen: §7/§8/§9/§10/§21 der Build-Spezifikation, Evidence/Envelope,
 Profilvalidierung, Processor, History/Retention, API/Client und Formulare.
 Fach-Sensorprofile und Klima-Formeln werden nicht produktiv angelegt.
+
+## Umsetzung A2
+
+`Source.sensor_profile` enthält die versionierte Profildefinition; gemeinsam
+verwendete ID/Version muss identisch bleiben, auch gegenüber bereits übernommenen
+Konfigurationen. `parameter_schema` deklariert Zahlenparameter. Schwellen im
+Profil können dieselben typisierten `{op:parameter,name:…}`-Verweise wie G19
+nutzen; `Source.sensor_parameters` hält die Werte dieser Quelleninstanz.
+Eine Änderung der Parameter setzt nach A-06 die Vergleichsbasis zurück, ohne
+eine neue Profilversion zu erfinden. Das Formular schlägt nach ausdrücklichem
+Einschalten 21 Tage, 0,05 Toleranz, zehn Meldungen und zwei Erholungsmeldungen vor;
+ohne ausgewähltes Profil ist die Prüfung aus. Keine Fachprofile werden angelegt.
+
+Kontext und Referenznachweise sind begrenzt in `service_state` persistiert.
+Nur neue Reports mit fortgeschrittener Messzeit zählen. Snapshot, Wiederholung,
+Neubewertung, Neustart und Lücken verlängern keinen unbelegten Gleichbleibezeitraum.
+Eine optionale Referenz muss unabhängig, gleich dimensioniert und verwendbar
+sein; Snapshot und auffällige Referenz beweisen keine Änderung. Verdacht ergänzt
+Ursache und `quality:degraded`, ohne den belegten Zahlenwert zu ersetzen.
+
+`Source.value_origin` deklariert Art/Anbieter. Adapter können über
+`value_origin_path` pro Meldung die typisierte Herkunft übernehmen: in HA ein
+Attributname, bei MQTT ein begrenzter Datenpfad. Alte Sprache-/Konfigurationsstände
+werden nicht rückwirkend etikettiert. Prognosereihen sind Listen aus
+`{value,value_origin}`. Jeder Punkt hat Ausgabezeit und halboffenes UTC-Intervall;
+Wert und Einheit folgen dem Quellschema. Widersprüchliche Überlappungen sind
+ungültig; gleichwertige Überlappungen behalten alle Herkunftsbeiträge und die
+engsten Grenzen. Auswahl und Frische hängen nicht von Empfangszeit oder
+Listenreihenfolge ab. Quellenfrische und Provider-Ausgabezeit werden getrennt
+von der Gültigkeit eines einzelnen Punkts geprüft.
+
+`FieldValue.value_origin`, `input_origins`, `valid_from`/`valid_until` und
+`plausibility` werden in Nachweis und Verlauf mitgeführt. Auswahl bewahrt die
+Herkunft des gewählten Werts; Berechnungen übernehmen die Herkunft ihrer
+entscheidenden Beiträge und behaupten keine Messung. Neue Definitionen können
+mit `output_origins` ausdrücklich Modell oder Ersatz benennen (Sprachversion 3).
+Gültigkeit wird geschnitten; auch eine deklarierte Grace überschreitet das Ende
+eines Zeitraums nicht. Clock plant Beginn, Ende und Quellen-/Providerfristen.
+
+Manuelle Prognosen verwenden denselben Eingabeweg aus ADR 0016. Die Oberfläche
+hat Zahlen-/Auswahlfelder sowie Kalenderfelder je Zeitraum, ohne JSON-Eingabe.
+Vertragsansicht nennt die Art des Werts, verwendete Eingangsarten, Gültigkeitsende
+und einen Sensorverdacht getrennt von der Aktualität. Anbieter-/Profilkennungen
+stehen unter Erweitert.

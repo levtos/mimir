@@ -38,7 +38,13 @@ export interface Reason {
   detail?: string | null;
 }
 
+export interface ValueOrigin { kind: 'measured' | 'replacement' | 'model' | 'forecast'; provider?: string; issued_at?: string | null; valid_from?: string | null; valid_until?: string | null; based_on?: string[] }
 export interface FieldValue {
+  value_origin?: ValueOrigin;
+  input_origins?: ValueOrigin[];
+  valid_from?: string | null;
+  valid_until?: string | null;
+  plausibility?: 'unchecked' | 'plausible' | 'suspicious';
   attribution?: { kind: 'known_automatic' | 'known_user' | 'unknown'; basis: string; matched_context_id?: string | null };
   configuration?: { complete: boolean; hints: { code: string; message: string }[] };
   status: FieldStatus;

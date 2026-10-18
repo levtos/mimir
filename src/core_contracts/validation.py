@@ -8,7 +8,7 @@ from pydantic import ValidationError
 from .declarative import DefinitionValidationErrors, RuleValidationError, all_rules, compatible
 from .declarative_models import DeclarativeDefinition
 from .instance_parameters import validate_slots
-from .model import Model, canonical
+from .model import Model, canonical, semantic_fingerprint
 from .registry import (
     Binding,
     Catalog,
@@ -239,6 +239,9 @@ def validate_document(
             references = (
                 source.freshness.liveness_source,
                 dependency.source_id if dependency else None,
+                source.sensor_profile.stuck.reference.ref
+                if source.sensor_profile and source.sensor_profile.stuck.reference
+                else None,
             )
             for reference in references:
                 if reference:
@@ -264,6 +267,42 @@ def validate_document(
                 active_sources.clear()
     for index, source in enumerate(config.sources):
         path, key = f"/sources/{index}", source.source_id
+        profile = source.sensor_profile
+        if profile:
+            peer_source = (
+                sources.get(profile.stuck.reference.ref) if profile.stuck.reference else None
+            )
+            if profile.stuck.reference and (
+                peer_source is None
+                or peer_source.physical_source_key == source.physical_source_key
+                or peer_source.value_schema is None
+                or peer_source.value_schema.type != "number"
+                or peer_source.origin == "manual"
+                or peer_source.value_origin is not None
+                and peer_source.value_origin.kind != "measured"
+                or source.value_schema is None
+                or peer_source.value_schema.unit != source.value_schema.unit
+            ):
+                add(
+                    "sensor_reference",
+                    path + "/sensor_profile/stuck/reference",
+                    "independent numeric reference with same unit required",
+                    key,
+                )
+            if any(
+                other.sensor_profile
+                and (other.sensor_profile.id, other.sensor_profile.version)
+                == (profile.id, profile.version)
+                and semantic_fingerprint(other.sensor_profile.model_dump(mode="json"))
+                != semantic_fingerprint(profile.model_dump(mode="json"))
+                for other in config.sources
+            ):
+                add(
+                    "sensor_profile_conflict",
+                    path + "/sensor_profile",
+                    "conflicting profile version",
+                    key,
+                )
         if key in contracts:
             add("ambiguous_identity", path + "/source_id", "ambiguous identity", key)
         if source.dependency_id not in dependencies or source.source_origin != "local":

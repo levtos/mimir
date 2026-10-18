@@ -33,6 +33,7 @@ class Fusion:
         elif strategy == "first_healthy":
             chosen = next((c for c in usable if c.quality == "healthy"), usable[0])
             result = derive(chosen.value, [chosen], now)
+            result = result.model_copy(update={"value_origin": chosen.value_origin})
         elif strategy == "latest":
             timed = [c for c in usable if c.measured_at is not None]
             if not timed:
@@ -42,6 +43,8 @@ class Fusion:
             if any(c.value != decisive[0].value for c in decisive):
                 return unknown(ReasonCode.CONFLICT, "candidates", now)
             result = derive(decisive[0].value, decisive, now)
+            if all(item.value_origin == decisive[0].value_origin for item in decisive):
+                result = result.model_copy(update={"value_origin": decisive[0].value_origin})
         else:
             return unknown(ReasonCode.CONFIG_INCOMPLETE, "strategy", now)
         if len(usable) < len(candidates) and result.status == "valid":

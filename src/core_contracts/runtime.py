@@ -20,7 +20,7 @@ from .engines import FORMULA_SCHEMAS
 from .evidence import Observation, assess, is_new, is_older
 from .ha_context import ContextIndex
 from .lifecycle import EDITORIAL, transition_allowed
-from .model import Model, canonical, checksum, utc
+from .model import Model, canonical, checksum, semantic_fingerprint, utc
 from .persistence import State, Store
 from .producer import Context, Producer
 from .quality import FieldValue, ReasonCode, unknown
@@ -243,6 +243,21 @@ class Runtime:
         from .validation import RegistryValidationError, ValidationIssue
 
         issues = []
+        for index, source in enumerate(config.sources):
+            profile = source.sensor_profile
+            if profile:
+                previous = await self.store.sensor_profile(profile.id, profile.version)
+                if previous and semantic_fingerprint(previous) != semantic_fingerprint(
+                    profile.model_dump(mode="json")
+                ):
+                    issues.append(
+                        ValidationIssue(
+                            code="immutable_definition_version",
+                            path=f"/sources/{index}/sensor_profile/version",
+                            object_id=profile.id,
+                            message="immutable sensor profile version",
+                        )
+                    )
         for kind, objects, identity_key, version_key, getter in (
             ("definitions", config.definitions, "type_id", "type_version", self.store.definition),
             ("catalogs", config.catalogs, "catalog_id", "version", self.store.catalog),
@@ -470,6 +485,9 @@ class Runtime:
             self.task = asyncio.create_task(self.run(), name="processor")
 
     def _gap(self, state: State, reason: str) -> None:
+        for sensor_key in list(state.tables["service_state"]):
+            if sensor_key.startswith("sensor:"):
+                del state.tables["service_state"][sensor_key]
         key = str(uuid4())
         state.tables["history_gap"][key] = {
             "reason": reason,
@@ -1226,7 +1244,12 @@ class Runtime:
             self._broadcast(self.service_state())
 
     def _inputs(
-        self, contract: Contract, config: RegistryConfig, state: State
+        self,
+        contract: Contract,
+        config: RegistryConfig,
+        state: State,
+        *,
+        trigger_source: str | None = None,
     ) -> dict[str, FieldValue]:
         now = self.clock.now_utc()
         by_source = {b.source_id: b.binding_id for b in config.bindings}
@@ -1242,6 +1265,16 @@ class Runtime:
                 return unknown(ReasonCode.DEPENDENCY_UNAVAILABLE, ref, now)
             source = sources[ref]
             manual_observation = observations.get(by_source.get(ref, ""))
+            if source.value_origin and manual_observation:
+                recorded_origins = tuple(
+                    point.value_origin for point in manual_observation.forecast
+                ) or ((manual_observation.value_origin,) if manual_observation.value_origin else ())
+                if not recorded_origins or any(
+                    (item.kind, item.provider)
+                    != (source.value_origin.kind, source.value_origin.provider)
+                    for item in recorded_origins
+                ):
+                    return unknown(ReasonCode.RESTORE_INCOMPATIBLE, ref, now)
             if (
                 source.origin == "manual"
                 and manual_observation
@@ -1279,9 +1312,37 @@ class Runtime:
             if not available:
                 return unknown(ReasonCode.DEPENDENCY_UNAVAILABLE, source.dependency_id, now)
             liveness = observations.get(by_source.get(source.freshness.liveness_source or "", ""))
-            return assess(
+            value = assess(
                 observations.get(by_source.get(ref, "")), source.freshness, now, ref, liveness
             )
+            if source.sensor_profile:
+                from .sensor_profile import assess_sensor
+
+                reference_spec = source.sensor_profile.stuck.reference
+                reference_value = (
+                    source_value(reference_spec.ref, visited | {ref}) if reference_spec else None
+                )
+                peer_observation = (
+                    observations.get(by_source.get(reference_spec.ref, ""))
+                    if reference_spec
+                    else None
+                )
+                if peer_observation and peer_observation.observation_kind not in {
+                    "report",
+                    "live_change",
+                }:
+                    reference_value = None
+                value = assess_sensor(
+                    value,
+                    observations.get(by_source.get(ref, "")),
+                    source,
+                    reference_value,
+                    state.tables["service_state"],
+                    self._evaluation_plan(state, config)[0][ref],
+                    now,
+                    new_report=trigger_source == ref,
+                )
+            return value
 
         result: dict[str, FieldValue] = {}
         for item in contract.inputs:
@@ -1318,6 +1379,12 @@ class Runtime:
             self.latches if initial_latches is None else initial_latches
         )
         fps, types, order = self._evaluation_plan(state, config)
+        profiled_sources = {
+            f"sensor:{source.source_id}" for source in config.sources if source.sensor_profile
+        }
+        for sensor_key in list(state.tables["service_state"]):
+            if sensor_key.startswith("sensor:") and sensor_key not in profiled_sources:
+                del state.tables["service_state"][sensor_key]
         self.evaluation_stats = {"evaluated": 0, "reused": 0}
         can_reuse = (
             self.reuse_unaffected
@@ -1356,7 +1423,12 @@ class Runtime:
                     "enabled": False,
                 }
                 continue
-            inputs = self._inputs(contract, config, state)
+            inputs = self._inputs(
+                contract,
+                config,
+                state,
+                trigger_source=trigger_source if origin == "input" else None,
+            )
             triggered = any(
                 resolve_ref(item.ref, config)[0] in affected for item in contract.inputs
             )
@@ -1804,7 +1876,19 @@ class Runtime:
                 }:
                     raw = observations.get(bindings.get(measured_source, ""))
                     if raw:
-                        stamp = Observation.model_validate(raw).measurement
+                        item = Observation.model_validate(raw)
+                        for metadata in ((item.value_origin,) if item.value_origin else ()) + tuple(
+                            point.value_origin for point in item.forecast
+                        ):
+                            due.extend(
+                                at for at in (metadata.valid_from, metadata.valid_until) if at
+                            )
+                            if metadata.issued_at and source.freshness.interval_s:
+                                due.append(
+                                    metadata.issued_at
+                                    + timedelta(seconds=source.freshness.interval_s, microseconds=1)
+                                )
+                        stamp = item.measurement
                         if stamp:
                             due.append(
                                 stamp - timedelta(seconds=source.freshness.future_tolerance_s)
@@ -1845,6 +1929,7 @@ class Runtime:
             and (
                 any(b.adapter.calendar or b.adapter.kind == "manual" for b in config.bindings)
                 or any(d.machine and d.machine.unknown_deadline for d in config.definitions)
+                or any(source.value_origin for source in config.sources)
                 or bool(self.state.tables["service_state"])
                 or any(node.get("clock_due") for node in self.state.tables["node_state"].values())
             )

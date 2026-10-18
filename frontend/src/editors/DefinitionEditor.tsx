@@ -1,3 +1,4 @@
+import { OutputOriginsEditor } from './ValueOriginEditor';
 import { t as uiText } from '@/i18n';
 import { codeLabel } from '@/i18n/codes';
 import { Lock, Trash2 } from 'lucide-react';
@@ -159,7 +160,8 @@ export function DefinitionEditor({
             <IssuesAt pointer={join(pointer, 'refresh_inputs')} />
           </fieldset>
           <fieldset disabled={locked}>
-            <Extras def="DeclarativeDefinition" value={value} pointer={pointer} onChange={onChange} />
+            <OutputOriginsEditor value={value} onChange={next => onChange(withMinimumLanguage(next))} />
+        <Extras def="DeclarativeDefinition" value={value} pointer={pointer} onChange={onChange} />
           </fieldset>
         </div>
       ),

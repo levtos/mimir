@@ -848,6 +848,22 @@ def compile_definition(definition: dm.DeclarativeDefinition) -> ContractType:
                 requested[name] = True
         evaluation = Evaluation(definition, ctx.inputs, ctx.now, ctx)
         values = {name: evaluation.evaluate(rule) for name, rule in definition.outputs.items()}
+        from .value_origin import ValueOrigin, contributions
+
+        for name, origin in definition.output_origins.items():
+            field = values[name]
+            if field.usable(ctx.now):
+                values[name] = field.model_copy(
+                    update={
+                        "value_origin": ValueOrigin(
+                            **origin.model_dump(),
+                            valid_from=field.valid_from,
+                            valid_until=field.valid_until,
+                            based_on=field.evidence[:64],
+                        ),
+                        "input_origins": contributions([field]),
+                    }
+                )
         if any(
             value.usable(ctx.now) and not definition.output_schema.fields[name].accepts(value.value)
             for name, value in values.items()

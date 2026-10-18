@@ -2585,3 +2585,24 @@ braucht das konkrete Formular folgende ergänzende Beschriftungen:
 | alpha9.manual.unit | Manuelle Quelle | — | Einheit | Bedienung, Gültigkeit und Ergebnisabfrage ohne JSON. |
 | alpha9.manual.minimum | Manuelle Quelle | — | Kleinster erlaubter Wert | Bedienung, Gültigkeit und Ergebnisabfrage ohne JSON. |
 | alpha9.manual.maximum | Manuelle Quelle | — | Größter erlaubter Wert | Bedienung, Gültigkeit und Ergebnisabfrage ohne JSON. |
+
+### Formularbeschriftungen A2: Sensorprüfung und Herkunft
+
+| Schlüssel | Ort | alt | neu | Grund |
+|---|---|---|---|---|
+| alpha9.sensor.choose | Quelle und Vertrag | — | Ausgewählte Sensorprüfung | Formulare und getrennte Herkunftsangabe ohne JSON. |
+| alpha9.sensor.defaultName | Quelle und Vertrag | — | Eigene Sensorprüfung | Formulare und getrennte Herkunftsangabe ohne JSON. |
+| alpha9.sensor.referenceDelta | Quelle und Vertrag | — | Mindestens diese Änderung bei der Vergleichsquelle | Formulare und getrennte Herkunftsangabe ohne JSON. |
+| alpha9.sensor.profileVersion | Quelle und Vertrag | — | Version der Sensorprüfung | Formulare und getrennte Herkunftsangabe ohne JSON. |
+| alpha9.valueOrigin.provider | Quelle und Vertrag | — | Anbieter oder Berechnung | Formulare und getrennte Herkunftsangabe ohne JSON. |
+| alpha9.valueOrigin.issued_at | Quelle und Vertrag | — | Erstellt am | Formulare und getrennte Herkunftsangabe ohne JSON. |
+| alpha9.valueOrigin.valid_from | Quelle und Vertrag | — | Gültig von | Formulare und getrennte Herkunftsangabe ohne JSON. |
+| alpha9.valueOrigin.valid_until | Quelle und Vertrag | — | Gültig bis | Formulare und getrennte Herkunftsangabe ohne JSON. |
+| alpha9.valueOrigin.output | Quelle und Vertrag | — | Art des Ergebnisses „{name}“ | Formulare und getrennte Herkunftsangabe ohne JSON. |
+| alpha9.valueOrigin.inputs | Quelle und Vertrag | — | Verwendete Eingänge: {kinds} | Formulare und getrennte Herkunftsangabe ohne JSON. |
+| alpha9.valueOrigin.point | Quelle und Vertrag | — | Vorhersage {number} | Formulare und getrennte Herkunftsangabe ohne JSON. |
+| alpha9.valueOrigin.addPoint | Quelle und Vertrag | — | Zeitraum hinzufügen | Formulare und getrennte Herkunftsangabe ohne JSON. |
+| alpha9.valueOrigin.series | Quelle und Vertrag | — | {count} Zeiträume eingetragen | Formulare und getrennte Herkunftsangabe ohne JSON. |
+| codes.sensor_stuck_suspected | Quelle und Vertrag | — | Wert seit ungewöhnlich langer Zeit unverändert | Formulare und getrennte Herkunftsangabe ohne JSON. |
+| codes.value_validity_gap | Quelle und Vertrag | — | Für diesen Zeitpunkt ist kein Wert gültig. | Formulare und getrennte Herkunftsangabe ohne JSON. |
+| fields.value_origin_path | Quelle und Vertrag | — | Herkunftsangabe im gelieferten Datensatz | Formulare und getrennte Herkunftsangabe ohne JSON. |

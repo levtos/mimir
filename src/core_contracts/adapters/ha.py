@@ -14,6 +14,7 @@ from ..ha_context import ContextIndex, HAContext
 from ..model import utc
 from ..registry import Binding, RegistryConfig
 from ..runtime import Runtime
+from ..value_origin import normalize as normalize_origin
 
 LOGGER = logging.getLogger(__name__)
 
@@ -260,9 +261,15 @@ class BridgeAdapter:
             value = attributes.get(binding.adapter.ha_attribute)
         normalized = value
         transform_error = None
+        origin_fields: dict[str, Any] = {}
         if availability == "available":
             try:
-                normalized = transform(value, binding, config)
+                metadata = (
+                    attributes[binding.adapter.value_origin_path]
+                    if binding.adapter.value_origin_path
+                    else None
+                )
+                normalized, origin_fields = normalize_origin(value, metadata, binding, config)
             except KeyError:
                 transform_error = "unmapped_value"
                 availability = "unknown"
@@ -304,6 +311,7 @@ class BridgeAdapter:
                 "value_raw": value,
                 "value_normalized": normalized,
                 "normalized": True,
+                **origin_fields,
                 **times,
                 "invalid_timestamp": invalid_timestamp,
                 "transform_error": transform_error,

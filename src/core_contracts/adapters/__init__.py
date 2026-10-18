@@ -19,6 +19,9 @@ class AdapterConfig(Model):
     mqtt_topic: str | None = None
     mqtt_value_path: str | None = None
     mqtt_time_path: str | None = None
+    value_origin_path: str | None = Field(
+        default=None, max_length=256, exclude_if=lambda value: value is None
+    )
     calendar: CalendarInput | None = Field(default=None, exclude_if=lambda value: value is None)
     window: CalendarWindow | None = Field(default=None, exclude_if=lambda value: value is None)
     refresh_s: int | None = Field(

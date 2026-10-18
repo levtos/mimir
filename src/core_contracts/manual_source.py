@@ -7,6 +7,8 @@ from uuid import UUID
 from pydantic import Field, field_validator
 
 from .model import Model, checksum, utc
+from .value_origin import ValueOrigin
+from .value_origin import normalize as normalize_origin
 
 if TYPE_CHECKING:
     from .persistence import State
@@ -33,6 +35,7 @@ class ManualRequest(Model):
     expected_active_revision: int = Field(ge=1, strict=True)
     action: Literal["set", "retract"] = "set"
     value: Any = None
+    value_origin: ValueOrigin | None = None
     valid_from: datetime | None = None
     valid_until: datetime | None = None
     confirm_unbounded: bool = Field(default=False, strict=True)
@@ -96,6 +99,22 @@ async def enter(runtime: Runtime, state: State, payload: dict[str, Any]) -> dict
     )
     now = runtime.clock.now_utc()
     start = request.valid_from or now
+    normalized, origin_error = request.value, False
+    origin_fields: dict[str, Any] = {}
+    if (
+        source
+        and binding
+        and config
+        and binding.adapter.kind == "manual"
+        and request.action == "set"
+    ):
+        try:
+            normalized, origin_fields = normalize_origin(
+                request.value, request.value_origin, binding, config
+            )
+        except ValueError, TypeError, KeyError:
+            origin_error = True
+    values = [point.value for point in origin_fields.get("forecast", ())] or [normalized]
     reason = (
         "active_revision_conflict"
         if state.active_revision != request.expected_active_revision
@@ -108,15 +127,22 @@ async def enter(runtime: Runtime, state: State, payload: dict[str, Any]) -> dict
         if not affected(config, source_id)
         else "manual_value_type"
         if request.action == "set"
-        and (not source.value_schema or not source.value_schema.accepts(request.value))
+        and (
+            origin_error
+            or not source.value_schema
+            or any(not source.value_schema.accepts(value) for value in values)
+        )
         else "manual_value_bounds"
         if request.action == "set"
-        and type(request.value) in {int, float}
-        and (
-            source.manual_minimum is not None
-            and request.value < source.manual_minimum
-            or source.manual_maximum is not None
-            and request.value > source.manual_maximum
+        and any(
+            type(value) in {int, float}
+            and (
+                source.manual_minimum is not None
+                and value < source.manual_minimum
+                or source.manual_maximum is not None
+                and value > source.manual_maximum
+            )
+            for value in values
         )
         else "manual_future_not_enabled"
         if start > now and not source.manual_allow_future
@@ -159,11 +185,14 @@ async def enter(runtime: Runtime, state: State, payload: dict[str, Any]) -> dict
             manual=evidence,
             received_at=now,
             value_raw=request.value if request.action == "set" else None,
+            value_normalized=normalized if request.action == "set" else None,
+            normalized=True,
             observation_kind="live_change",
             epoch_id=state.epoch_id,
             ingest_seq=state.generation + 1,
             registry_revision=state.active_revision,
             reference_version=2,
+            **origin_fields,
         )
         state.tables["source_observation_current"][binding.binding_id] = (
             observation.storage_document()

@@ -12,11 +12,14 @@ import { useActiveRevision } from '@/lib/queries';
 import { isObject, type Json, type JsonObject } from '@/lib/json';
 import { formatTime } from '@/lib/format';
 import { displayValue } from '@/lib/status';
+import { ForecastValuesEditor, newForecastPoint, OriginIntervalFields } from '@/editors/ValueOriginEditor';
 
 export function ManualSourcePanel({ sourceId }: { sourceId: string }) {
   const active = useActiveRevision(); const client = useQueryClient(); const config = active.data?.config;
   const source = asArray(config?.sources).filter(isObject).find(item => item.source_id === sourceId && item.origin === 'manual');
   const schema = asObject(source?.value_schema) as FieldSchema;
+  const declaredOrigin = asObject(source?.value_origin);
+  const [originMetadata, setOriginMetadata] = useState<JsonObject>({});
   const current = useQuery({ queryKey: ['evidence', sourceId], queryFn: () => api<JsonObject[]>(`evidence/${encodeURIComponent(sourceId)}`), enabled: !!source, retry: false });
   const entry = asObject(current.data?.[0]?.manual);
   const start = Date.parse(str(entry.valid_from)); const duration = Number(asObject(source?.freshness).interval_s);
@@ -27,6 +30,8 @@ export function ManualSourcePanel({ sourceId }: { sourceId: string }) {
   const [from, setFrom] = useState(''); const [until, setUntil] = useState(''); const [confirm, setConfirm] = useState(false); const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<JsonObject | null>(null); const [result, setResult] = useState('');
   useEffect(() => { setValue(schema.type === 'number' ? 0 : schema.type === 'bool' ? false : schema.type === 'object' ? {} : schema.type === 'enum' ? String(asArray(schema.value_catalog)[0] ?? '') : schema.type === 'timestamp' ? new Date().toISOString() : ''); }, [schema.type]);
+  const originSignature = JSON.stringify(declaredOrigin);
+  useEffect(() => { const origin = JSON.parse(originSignature) as JsonObject; setOriginMetadata(origin); if (origin.kind === 'forecast') setValue([newForecastPoint(schema, origin)]); }, [originSignature]);
   const contracts = asArray(config?.contracts).filter(isObject).filter(contract => contract.enabled !== false);
   const reached = new Set([sourceId]);
   for (let pass = 0; pass < contracts.length; pass++) {
@@ -41,6 +46,7 @@ export function ManualSourcePanel({ sourceId }: { sourceId: string }) {
   const send = async (action: 'set' | 'retract') => {
     if (busy || pending) return; setBusy(true); setResult('');
     const body: JsonObject = { request_id: crypto.randomUUID(), expected_active_revision: active.data!.revision, action, value: action === 'set' ? value : null, confirm_unbounded: confirm,
+      ...(action === 'set' && originMetadata.kind && !Array.isArray(value) ? { value_origin: originMetadata } : {}),
       ...(from && action === 'set' ? { valid_from: new Date(from).toISOString() } : {}), ...(until && action === 'set' ? { valid_until: new Date(until).toISOString() } : {}) };
     setPending(body);
     try { settled(await api<JsonObject>(`manual-sources/${encodeURIComponent(sourceId)}/observations`, { method: 'POST', body })); } catch { setResult(t('alpha9.manual.unknownResult')); } finally { setBusy(false); }
@@ -51,12 +57,12 @@ export function ManualSourcePanel({ sourceId }: { sourceId: string }) {
   };
   return <Panel><PanelHeader title={str(source.display_name) || t('alpha9.manual.origin')} description={t('alpha9.manual.description')} /><div className="space-y-4 p-5">
     <p className="flex gap-2 text-xs text-muted">{t('alpha9.manual.origin')}{!!entry.recorded_at && <time>{formatTime(str(entry.recorded_at))}</time>}</p>
-    {!!entry.request_id && entry.revoked !== true && <p>{t('alpha9.manual.value')}: {displayValue({ status: 'valid', quality: 'healthy', value: current.data?.[0]?.value_raw ?? null, evidence: [], reasons: [] }, typeof schema.unit === 'string' ? schema.unit : undefined)}</p>}
+    {!!entry.request_id && entry.revoked !== true && <p>{t('alpha9.manual.value')}: {asArray(current.data?.[0]?.forecast).length ? t('alpha9.valueOrigin.series', { count: asArray(current.data?.[0]?.forecast).length }) : displayValue({ status: 'valid', quality: 'healthy', value: current.data?.[0]?.value_raw ?? null, evidence: [], reasons: [] }, typeof schema.unit === 'string' ? schema.unit : undefined)}</p>}
     {start > now && <p>{t('alpha9.manual.notYet', { time: formatTime(str(entry.valid_from)) })}</p>}
     {entry.revoked === true || end <= now ? <p>{t('alpha9.manual.expired')}</p> : null}
     <p className="text-sm text-muted">{affected.length ? t('alpha9.manual.affected', { names: affected.map(item => str(item.display_name) || str(item.contract_id)).join(', ') }) : t('alpha9.manual.inactive')}</p>
     <fieldset disabled={busy || !!pending || !affected.length} className="space-y-3">
-      <TypedValueEditor label={t('alpha9.manual.value')} pointer="/manual/value" schema={schema} value={value} onChange={setValue} />
+      {declaredOrigin.kind === 'forecast' ? <ForecastValuesEditor value={value} schema={schema} origin={declaredOrigin} onChange={setValue} /> : <><TypedValueEditor label={t('alpha9.manual.value')} pointer="/manual/value" schema={schema} value={value} onChange={setValue} />{!!declaredOrigin.kind && <OriginIntervalFields value={originMetadata} onChange={setOriginMetadata} />}</>}
       {typeof schema.unit === 'string' && schema.unit && <p className="text-xs text-muted">{t('alpha9.manual.unit')}: {schema.unit}</p>}
       {source.manual_allow_future === true && <Field label={t('alpha9.manual.validFrom')}>{props => <Input {...props} type="datetime-local" value={from} onChange={event => setFrom(event.target.value)} />}</Field>}
       <Field label={t('alpha9.manual.validUntil')}>{props => <Input {...props} type="datetime-local" value={until} onChange={event => setUntil(event.target.value)} />}</Field>

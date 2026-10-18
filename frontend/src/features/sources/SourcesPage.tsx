@@ -113,7 +113,7 @@ function Collection({ name, idKey, singular, make, render, subtitle, usage, onMo
             </div>
             <div className="text-xs text-muted">{usage(current, config)}</div>
             <fieldset disabled={!src.editable} className="min-w-0">
-              {render(current, `/${name}/${selected}`, (next) => doc.edit((c) => setAt(c, `/${name}/${selected}`, next)), config)}
+              {render(current, `/${name}/${selected}`, (next) => doc.edit((c) => ({ ...setAt(c, `/${name}/${selected}`, next), ...(name === 'sources' && (next.sensor_profile || next.value_origin) ? { config_schema_version: 2 } : {}) })), config)}
             </fieldset>
             {name === 'sources' && current.origin === 'manual' && !src.editable && <ManualSourcePanel key={str(current.source_id)} sourceId={str(current.source_id)} />}
           </div>
@@ -210,6 +210,7 @@ export default function SourcesPage() {
                 }}
                 render={(item, pointer, onChange, config) => (
                   <SourceEditor
+                    sources={asArray(config.sources).filter(isObject)}
                     value={item}
                     pointer={pointer}
                     onChange={onChange}

@@ -71,15 +71,24 @@ class Temporal:
                 update={"grace_until": now + timedelta(seconds=seconds), "grace_armed": False}
             )
         if self.state.last_valid and self.state.grace_until and now < self.state.grace_until:
+            last = self.state.last_valid
+            if last.valid_until and now >= last.valid_until:
+                return unknown(ReasonCode.VALUE_VALIDITY_GAP, "value", now)
             return FieldValue(
                 status="held",
                 value=self.state.last_valid.value,
                 quality="healthy",
-                held_until=self.state.grace_until,
+                held_until=min(self.state.grace_until, last.valid_until)
+                if last.valid_until
+                else self.state.grace_until,
                 grace_declared=True,
                 reasons=(Reason(code=ReasonCode.GRACE, input="value", since=now),),
                 evidence=self.state.last_valid.evidence,
                 measured_at=self.state.last_valid.measured_at,
+                value_origin=last.value_origin,
+                input_origins=last.input_origins,
+                valid_from=last.valid_from,
+                valid_until=last.valid_until,
             )
         # Keep the expired deadline: re-evaluation must not renew it.
         return value

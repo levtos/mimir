@@ -13,7 +13,8 @@ from ..evidence import Observation
 from ..model import checksum
 from ..registry import Binding, RegistryConfig
 from ..runtime import Runtime
-from .ha import timestamp, transform
+from ..value_origin import normalize as normalize_origin
+from .ha import timestamp
 
 LOGGER = logging.getLogger(__name__)
 
@@ -82,8 +83,14 @@ class MQTTAdapter:
         self.sequence += 1
         transform_error: Literal["unmapped_value", "invalid_value"] | None = None
         normalized = None
+        origin_fields: dict[str, Any] = {}
         try:
-            normalized = transform(value, binding, config)
+            metadata = (
+                at_path(data, binding.adapter.value_origin_path)
+                if binding.adapter.value_origin_path
+                else None
+            )
+            normalized, origin_fields = normalize_origin(value, metadata, binding, config)
         except KeyError:
             transform_error = "unmapped_value"
         except ValueError, TypeError:
@@ -106,6 +113,7 @@ class MQTTAdapter:
             ingest_seq=self.sequence,
             reference_version=config.fingerprint_version,
             registry_revision=self.runtime.state.active_revision if revision is None else revision,
+            **origin_fields,
         )
 
     async def credentials(self) -> dict[str, Any]:
