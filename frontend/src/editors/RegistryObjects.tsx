@@ -97,6 +97,7 @@ export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceId
     onChange({ ...value, freshness: next });
   };
   const hasSchema = value.value_schema !== undefined && value.value_schema !== null;
+  const manual = value.origin === 'manual';
   const userType = asObject(value.value_schema).type === 'enum' ? 'selection' : str(value.source_type);
   const fp = join(pointer, 'freshness');
   return (
@@ -148,9 +149,9 @@ export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceId
 
       <section className="flex flex-col gap-3">
         <SectionTitle>{uiText("editors.RegistryObjects.frische_freshness_be29ab")}</SectionTitle>
-        <Fld label={uiText('alpha7.device.applyPreset')} pointer={fp}>
+        {!manual && <Fld label={uiText('alpha7.device.applyPreset')} pointer={fp}>
           {props => <Select {...props} value="" onChange={event => { if (!event.target.value) return; const next = { ...freshness, ...freshnessPreset(event.target.value as DevicePreset) }; if (next.mode === 'event_stateful') delete next.interval_s; delete next.liveness_source; onChange({ ...value, freshness: next }); }}><option value="">{uiText('alpha7.device.keepSettings')}</option>{DEVICE_PRESETS.map(preset => <option key={preset} value={preset}>{uiText(`alpha7.device.preset.${preset}`)}</option>)}</Select>}
-        </Fld>
+        </Fld>}
         <p className="text-xs text-muted">{uiText(`alpha7.freshness.${mode}Help`)}</p>
         <IssuesAt pointer={fp} />
         <div className="grid gap-3 sm:grid-cols-4">
@@ -161,13 +162,13 @@ export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceId
                  const needs = requiredWhen(schema, 'Freshness', 'mode', nextMode);
                   setFreshness({ mode: nextMode, ...(needs.includes('interval_s') && freshness.interval_s == null ? { interval_s: 60 } : {}) });
                }}>
-                {enumAt(schema, 'Freshness', 'mode', ['report_heartbeat', 'liveness_source', 'periodic_ttl', 'event_stateful']).map((k) => (
+                {enumAt(schema, 'Freshness', 'mode', ['report_heartbeat', 'liveness_source', 'periodic_ttl', 'event_stateful']).filter(k => !manual || k === 'periodic_ttl' || k === 'event_stateful').map((k) => (
                   <option key={k} value={k}>{codeLabel(k)}</option>
                 ))}
               </Select>
             )}
           </Fld>
-          <NumberField label={uiText("editors.RegistryObjects.zukunftstoleranz_s_a11f48")} pointer={join(fp, 'future_tolerance_s')} min={0} value={Number(freshness.future_tolerance_s ?? 0)} onChange={(n) => setFreshness({ future_tolerance_s: n })} />
+          {!manual && <NumberField label={uiText("editors.RegistryObjects.zukunftstoleranz_s_a11f48")} pointer={join(fp, 'future_tolerance_s')} min={0} value={Number(freshness.future_tolerance_s ?? 0)} onChange={(n) => setFreshness({ future_tolerance_s: n })} />}
           {mode !== 'event_stateful' && (
             <NumberField label={uiText("editors.RegistryObjects.intervall_s_v0_3a6c0e", { v0: ' *' })} hint={uiText(Number(freshness.interval_s ?? 60) === 60 ? 'alpha7.freshness.oneMinute' : 'alpha7.freshness.minutes', { minutes: formatNumber(Number(freshness.interval_s ?? 60) / 60, 1) })} pointer={join(fp, 'interval_s')} min={1} value={Number(freshness.interval_s ?? 60)} onChange={(n) => setFreshness({ interval_s: n })} />
           )}
@@ -193,6 +194,11 @@ export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceId
         <p className="text-xs text-muted">{uiText("editors.RegistryObjects.quellen_der_typen_boolean_numeric_text_haben_ihr_e970bc")}</p>
         {hasSchema && <FieldSchemaEditor pointer={join(pointer, 'value_schema')} value={asObject(value.value_schema) as FieldSchema} onChange={(next) => set({ value_schema: next })} />}
       </Collapsible>
+      {manual && <section className="space-y-3">
+        <p className="text-sm text-muted">{uiText('alpha9.manual.origin')}</p>
+        <Switch label={uiText('alpha9.manual.future')} checked={value.manual_allow_future === true} onCheckedChange={on => set({ manual_allow_future: on || undefined })} />
+        {asObject(value.value_schema).type === 'number' && <div className="grid gap-3 sm:grid-cols-2">{(['manual_minimum', 'manual_maximum'] as const).map(key => <Fld key={key} label={uiText(`alpha9.manual.${key}`)} pointer={join(pointer, key)}>{props => <Input {...props} type="number" step="any" value={typeof value[key] === 'number' ? Number(value[key]) : ''} onChange={event => set({ [key]: event.target.value === '' ? undefined : event.target.valueAsNumber })} />}</Fld>)}</div>}
+      </section>}
       <SourceQualityEditor value={value} onChange={onChange} sources={sources} />
       <Extras def="Source" value={value} pointer={pointer} onChange={onChange} />
     </div>

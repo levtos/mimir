@@ -117,7 +117,7 @@ it('keeps selection across source subpages and keeps the editor mounted while cl
   await user.type(screen.getByLabelText('Name'), 'Mein Sensor');
   await user.click(screen.getByRole('link', { name: 'Verknüpfungen' }));
   await screen.findByRole('heading', { level: 1, name: 'Verknüpfungen' });
-  await user.click(screen.getByRole('link', { name: 'Geräte aus Home Assistant' }));
+  await user.click(screen.getByRole('link', { name: 'Meine Quellen' }));
   expect(await screen.findByLabelText('Name')).toHaveValue('Mein Sensor');
   await user.click(screen.getByLabelText('Weitere Entwurfsaktionen'));
   await user.click(screen.getByRole('button', { name: 'Speichern' }));

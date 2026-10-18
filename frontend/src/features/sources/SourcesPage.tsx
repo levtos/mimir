@@ -1,3 +1,4 @@
+import { Collapsible } from '@/components/ui/controls';
 import { t as uiText } from '@/i18n';
 import { Copy, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -113,10 +114,14 @@ function Collection({ name, idKey, singular, make, render, subtitle, usage, onMo
               )}
             </div>
             <div className="text-xs text-muted">{usage(current, config)}</div>
-            <fieldset disabled={!src.editable} className="min-w-0">
+            {name === 'sources' && current.origin === 'manual' && !src.editable ? <>
+              <ManualSourcePanel key={str(current.source_id)} sourceId={str(current.source_id)} />
+              <Collapsible title={uiText('alpha9.manual.configuration')}><fieldset disabled={!src.editable} className="min-w-0">
               {render(current, `/${name}/${selected}`, (next) => doc.edit((c) => ({ ...setAt(c, `/${name}/${selected}`, next), ...(name === 'sources' && (next.sensor_profile || next.value_origin) ? { config_schema_version: 2 } : {}) })), config)}
-            </fieldset>
-            {name === 'sources' && current.origin === 'manual' && !src.editable && <ManualSourcePanel key={str(current.source_id)} sourceId={str(current.source_id)} />}
+            </fieldset></Collapsible>
+            </> : <><fieldset disabled={!src.editable} className="min-w-0">
+              {render(current, `/${name}/${selected}`, (next) => doc.edit((c) => ({ ...setAt(c, `/${name}/${selected}`, next), ...(name === 'sources' && (next.sensor_profile || next.value_origin) ? { config_schema_version: 2 } : {}) })), config)}
+            </fieldset></>}
           </div>
         )}
       </MasterDetail>

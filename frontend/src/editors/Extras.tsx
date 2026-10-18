@@ -31,7 +31,7 @@ export const HANDLED = {
   DeclarativeDefinition: ['type_id', 'type_version', 'language_version', 'display_name', 'description', 'lifecycle', 'reactivation_note', 'inputs', 'refresh_inputs', 'schema', 'rules', 'outputs', 'machine', 'output_origins'],
   TypedInput: ['name', 'schema'],
   Schema: ['fields', 'available_projection', 'grace_capable', 'grace_parameter', 'fixture'],
-  Source: ['source_id', 'source_type', 'source_origin', 'freshness', 'dependency_id', 'physical_source_key', 'display_name', 'value_schema', 'sensor_profile', 'sensor_parameters', 'value_origin'],
+  Source: ['source_id', 'source_type', 'source_origin', 'freshness', 'dependency_id', 'physical_source_key', 'display_name', 'value_schema', 'sensor_profile', 'sensor_parameters', 'value_origin', 'origin', 'manual_allow_future', 'manual_minimum', 'manual_maximum'],
   Freshness: ['mode', 'future_tolerance_s', 'interval_s', 'liveness_source'],
   Binding: ['binding_id', 'source_id', 'adapter', 'transform', 'display_name', 'refresh'],
   AdapterConfig: ['kind', 'ha_entity_id', 'ha_attribute', 'ha_time_attribute', 'mqtt_topic', 'mqtt_value_path', 'mqtt_time_path', 'window', 'refresh_s', 'max_age_s'],

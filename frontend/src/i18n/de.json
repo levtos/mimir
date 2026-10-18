@@ -357,7 +357,7 @@
   "alpha7.nav.ownTemplates": "Eigene Vorlagen",
   "alpha7.nav.builtinTemplates": "Eingebaute Vorlagen",
   "alpha7.nav.sources": "Quellen",
-  "alpha7.nav.devices": "Geräte aus Home Assistant",
+  "alpha7.nav.devices": "Meine Quellen",
   "alpha7.nav.bindings": "Verknüpfungen",
   "alpha7.nav.catalogs": "Wertelisten",
   "alpha7.nav.dependencies": "Abhängigkeiten",
@@ -2459,5 +2459,9 @@
   "alpha9.setup.step": "Schritt {current} von {count}: {name}",
   "alpha9.setup.completeStep": "Warte auf die Prüfung und ergänze die erforderlichen Angaben und Bestätigungen.",
   "alpha9.manual.notRecorded": "Mimir hat noch keinen Nachweis für diese Eingabe. Du kannst genau dieselbe Eingabe erneut senden; sie wird höchstens einmal übernommen.",
-  "alpha9.manual.retrySame": "Dieselbe Eingabe erneut senden"
+  "alpha9.manual.retrySame": "Dieselbe Eingabe erneut senden",
+  "alpha9.manual.manual_minimum": "Kleinste erlaubte Angabe (freiwillig)",
+  "alpha9.manual.manual_maximum": "Größte erlaubte Angabe (freiwillig)",
+  "alpha9.manual.configuration": "Konfiguration dieser Quelle ansehen",
+  "alpha9.ha.disconnectedOne": "Home Assistant getrennt seit {since} – 1 Wert ohne Frist gilt unverändert weiter"
 }

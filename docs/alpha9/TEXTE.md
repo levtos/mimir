@@ -2659,6 +2659,7 @@ Ladezustand und lesende Verbindungsprüfung sind zusätzlich abgedeckt.
 | alpha7.event.activate | Dynamische Beschriftung; Namensraum im Quellcode erhalten | Version {version} übernommen | Konfiguration {version} übernommen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
 | alpha7.event.rollback | Dynamische Beschriftung; Namensraum im Quellcode erhalten | Version {version} durch Zurücksetzen übernommen | Konfiguration {version} durch Zurücksetzen übernommen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
 | alpha7.mode.live | Entwurf und Bearbeitung | Aktueller Stand | Ansehen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha7.nav.devices | Menü; Quellen und Verknüpfungen | Geräte aus Home Assistant | Meine Quellen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
 | alpha7.nav.diagnostics | Menü | Erweitert | Fehlersuche | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
 | editors.RegistryObjects.eingange_bindung_an_quellen_und_andere_contracts_c3d83b | Formular für Vorlage / Quelle / Vertrag | Verknüpfung | Verknüpfungen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
 | features.contracts.ContractDetailPage.eingange_53fb39 | Vertrag und Vorlage | Eingänge | Verknüpfungen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
@@ -2933,6 +2934,10 @@ Ladezustand und lesende Verbindungsprüfung sind zusätzlich abgedeckt.
 | alpha9.setup.completeStep | Neue Formulare / Einstellungen / Hinweise | – (neu) | Warte auf die Prüfung und ergänze die erforderlichen Angaben und Bestätigungen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
 | alpha9.manual.notRecorded | Neue Formulare / Einstellungen / Hinweise | – (neu) | Mimir hat noch keinen Nachweis für diese Eingabe. Du kannst genau dieselbe Eingabe erneut senden; sie wird höchstens einmal übernommen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
 | alpha9.manual.retrySame | Neue Formulare / Einstellungen / Hinweise | – (neu) | Dieselbe Eingabe erneut senden | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.manual.manual_minimum | Neue Formulare / Einstellungen / Hinweise | – (neu) | Kleinste erlaubte Angabe (freiwillig) | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.manual.manual_maximum | Neue Formulare / Einstellungen / Hinweise | – (neu) | Größte erlaubte Angabe (freiwillig) | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.manual.configuration | Neue Formulare / Einstellungen / Hinweise | – (neu) | Konfiguration dieser Quelle ansehen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.ha.disconnectedOne | Neue Formulare / Einstellungen / Hinweise | – (neu) | Home Assistant getrennt seit {since} – 1 Wert ohne Frist gilt unverändert weiter | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
 
 ### Entfernte Schlüssel
 

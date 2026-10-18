@@ -110,8 +110,12 @@ export function flow(user: UserEvent) {
     await screen.findByText('im Entwurf gespeichert', {}, { timeout: 65_000 });
     await go(`#/changes/drafts/${draftId}`);
     await screen.findByText('Hier kannst du deinen Entwurf prüfen und die Änderungen übernehmen.');
+    await waitFor(() => {
+      const control = screen.queryByRole('button', { name: 'Übernehmen' }) ?? screen.getByRole('button', { name: 'Prüfen' });
+      expect(control).toBeEnabled();
+    }, { timeout: 65_000 });
     const check = screen.queryByRole('button', { name: 'Prüfen' });
-    if (check) { await waitFor(() => expect(check).toBeEnabled()); await user.click(check); }
+    if (check) await user.click(check);
     const button = await screen.findByRole('button', { name: 'Übernehmen' }, { timeout: 65_000 });
     await waitFor(() => { expect(button).toBeEnabled(); expect(button.closest('[data-page-header]')).not.toBeNull(); }, { timeout: 65_000 });
     await user.click(button);

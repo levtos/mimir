@@ -140,7 +140,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     await user.click(screen.getByRole('button', { name: /Neue Version/ }));
     const versioning = await screen.findByRole('dialog', { name: /Neue Version von test.truth/ });
     await user.click(within(versioning).getByRole('checkbox', { name: 'fixture.right' })); // only fixture.left migrates
-    await user.click(within(versioning).getByRole('button', { name: "Konfiguration anlegen" }));
+    await user.click(within(versioning).getByRole('button', { name: "Version anlegen" }));
     await screen.findByRole('tab', { name: 'Allgemein' });
     await f.tab(/Ausgaben/);
     await f.setOp('/definitions/5/outputs/value', 'not'); // v2 negates its input (unlocked, never activated)
@@ -157,14 +157,14 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     // 6. Rollback to revision 1 through the UI: a NEW revision with the historical content.
     await f.go('#/changes/versions');
     const rev1 = (await within(screen.getByRole('main')).findByText("Konfiguration 1", {}, { timeout: 65_000 })).closest('li')!;
-    const rollbackButton = await within(rev1).findByRole('button', { name: 'Auf diese Version zurücksetzen' }, { timeout: 65_000 });
+    const rollbackButton = await within(rev1).findByRole('button', { name: 'Auf diese Konfiguration zurücksetzen' }, { timeout: 65_000 });
     await waitFor(() => expect(rollbackButton).toBeEnabled(), { timeout: 65_000 });
     await user.click(rollbackButton);
-    const rollback = await screen.findByRole('dialog', { name: /Auf Version 1 zurücksetzen/ });
+    const rollback = await screen.findByRole('dialog', { name: /Auf Konfiguration 1 zurücksetzen/ });
     // The real shared scheduler can wait for its 61-second window after this fast scripted flow.
-    await user.click(await within(rollback).findByRole('checkbox', { name: /Ich möchte Version 1 als neue Version 3/ }, { timeout: 65_000 }));
+    await user.click(await within(rollback).findByRole('checkbox', { name: /Ich möchte Konfiguration 1 als neue Konfiguration 3/ }, { timeout: 65_000 }));
     await user.click(within(rollback).getByRole('button', { name: "Zurücksetzen" }));
-    await within(rollback).findByText(/Neue Version 3 aktiv/, {}, { timeout: 20_000 });
+    await within(rollback).findByText(/Konfiguration 3 ist übernommen/, {}, { timeout: 20_000 });
     await user.click(within(rollback).getAllByRole('button', { name: 'Schließen' }).at(-1)!);
     await expectSameAsActive(registry); // revision 3 carries revision 1's content again
     expect((await raw<{ items: { operation: string }[] }>('history/query/activations')).body.items.map((i) => i.operation)).toEqual(['rollback', 'activate', 'activate']);
@@ -273,7 +273,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
       await waitFor(() => expect(accept).toBeEnabled(), { timeout: 65_000 });
       await user.click(accept);
       await user.click(within(confirm).getByRole('button', { name: 'Jetzt übernehmen' }));
-      await within(confirm).findByText(/Version \d+ ist aktiv/, {}, { timeout: 65_000 });
+      await within(confirm).findByText(/Konfiguration \d+ ist aktiv/, {}, { timeout: 65_000 });
       await user.click(within(confirm).getAllByRole('button', { name: 'Schließen' }).at(-1)!);
     };
     await takeover();

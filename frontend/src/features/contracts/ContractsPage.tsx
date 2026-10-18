@@ -190,7 +190,7 @@ export default function ContractsPage() {
   const roomOptions = [...new Map(rows.map(row => [roomKey(row.room), row.room])).entries()];
   const groups = groupItems(filtered, row => groupBy === 'category' ? row.category : groupBy === 'room' ? roomKey(row.room) : 'all');
   const columns = [
-    col.accessor(row => row.name || row.id, { id: 'name', header: uiText('alpha7.contract.name'), cell: cell => <div className="min-w-0"><Link to={`/contracts/view/${encodeURIComponent(cell.row.original.id)}`} title={cell.row.original.id} className="block truncate font-medium hover:text-fg" onClick={event => event.stopPropagation()}>{cell.getValue()}</Link>{cell.row.original.name && <span title={cell.row.original.id} className="block truncate text-xs text-muted">{cell.row.original.id}</span>}</div> }),
+    col.accessor(row => row.name || row.id, { id: 'name', header: uiText('alpha7.contract.name'), cell: cell => <div className="min-w-0"><Link to={`/contracts/view/${encodeURIComponent(cell.row.original.id)}`} title={cell.row.original.id} className="block truncate font-medium hover:text-fg" onClick={event => event.stopPropagation()}>{cell.getValue()}</Link></div> }),
     col.accessor('category', { header: uiText('alpha9.category.label'), cell: cell => <CategoryBadge category={cell.getValue()} /> }),
     col.accessor('room', { header: uiText('alpha9.room.label'), cell: cell => <RoomBadge room={cell.getValue()} /> }),
     col.accessor('value', { header: uiText('alpha7.contract.value'), cell: cell => <span className="tabular-nums">{cell.getValue()}</span> }),
