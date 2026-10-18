@@ -61,7 +61,7 @@ export interface WorkingDocument {
   cancelSwitch: () => void;
   close: () => void;
   edit: (updater: (config: Registry) => Registry) => void;
-  editWithEditorial: (updater: (config: Registry) => Registry, editorial: EditorialEntry[]) => Promise<Draft>;
+  editAndSave: (updater: (config: Registry) => Registry, editorial?: EditorialEntry[]) => Promise<Draft>;
   setAt: (pointer: string, value: Json | undefined) => void;
   replaceAll: (config: Registry) => void;
   undo: () => void;
@@ -338,8 +338,8 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
     }
   }, [update]);
 
-  /** A new object and its pending metadata share one draft transaction. */
-  const editWithEditorial = useCallback(async (updater: (config: Registry) => Registry, editorial: EditorialEntry[]) => {
+  /** Save a local edit atomically, with pending metadata when creating objects. */
+  const editAndSave = useCallback(async (updater: (config: Registry) => Registry, editorial: EditorialEntry[] = []) => {
     const current = latest.current;
     if (!current.draft || !current.config || savingRef.current) throw new Error(uiText('alpha7.draft.saveBeforeReview'));
     const owner = documentId.current;
@@ -435,7 +435,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
       cancelSwitch,
       close,
       edit,
-      editWithEditorial,
+      editAndSave,
       setAt: setAtPointer,
       replaceAll,
       undo,
@@ -445,7 +445,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
       validateNow,
       resolveConflict,
     }),
-    [snap, dirty, saving, editing, starting, ensureDraft, prepareActivation, conflict, validation, activeRevision, autoValidate, open, requestOpen, switchRequest, confirmSwitch, cancelSwitch, close, edit, editWithEditorial, setAtPointer, setDisplayName, replaceAll, undo, redo, save, saveError, validateNow, resolveConflict],
+    [snap, dirty, saving, editing, starting, ensureDraft, prepareActivation, conflict, validation, activeRevision, autoValidate, open, requestOpen, switchRequest, confirmSwitch, cancelSwitch, close, edit, editAndSave, setAtPointer, setDisplayName, replaceAll, undo, redo, save, saveError, validateNow, resolveConflict],
   );
 
   return (

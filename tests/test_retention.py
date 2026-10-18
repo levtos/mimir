@@ -68,6 +68,10 @@ async def test_failed_retention_does_not_delete_or_duplicate_rollups(runtime, co
 
 async def test_production_readiness_requires_explicit_retention_policy(runtime, config):
     runtime.require_history_retention = True
+    assert {"no_active_registry", "history_retention_required"} <= set(runtime.readiness_reasons)
+    facts = {row["code"]: row["satisfied"] for row in runtime.service_state()["conditions"]}
+    assert facts["active_configuration"] is False and facts["history_retention"] is False
+    assert facts["first_ha_state"] is None
     await activate(runtime, config)
     runtime.first_snapshot = True
     assert "history_retention_required" in runtime.readiness_reasons
@@ -76,6 +80,24 @@ async def test_production_readiness_requires_explicit_retention_policy(runtime, 
     await activate(runtime, config)
     assert "history_retention_required" not in runtime.readiness_reasons
     assert runtime.ready
+
+
+async def test_readiness_keeps_all_conditions_and_marks_database_dependent_checks_unknown(
+    runtime, config
+):
+    runtime.require_history_retention = True
+    await activate(runtime, config)
+    await runtime.submit(
+        "draft_create",
+        {"config": {**config, "history_retention": {"raw_days": 7, "rollup_days": 730}}},
+    )
+    facts = {row["code"]: row["satisfied"] for row in runtime.service_state()["conditions"]}
+    assert facts["history_retention"] is False
+    assert facts["first_ha_state"] is False
+    runtime.persistence = False
+    facts = {row["code"]: row["satisfied"] for row in runtime.service_state()["conditions"]}
+    assert facts["database"] is False
+    assert facts["history_retention"] is None and facts["active_configuration"] is None
 
 
 async def test_retention_api_separates_preview_admin_mutation_and_expired_evidence(

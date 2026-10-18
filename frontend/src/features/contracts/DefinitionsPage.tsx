@@ -163,7 +163,7 @@ export default function DefinitionsPage() {
                 setBusy(true); setCreationError('');
                 try {
                   const id = fullId; const object = { kind: 'template' as const, id };
-                  await doc.editWithEditorial((c) => ({ ...c, fingerprint_version: 2, definitions: [...asArray(c.definitions), { ...newDefinition(id, 1), ...(name.trim() ? { display_name: name.trim() } : {}) }] }), [{ object, category, room: NO_ROOM, expected_editorial_version: metadata.item(object).editorial_version }]);
+                  await doc.editAndSave((c) => ({ ...c, fingerprint_version: 2, definitions: [...asArray(c.definitions), { ...newDefinition(id, 1), ...(name.trim() ? { display_name: name.trim() } : {}) }] }), [{ object, category, room: NO_ROOM, expected_editorial_version: metadata.item(object).editorial_version }]);
                   setCreating(false); navigate(`/templates/details/${encodeURIComponent(id)}/1`);
                 } catch (failure) { setCreationError(describeError(failure)); }
                 finally { setBusy(false); }

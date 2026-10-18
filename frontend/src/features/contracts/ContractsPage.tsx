@@ -85,7 +85,7 @@ function ManualNewContractDialog({ open, onOpenChange, onCreated }: { open: bool
               setBusy(true); setError('');
               try {
                 const contractId = id.trim(); const object = { kind: 'contract' as const, id: contractId };
-                await doc.editWithEditorial((c) => setAt(c, '/contracts', [...asArray(c.contracts), { contract_id: contractId, type_id: chosen.type_id, type_version: chosen.type_version, enabled: true, inputs: [], parameters: {} }]), [{ object, category: selectedCategory, room: NO_ROOM, expected_editorial_version: metadata.item(object).editorial_version }]);
+                await doc.editAndSave((c) => setAt(c, '/contracts', [...asArray(c.contracts), { contract_id: contractId, type_id: chosen.type_id, type_version: chosen.type_version, enabled: true, inputs: [], parameters: {} }]), [{ object, category: selectedCategory, room: NO_ROOM, expected_editorial_version: metadata.item(object).editorial_version }]);
                 onOpenChange(false); setId(''); setCategory(null); onCreated(contractId);
               } catch (failure) { setError(describeError(failure)); }
               finally { setBusy(false); }

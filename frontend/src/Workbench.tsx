@@ -49,6 +49,7 @@ export function workbenchRoutes(onSetup: () => void): RouteObject[] {
         ...['system', 'installation', 'connections', 'keys', 'log'].map(section => ({ path: `settings/${section}`, element: lazyPage(() => import('@/features/admin/AdminPage')) })),
         { path: 'settings/diagnostics', element: lazyPage(() => import('@/features/diagnostics/DiagnosticsPage')) },
         { path: 'settings/notifications', element: lazyPage(() => import('@/features/admin/NotificationsPage')) },
+        { path: 'settings/retention', element: lazyPage(() => import('@/features/admin/RetentionPage')) },
         ...['contracts', 'contracts/:contractId', 'definitions', 'definitions/:typeId/:version', 'sources', 'registry', 'registry/drafts/:draftId', 'graph', 'diagnostics', 'admin'].map(path => ({ path, element: <LegacyRoute /> })),
         { path: '*', element: <OverviewPage /> },
       ],

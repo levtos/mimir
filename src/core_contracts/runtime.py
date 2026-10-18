@@ -181,6 +181,7 @@ class Runtime:
             "bridge": self.bridge if self.requires_ha_snapshot else "not_needed",
             "mqtt": self.mqtt,
             "reasons": self.readiness_reasons,
+            "conditions": self.readiness_conditions,
             "ha_disconnected_since": self.ha_changed_at.isoformat()
             if self.bridge == "unavailable"
             else None,
@@ -221,13 +222,50 @@ class Runtime:
             reasons.append("persistence_unavailable")
         if self.state.active_revision == 0:
             reasons.append("no_active_registry")
-        elif (
-            self.require_history_retention and self.config and self.config.history_retention is None
+        if self.require_history_retention and (
+            self.config is None or self.config.history_retention is None
         ):
             reasons.append("history_retention_required")
         if self.requires_ha_snapshot and not self.first_snapshot:
             reasons.append("first_bridge_snapshot_pending")
         return reasons
+
+    @property
+    def readiness_conditions(self) -> list[dict[str, Any]]:
+        config = self.config
+        known = self.persistence
+        return [
+            {"code": "supervisor_options", "satisfied": not bool(self.configuration_error)},
+            {"code": "database", "satisfied": known},
+            {
+                "code": "active_configuration",
+                "satisfied": self.state.active_revision > 0 if known else None,
+            },
+            {
+                "code": "history_retention",
+                "satisfied": (
+                    not self.require_history_retention or bool(config and config.history_retention)
+                )
+                if known
+                else None,
+            },
+            {
+                "code": "first_ha_state",
+                "satisfied": (not self.requires_ha_snapshot or self.first_snapshot)
+                if known and config
+                else None,
+            },
+            {
+                "code": "ha_connection",
+                "satisfied": (
+                    not self.requires_ha_snapshot or self.ha == self.bridge == "connected"
+                )
+                if known and config
+                else None,
+            },
+            {"code": "publication", "satisfied": self.confirmed if known and config else None},
+            {"code": "input_capacity", "satisfied": not self.queue.full()},
+        ]
 
     def _audit(self, state: State, operation: str, payload: dict[str, Any], **details: Any) -> None:
         state.tables["diagnostic_event"][str(uuid4())] = {

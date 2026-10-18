@@ -50,6 +50,9 @@ function structuredValue(value: unknown): string {
 export type ConditionKind =
   | 'empty_configuration'
   | 'setup_incomplete'
+  | 'retention_missing'
+  | 'condition_unchecked'
+  | 'overload'
   | 'readiness_pending'
   | 'limited_source'
   | 'publication_unconfirmed'
@@ -58,6 +61,7 @@ export type ConditionKind =
   | 'system_fault';
 
 export interface Condition {
+  code?: string;
   kind: ConditionKind;
   tone: Tone;
   title: string;
@@ -75,7 +79,13 @@ export interface SystemInput {
 /** Separate, individually named conditions; never one generic "error". */
 export function classifySystem({ service, connection, hasActiveRegistry, apiFailure }: SystemInput): Condition[] {
   const result: Condition[] = [];
-  const reasons = service?.reasons ?? [];
+  const facts = new Map(service?.conditions?.map(condition => [condition.code, condition.satisfied]));
+  const reasons = [...(service?.reasons ?? [])];
+  for (const [fact, reason] of Object.entries({ supervisor_options: 'invalid_supervisor_options', database: 'persistence_unavailable', active_configuration: 'no_active_registry', history_retention: 'history_retention_required', first_ha_state: 'first_bridge_snapshot_pending' })) {
+    if (!facts.has(fact)) continue;
+    while (reasons.includes(reason)) reasons.splice(reasons.indexOf(reason), 1);
+    if (facts.get(fact) === false) reasons.push(reason);
+  }
   if (reasons.includes('invalid_supervisor_options')) {
     result.push({
       kind: 'setup_incomplete',
@@ -92,11 +102,11 @@ export function classifySystem({ service, connection, hasActiveRegistry, apiFail
       detail: uiText("lib.status.die_datenbank_ist_nicht_erreichbar_zustande_werd_8902d8"),
     });
   }
-  if (hasActiveRegistry === false || reasons.includes('no_active_registry')) {
+  if ((!facts.has('active_configuration') && hasActiveRegistry === false) || reasons.includes('no_active_registry')) {
     result.push({
       kind: 'empty_configuration',
       tone: 'info',
-      title: uiText("lib.status.leere_konfiguration_e2bdda"),
+      title: uiText('alpha9.readiness.noConfiguration'),
       detail: uiText("lib.status.es_ist_noch_keine_registry_aktiv_das_ist_ein_gul_4a298e"),
     });
   }
@@ -108,8 +118,8 @@ export function classifySystem({ service, connection, hasActiveRegistry, apiFail
       detail: uiText("lib.status.der_erste_snapshot_der_home_assistant_bridge_ste_9e13ec"),
     });
   }
-  if (reasons.includes('history_retention_required')) {
-    result.push({ kind: 'setup_incomplete', tone: 'warn', title: uiText('alpha8.retention.required'), detail: uiText('alpha8.retention.configure') });
+  if (reasons.includes('history_retention_required') || !facts.has('history_retention') && hasActiveRegistry === false) {
+    result.push({ kind: 'retention_missing', tone: 'warn', title: uiText('alpha9.readiness.retentionMissing'), detail: uiText('alpha8.retention.configure') });
   }
   if (service && ([service.ha, service.bridge].some((state) => state !== 'connected' && state !== 'not_needed'))) {
     const parts = [service.ha !== 'connected' ? uiText('system.haConnection', { state: connectionLabel(service.ha) }) : '', service.bridge !== 'connected' ? uiText('system.bridgeConnection', { state: connectionLabel(service.bridge) }) : '']
@@ -122,7 +132,7 @@ export function classifySystem({ service, connection, hasActiveRegistry, apiFail
       detail: uiText("lib.status.v0_contracts_konnen_unbekannt_oder_eingeschrankt_0d697c", { v0: (parts) }),
     });
   }
-  if (service && !service.publication_confirmed) {
+  if (service && !service.publication_confirmed && facts.get('publication') !== null && hasActiveRegistry !== false) {
     result.push({
       kind: 'publication_unconfirmed',
       tone: 'warn',
@@ -134,7 +144,7 @@ export function classifySystem({ service, connection, hasActiveRegistry, apiFail
     result.push({
       kind: 'connection_lost',
       tone: 'warn',
-      title: connection === uiText("lib.status.offline_8e2c7a") ? uiText("lib.status.offline_a17947") : uiText("lib.status.verbindungsabbruch_b5a0d4"),
+      title: connection === 'offline' ? uiText("lib.status.offline_a17947") : uiText("lib.status.verbindungsabbruch_b5a0d4"),
       detail: uiText("lib.status.die_live_verbindung_ist_unterbrochen_gezeigt_wir_355e23"),
     });
   }
@@ -145,6 +155,12 @@ export function classifySystem({ service, connection, hasActiveRegistry, apiFail
       title: uiText("lib.status.systemstorung_43a12a"),
       detail: uiText("lib.status.der_dienst_antwortet_fehlerhaft_details_in_diagn_8a3550"),
     });
+  }
+  if (facts.get('input_capacity') === false) result.push({ kind: 'overload', tone: 'warn', title: uiText('alpha9.readiness.overload'), detail: uiText('alpha9.readiness.overloadDetail') });
+  const knownCodes = ['supervisor_options', 'database', 'active_configuration', 'history_retention', 'first_ha_state', 'ha_connection', 'publication', 'input_capacity'];
+  for (const [code, satisfied] of facts) {
+    if (satisfied !== null && (knownCodes.includes(code) || satisfied === true)) continue;
+    result.push({ kind: 'condition_unchecked', code, tone: 'info', title: uiText('alpha9.readiness.unknownCondition', { condition: uiText(knownCodes.includes(code) ? `alpha9.readiness.condition.${code}` : 'alpha9.readiness.otherCondition') }), detail: uiText('alpha9.readiness.uncheckedDetail') });
   }
   return result;
 }

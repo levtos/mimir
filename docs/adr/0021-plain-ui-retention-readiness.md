@@ -1,6 +1,6 @@
 # ADR 0021 — Bedienung, Aufbewahrung und vollständige Bereitschaft
 
-18.10.2026 · **A1-Vorschlag; Technik durch Claude, Texte durch Benni zu prüfen.**
+18.10.2026 · **A2 freigegeben: Claude (Technik), Benni (Texte), 18.10.2026.**
 Grundlage: Alpha-9-Auftrag, G14/F1/F2, M30-01/M30-17/M30-30,
 [ADR 0009](0009-prerelease-version-gate.md), [Textreview](../alpha9/TEXTE.md).
 Kein Oberflächenumbau oder Versionswechsel in A1.
@@ -82,3 +82,25 @@ Programm-/Bridgeversion, leere Übersicht. Firefox 1568×710 in A2 für die im A
 benannten Flächen; A1 erzeugt keine neuen UI-Bilder oder Produktnachweise.
 Betroffen: Build-Spezifikation §7/§12/§21/§23, Readiness-API, Shell/Status,
 Aufbewahrungsformular und de.json. Alte Release-Artefakte werden nicht verändert.
+
+## Umsetzung Alpha 9
+
+`service_state.conditions` nennt die Voraussetzungen einzeln mit `satisfied:
+true | false | null`: App-Optionen, Datenbank, aktive Konfiguration, aktive
+Aufbewahrung, erster HA-Stand, HA-Anbindung, Bestätigung des letzten Stands und
+Aufnahmekapazität. `null` kennzeichnet noch nicht prüfbare Punkte. Historische
+Überlaufzähler beweisen keine aktuelle Überlast. Die bisherigen `reasons` und
+das Bereitschaftsmodell bleiben für bestehende Clients lesbar; die fehlende
+Aufbewahrung wird auch vor der ersten Konfiguration unabhängig ausgewiesen.
+Die Oberfläche nennt auch jede noch nicht prüfbare Voraussetzung einzeln.
+Unbekannte nicht erfüllte Codes gelten ebenfalls nicht als erfüllt. Sprungziele
+sind ausschließlich feste interne Routen.
+
+Die Aufbewahrungsseite öffnet ohne Arbeitsentwurf den vorhandenen Anlegedialog.
+Die vorgeschlagenen Werte bleiben bis zum ausdrücklichen Speichern unverbindlich.
+Speichern erhält vorhandene technische Einstellungen und alle übrigen Teile des
+Entwurfs. Konflikt- und Eigentumsprüfung verwenden dieselbe Arbeitsdokument-Grenze
+wie andere Entwurfsänderungen. Die Übernahme erklärt den möglichen endgültigen
+Verlust älterer Messungen. Der normale Systembereich zeigt Programmversion und
+offene Bedingungen; Zähler, Zeitmessungen und Protokollangaben stehen unter
+„Erweitert“. Die Stufe wird aus dem tatsächlichen Versionssuffix abgeleitet.

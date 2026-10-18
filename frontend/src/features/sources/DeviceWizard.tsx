@@ -71,7 +71,7 @@ export function DeviceWizard({ open, onOpenChange, title, contract, expectedSche
         const object = { kind: 'contract' as const, id: result.contractId };
         const created = asArray(result.config.contracts).filter(isObject).find(item => item.contract_id === result.contractId)!;
         const template = { kind: 'template' as const, id: str(created.type_id) };
-        await doc.editWithEditorial(() => result.config, [object, template].map(ref => ({ object: ref, expected_editorial_version: metadata.item(ref).editorial_version, category, room: NO_ROOM })));
+        await doc.editAndSave(() => result.config, [object, template].map(ref => ({ object: ref, expected_editorial_version: metadata.item(ref).editorial_version, category, room: NO_ROOM })));
       } else doc.replaceAll(result.config);
       onOpenChange(false); onAdded?.(result);
     } catch (failure) { setError(failure instanceof DevicePlanError ? failure.message : describeError(failure)); }

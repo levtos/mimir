@@ -2623,3 +2623,18 @@ braucht das konkrete Formular folgende ergänzende Beschriftungen:
 | `alpha9.editorial.group` | Kategorie und Raum | — | Ordnen | Speichergrenze und Auswahl erklären. |
 | `alpha9.editorial.noGrouping` | Kategorie und Raum | — | Ohne Gruppierung | Speichergrenze und Auswahl erklären. |
 | `alpha9.editorial.noMatches` | Kategorie und Raum | — | Keine passenden Vorlagen gefunden. | Speichergrenze und Auswahl erklären. |
+
+## A2: Jede Voraussetzung einzeln nennen
+
+| Schlüssel | Ort in der Oberfläche | alt | neu | Grund |
+|---|---|---|---|---|
+| `alpha9.readiness.unknownCondition` | Bereitschaft und System | — | {condition}: Noch nicht prüfbar | Noch nicht prüfbare Voraussetzungen nicht verdecken. |
+| `alpha9.readiness.otherCondition` | Bereitschaft und System | — | Weitere Voraussetzung | Noch nicht prüfbare Voraussetzungen nicht verdecken. |
+| `alpha9.readiness.condition.supervisor_options` | Bereitschaft und System | — | App eingerichtet | Noch nicht prüfbare Voraussetzungen nicht verdecken. |
+| `alpha9.readiness.condition.database` | Bereitschaft und System | — | Datenbank erreichbar | Noch nicht prüfbare Voraussetzungen nicht verdecken. |
+| `alpha9.readiness.condition.active_configuration` | Bereitschaft und System | — | Konfiguration übernommen | Noch nicht prüfbare Voraussetzungen nicht verdecken. |
+| `alpha9.readiness.condition.history_retention` | Bereitschaft und System | — | Aufbewahrung festgelegt | Noch nicht prüfbare Voraussetzungen nicht verdecken. |
+| `alpha9.readiness.condition.first_ha_state` | Bereitschaft und System | — | Erster Stand aus Home Assistant | Noch nicht prüfbare Voraussetzungen nicht verdecken. |
+| `alpha9.readiness.condition.ha_connection` | Bereitschaft und System | — | HA-Anbindung verbunden | Noch nicht prüfbare Voraussetzungen nicht verdecken. |
+| `alpha9.readiness.condition.publication` | Bereitschaft und System | — | Aktueller Stand bestätigt | Noch nicht prüfbare Voraussetzungen nicht verdecken. |
+| `alpha9.readiness.condition.input_capacity` | Bereitschaft und System | — | Weitere Meldungen möglich | Noch nicht prüfbare Voraussetzungen nicht verdecken. |

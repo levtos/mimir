@@ -178,6 +178,7 @@ export function ActivateDialog({ draft, open, onOpenChange }: { draft: Draft; op
             </>
           )}
           {check.state === 'ok' && check.result.diff && <DiffView diff={check.result.diff} against={uiText("features.registry.ActivationDialogs.aktive_revision_v0_d363db", { v0: (expected || '–') })} />}
+          {draft.config.history_retention !== undefined && <Notice tone="warn">{uiText('alpha9.retention.deleteEffect')}</Notice>}
           <Field label={uiText('alpha7.versions.note')} hint={uiText('alpha7.versions.noteHelp')}>{(props) => <Input {...props} maxLength={256} value={note} disabled={activate.isPending} onChange={(e) => { setNote(e.target.value); setConfirmedFor(null); }} />}</Field>
           {check.state === 'ok' && check.result.warnings?.map((warning) => <Notice key={warning.path} tone="warn" title={validationLabel(warning)}>{warning.object_id}</Notice>)}
           <Outcome error={activate.error} onRecheck={() => { activate.reset(); setConfirmedFor(null); void restart(); }} />

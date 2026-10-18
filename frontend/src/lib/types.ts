@@ -24,6 +24,7 @@ export interface ServiceState {
   bridge: string;
   mqtt: string;
   reasons: string[];
+  conditions?: { code: string; satisfied: boolean | null }[];
   ha_disconnected_since?: string | null;
   ha_unbounded_values?: number;
 }
