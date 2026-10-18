@@ -82,6 +82,7 @@ class BridgeAdapter:
             if self.runtime.clock.monotonic() - cached_at < 15:
                 return self.discovery_preview_cache if preview else self.discovery_cache
             areas, devices, entries = {}, {}, {}
+            enriched: dict[str, dict[str, Any]] = {}
             async with asyncio.timeout(10):
                 async with self.session.ws_connect(
                     self.url, heartbeat=20, max_msg_size=4_000_000
@@ -130,6 +131,46 @@ class BridgeAdapter:
                             for row in registries[2]
                             if isinstance(row.get("entity_id"), str)
                         }
+                        await socket.send_json(
+                            {"id": 5, "type": "bifrost/negotiate", "supported_versions": [2, 1]}
+                        )
+                        negotiated = await socket.receive_json()
+                        if negotiated.get("id") != 5:
+                            raise ConnectionError("ha_discovery_protocol")
+                        if (
+                            negotiated.get("success")
+                            and negotiated.get("result", {}).get("protocol_selected") == 2
+                        ):
+                            selected_ids = [
+                                row["entity_id"]
+                                for row in states
+                                if isinstance(row, dict) and isinstance(row.get("entity_id"), str)
+                            ]
+                            for offset in range(0, len(selected_ids), 200):
+                                metadata_rows = await self._result(
+                                    socket,
+                                    {
+                                        "id": 6 + offset // 200,
+                                        "type": "bifrost/source_metadata",
+                                        "entity_ids": selected_ids[offset : offset + 200],
+                                    },
+                                )
+                                if not isinstance(metadata_rows, list) or len(metadata_rows) > 200:
+                                    raise ValueError("discovery_resource_limit")
+                                enriched.update(
+                                    {
+                                        row["entity_id"]: row
+                                        for row in metadata_rows
+                                        if isinstance(row, dict)
+                                        and row.get("entity_id")
+                                        in selected_ids[offset : offset + 200]
+                                    }
+                                )
+                        elif (
+                            not negotiated.get("success")
+                            and negotiated.get("error", {}).get("code") != "unknown_command"
+                        ):
+                            raise ConnectionError("ha_discovery_protocol")
             result: list[dict[str, Any]] = []
             for state in states:
                 if not isinstance(state, dict):
@@ -182,6 +223,15 @@ class BridgeAdapter:
                         area_id=area_id[:256] if isinstance(area_id, str) else None,
                         area_name=area_name[:256] if isinstance(area_name, str) else None,
                     )
+                    detail = enriched.get(entity, {})
+                    for field in ("area_id", "area_name", "area_icon"):
+                        if isinstance(detail.get(field), str):
+                            result[-1][field] = detail[field][:256]
+                    result[-1]["refresh_profiles"] = [
+                        profile
+                        for profile in detail.get("refresh_profiles", [])
+                        if profile in {"entity_poll", "companion_location"}
+                    ]
             result = sorted(result, key=lambda item: item["entity_id"])
             if preview:
                 self.discovery_preview_cache = result
@@ -550,15 +600,18 @@ class BridgeAdapter:
         entity = binding.adapter.ha_entity_id
         if entity is None:
             raise ValueError("refresh_not_supported")
-        # This optional method is called only by a code-defined contract request.
-        async with self.session.post(
-            self.url.replace("ws://", "http://").replace(
-                "/websocket", "/api/services/homeassistant/update_entity"
-            ),
-            headers={"Authorization": f"Bearer {self.token}"},
-            json={"entity_id": entity},
-        ) as response:
-            response.raise_for_status()
+        job = await self.runtime.submit(
+            "legacy_refresh_prepare",
+            {"revision": self.runtime.state.active_revision, "source_id": source_id},
+        )
+        if job is None:
+            return
+        result = await self.service_call(
+            job["operation"], job["target_ids"], job["arguments"], request_id=job["request_id"]
+        )
+        await self.runtime.submit("service_complete", {"job_id": job["job_id"], "response": result})
+        if result.get("outcome") != "completed":
+            raise ValueError("refresh_not_supported")
 
     async def refresh_worker(self) -> None:
         while True:

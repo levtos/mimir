@@ -1,4 +1,4 @@
-import { codeLabel } from '@/i18n/codes';
+import { codeLabel, fieldLabel } from '@/i18n/codes';
 import { t as uiText } from '@/i18n';
 import { Search, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -17,6 +17,8 @@ import { sourceCast } from '@/lib/sourceCast';
 import { formatNumber } from '@/lib/format';
 import { DEVICE_PRESETS, freshnessPreset, type DevicePreset } from '@/features/sources/devicePlan';
 import { CalendarFields } from '@/features/sources/CalendarSourceDialog';
+import { BindingRefreshEditor } from '@/features/sources/BindingRefreshEditor';
+import { RefreshPlanEditor, type RefreshSource } from './RefreshPlanEditor';
 import { AddButton, Fld, IconButton, IssuesAt, NumberField, SectionTitle } from './common';
 import { FieldSchemaEditor } from './FieldSchemaEditor';
 import { ValueEditor } from './ValueEditor';
@@ -209,11 +211,17 @@ export function BindingEditor({ value, onChange, pointer, sourceIds, sources = [
   const ap = join(pointer, 'adapter');
   const setAdapter = (patch: Record<string, Json | undefined>) => {
     const next: JsonObject = { ...adapter };
+    const copy = { ...value };
+    if (patch.kind && patch.kind !== kind) {
+      for (const key of ['window', 'refresh_s', 'max_age_s', 'ha_entity_id', 'ha_attribute', 'ha_time_attribute', 'mqtt_topic', 'mqtt_value_path']) delete next[key];
+      delete copy.refresh;
+      if (patch.kind === 'ha_calendar') { next.window = { timezone: 'Europe/Berlin', past_days: 1, future_days: 14 }; next.refresh_s = 900; next.max_age_s = 3600; delete copy.transform; }
+    }
     for (const [k, v] of Object.entries(patch)) {
       if (v === undefined || v === '') delete next[k];
       else next[k] = v;
     }
-    onChange({ ...value, adapter: next });
+    onChange({ ...copy, adapter: next });
   };
   const transform = value.transform === null || value.transform === undefined ? null : asObject(value.transform);
   const tp = join(pointer, 'transform');
@@ -290,6 +298,7 @@ export function BindingEditor({ value, onChange, pointer, sourceIds, sources = [
           </div>
         )}
         <Extras def="AdapterConfig" value={adapter} pointer={ap} onChange={(next) => onChange({ ...value, adapter: next })} />
+        {ha && kind !== 'ha_calendar' && <BindingRefreshEditor value={value} onChange={onChange} />}
         {kind === 'scheduler' && <p className="text-xs text-muted">{uiText("editors.RegistryObjects.der_scheduler_ist_kein_quellen_adapter_und_wird__39b766")}</p>}
       </section>
 
@@ -471,7 +480,7 @@ export function CatalogEditor({ value, onChange, pointer }: { value: JsonObject;
 
 /* ────────────────────────── Contract instance ───────────────────────── */
 
-export function ContractEditor({ value, onChange, pointer, types, refs, onAddDevice }: { value: JsonObject; onChange: (n: JsonObject) => void; pointer: string; types: TypeEntry[]; refs: RefOption[]; onAddDevice?: (input: string) => void }) {
+export function ContractEditor({ value, onChange, pointer, types, refs, onAddDevice, refreshSources = [] }: { value: JsonObject; onChange: (n: JsonObject) => void; pointer: string; types: TypeEntry[]; refs: RefOption[]; onAddDevice?: (input: string) => void; refreshSources?: RefreshSource[] }) {
   const set = patcher(value, onChange);
   const key = typeKey(str(value.type_id), Number(value.type_version));
   const entry = types.find((t) => t.key === key);
@@ -573,6 +582,7 @@ export function ContractEditor({ value, onChange, pointer, types, refs, onAddDev
         )}
         <IssuesAt pointer={join(pointer, 'parameters')} />
       </section>
+      <RefreshPlanEditor value={value.refresh_plan && typeof value.refresh_plan === 'object' ? asObject(value.refresh_plan) : null} onChange={refresh_plan => set({ refresh_plan })} sources={refreshSources} references={[...refs, ...Object.entries(entry?.fields ?? {}).map(([name, schema]) => ({ value: `${str(value.contract_id)}.${name}`, label: uiText('alpha9.refresh.reference', { name: str(value.display_name) || str(value.contract_id), field: fieldLabel(name) }), kind: 'contract' as const, schema }))]} />
       <Extras def="Contract" value={value} pointer={pointer} onChange={onChange} />
     </div>
   );

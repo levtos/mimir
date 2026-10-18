@@ -436,6 +436,56 @@ def validate_document(
     evaluation_cost = 0
     for index, contract in enumerate(config.contracts):
         path, key = f"/contracts/{index}", contract.contract_id
+        if contract.refresh_plan:
+            plan = contract.refresh_plan
+            references = [plan.trigger_ref] + (
+                [plan.stop_when.reference()] if plan.stop_when else []
+            )
+            for reference in references:
+                try:
+                    refresh_parent, refresh_field = resolve_ref(reference, config)
+                    refresh_contract = next(
+                        item for item in config.contracts if item.contract_id == refresh_parent
+                    )
+                    refresh_field_schema = types.get(
+                        refresh_contract.type_id, refresh_contract.type_version
+                    ).schema.fields[refresh_field or "value"]
+                    if refresh_field is None or refresh_field_schema.type != "bool":
+                        raise ValueError("canonical_bool_required")
+                except ValueError, KeyError, StopIteration:
+                    add(
+                        "refresh_reference",
+                        path + "/refresh_plan",
+                        "refresh requires canonical bool contracts",
+                        key,
+                    )
+            for target_source_id in plan.targets:
+                refresh_binding = next(
+                    (item for item in config.bindings if item.source_id == target_source_id), None
+                )
+                if (
+                    refresh_binding is None
+                    or refresh_binding.refresh is None
+                    or refresh_binding.adapter.kind not in {"ha_state", "ha_attribute"}
+                ):
+                    add(
+                        "refresh_capability",
+                        path + "/refresh_plan/targets",
+                        "source cannot be refreshed",
+                        key,
+                    )
+                    continue
+                minimum = 60 if refresh_binding.refresh.profile == "companion_location" else 10
+                if any(
+                    right - left < minimum
+                    for left, right in zip(plan.attempt_offsets_s, plan.attempt_offsets_s[1:])
+                ):
+                    add(
+                        "refresh_interval",
+                        path + "/refresh_plan/attempt_offsets_s",
+                        "refresh profile minimum interval",
+                        key,
+                    )
         try:
             declaration = types.get(contract.type_id, contract.type_version)
         except KeyError:

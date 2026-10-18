@@ -56,12 +56,32 @@ def action(request):
         ):
             raise Rejected("invalid_arguments")
         return "persistent_notification", "create", {"notification_id": target, **args}, False
-    if set(args) != {"profile"} or args["profile"] not in {"entity_poll", "companion_location"}:
+    profile = args.get("profile")
+    if profile not in {"entity_poll", "companion_location"}:
+        raise Rejected("not_allowed")
+    expected = (
+        {"profile", "permission_confirmed"} if profile == "companion_location" else {"profile"}
+    )
+    if (
+        set(args) != expected
+        or profile == "companion_location"
+        and (
+            args.get("permission_confirmed") is not True or not target.startswith("device_tracker.")
+        )
+    ):
         raise Rejected("not_allowed")
     if not re.fullmatch(r"[a-z_]+\.[a-z0-9_]+", target):
         raise Rejected("not_allowed")
     # Resolve and validate the actual integration/entity in HA, never trust this profile alone.
-    return "refresh", args["profile"], {"entity_id": target}, False
+    return (
+        "refresh",
+        profile,
+        {
+            "entity_id": target,
+            **({"permission_confirmed": True} if profile == "companion_location" else {}),
+        },
+        False,
+    )
 
 
 class ServiceChannel:

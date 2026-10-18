@@ -13,7 +13,8 @@ from homeassistant.helpers.event import (
     async_track_state_report_event,
 )
 
-from .service_channel import OPERATIONS, Rejected, ServiceChannel
+from .service_channel import OPERATIONS, ServiceChannel
+from .source_metadata import refresh_action, source_metadata
 
 DOMAIN = "bifrost"
 HA_EPOCH_ID = str(uuid4())
@@ -40,14 +41,7 @@ async def async_setup_entry(hass, entry):
 
     async def execute(domain, service, data, response):
         if domain == "refresh":
-            from homeassistant.helpers.entity_component import DATA_INSTANCES
-
-            entity_id = data["entity_id"]
-            component = hass.data.get(DATA_INSTANCES, {}).get(entity_id.partition(".")[0])
-            entity = component.get_entity(entity_id) if component else None
-            if service != "entity_poll" or entity is None or not entity.should_poll:
-                raise Rejected("not_allowed")
-            domain, service = "homeassistant", "update_entity"
+            domain, service, data = refresh_action(hass, service, data)
         return await hass.services.async_call(
             domain, service, data, blocking=True, return_response=response
         )
@@ -266,6 +260,27 @@ async def async_setup_entry(hass, entry):
         )
 
     websocket_api.async_register_command(hass, info)
+
+    @callback
+    @websocket_api.websocket_command(
+        {vol.Required("type"): f"{DOMAIN}/source_metadata", vol.Required("entity_ids"): [str]}
+    )
+    @websocket_api.require_admin
+    def metadata(hass, connection, msg):
+        import re
+
+        entities = msg["entity_ids"]
+        if id(connection) not in channels:
+            connection.send_error(msg["id"], "unsupported_protocol", "Negotiate protocol 2 first")
+            return
+        if not 1 <= len(entities) <= 200 or any(
+            not re.fullmatch(r"[a-z_]+\.[a-z0-9_]{1,200}", entity) for entity in entities
+        ):
+            connection.send_error(msg["id"], "invalid_arguments", "Invalid entity selection")
+            return
+        connection.send_result(msg["id"], source_metadata(hass, entities))
+
+    websocket_api.async_register_command(hass, metadata)
     websocket_api.async_register_command(hass, negotiate)
     websocket_api.async_register_command(hass, service_call)
     websocket_api.async_register_command(hass, subscribe)

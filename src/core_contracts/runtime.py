@@ -442,6 +442,8 @@ class Runtime:
         if config is None:
             return False
         needed = required_sources(config)
+        if any(contract.enabled and contract.refresh_plan for contract in config.contracts):
+            return True
         if any(
             key.startswith("notice:") and (row.get("acknowledged") or row.get("desired"))
             for key, row in self.state.tables["service_state"].items()
@@ -784,6 +786,15 @@ class Runtime:
                 "registered": True,
                 "expires_at": index.proofs[registration.context.id][1].isoformat(),
             }
+        if operation == "legacy_refresh_prepare":
+            from .refresh_plan import prepare_legacy_refresh
+
+            if config is None or payload["revision"] != state.active_revision:
+                return None
+            job = prepare_legacy_refresh(state, config, payload["source_id"], now)
+            if job:
+                await self._commit(state)
+            return copy.deepcopy(job)
         if operation == "service_claim":
             if self.bridge != "connected" or self.bridge_protocol_selected != 2:
                 return None
@@ -820,6 +831,10 @@ class Runtime:
                 from .notifications import complete_notice
 
                 complete_notice(state, job, payload["response"], now)
+            if job["kind"] == "refresh":
+                from .refresh_plan import complete_refresh
+
+                complete_refresh(state, job, payload["response"])
             service_observation = (
                 complete_calendar(state, config, job, payload["response"], now)
                 if config and job["kind"] == "calendar"
@@ -1093,7 +1108,7 @@ class Runtime:
         elif operation != "tick":
             raise ValueError("unknown runtime operation")
         if config:
-            origin = "timer"
+            origin = "snapshot" if operation == "snapshot" else "timer"
             if operation == "observation":
                 origin = (
                     "input" if payload.observation_kind in {"live_change", "report"} else "revision"
@@ -1492,6 +1507,16 @@ class Runtime:
             from .notifications import plan_notices
 
             plan_notices(state, config, now, self.installation_id, self.ingress_slug)
+        from .refresh_plan import plan_refreshes
+
+        plan_refreshes(
+            state,
+            config,
+            now,
+            origin,
+            self.bridge == "connected" and self.bridge_protocol_selected == 2,
+            fps,
+        )
         return evaluation_errors
 
     def _dispose(self, contract: Contract, node: dict[str, Any], state: State) -> None:

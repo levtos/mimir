@@ -2545,3 +2545,15 @@ Bezeichnungen für die beiden getrennten Rollen; keine Policy-/Apply-Ausführung
 | `fields.context_producers` | HA-Anbindung → Erweitert | — | Bekannte Automatikdienste | Typisiertes Formular ohne JSON; technische Kennungen bleiben unter Erweitert. |
 | `codes.policy` | HA-Anbindung → Erweitert | — | Entscheidender Dienst | Typisiertes Formular ohne JSON; technische Kennungen bleiben unter Erweitert. |
 | `codes.apply` | HA-Anbindung → Erweitert | — | Ausführender Dienst | Typisiertes Formular ohne JSON; technische Kennungen bleiben unter Erweitert. |
+
+Für das freigegebene Abfrageverfahren und die notwendige Standortbestätigung
+braucht das konkrete Formular folgende ergänzende Beschriftungen:
+
+| Schlüssel | Ort | alt | neu | Grund |
+|---|---|---|---|---|
+| `alpha9.refresh.method` | Verknüpfung / Vertrag → Quellen erneut abfragen | — | So wird die Quelle erneut abgefragt | Feste Verfahren, ausdrückliche Voraussetzung, Zeitfelder mit Minutenhilfe. |
+| `alpha9.refresh.poll` | Verknüpfung / Vertrag → Quellen erneut abfragen | — | Wert vom Gerät neu lesen | Feste Verfahren, ausdrückliche Voraussetzung, Zeitfelder mit Minutenhilfe. |
+| `alpha9.refresh.companion` | Verknüpfung / Vertrag → Quellen erneut abfragen | — | Standort vom Handy neu anfragen | Feste Verfahren, ausdrückliche Voraussetzung, Zeitfelder mit Minutenhilfe. |
+| `alpha9.refresh.permission` | Verknüpfung / Vertrag → Quellen erneut abfragen | — | Ich habe geprüft, dass das Handy Standortabfragen im Hintergrund erlaubt. | Feste Verfahren, ausdrückliche Voraussetzung, Zeitfelder mit Minutenhilfe. |
+| `alpha9.refresh.offset` | Verknüpfung / Vertrag → Quellen erneut abfragen | — | Wartezeit seit Beginn (Sekunden) | Feste Verfahren, ausdrückliche Voraussetzung, Zeitfelder mit Minutenhilfe. |
+| `alpha9.refresh.stop` | Verknüpfung / Vertrag → Quellen erneut abfragen | — | Beenden, sobald dieser Vertrag Ja meldet | Feste Verfahren, ausdrückliche Voraussetzung, Zeitfelder mit Minutenhilfe. |

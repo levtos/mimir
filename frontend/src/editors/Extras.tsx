@@ -33,11 +33,11 @@ export const HANDLED = {
   Schema: ['fields', 'available_projection', 'grace_capable', 'grace_parameter', 'fixture'],
   Source: ['source_id', 'source_type', 'source_origin', 'freshness', 'dependency_id', 'physical_source_key', 'display_name', 'value_schema'],
   Freshness: ['mode', 'future_tolerance_s', 'interval_s', 'liveness_source'],
-  Binding: ['binding_id', 'source_id', 'adapter', 'transform', 'display_name'],
+  Binding: ['binding_id', 'source_id', 'adapter', 'transform', 'display_name', 'refresh'],
   AdapterConfig: ['kind', 'ha_entity_id', 'ha_attribute', 'ha_time_attribute', 'mqtt_topic', 'mqtt_value_path', 'mqtt_time_path', 'window', 'refresh_s', 'max_age_s'],
   Transform: ['kind', 'target', 'factor', 'offset', 'catalog_id'],
   Catalog: ['catalog_id', 'kind', 'version', 'entries'],
-  Contract: ['contract_id', 'type_id', 'type_version', 'enabled', 'inputs', 'parameters', 'display_name', 'description'],
+  Contract: ['contract_id', 'type_id', 'type_version', 'enabled', 'inputs', 'parameters', 'display_name', 'description', 'refresh_plan'],
   Dependency: ['dependency_id', 'kind', 'monitor', 'source_id'],
 } satisfies Record<string, string[]>;
 

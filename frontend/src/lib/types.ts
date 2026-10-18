@@ -149,6 +149,8 @@ export interface HaEntity {
   current_value?: string | null;
   area_id?: string | null;
   area_name?: string | null;
+  area_icon?: string | null;
+  refresh_profiles?: string[];
 }
 
 export interface HaEntityPage {

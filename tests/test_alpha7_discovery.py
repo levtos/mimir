@@ -60,7 +60,7 @@ async def test_preview_is_explicit_admin_only_bounded_and_separate_from_metadata
         assert preview["items"][0]["area_name"] == "Büro"  # entity assignment wins
         assert "hidden" not in str(preview)
         assert (await client.get("/api/v1/ha/entities?preview=1", headers=headers)).status == 200
-        assert len(fixture.requests) == 4
+        assert len(fixture.requests) == 5
         metadata = await (await client.get("/api/v1/ha/entities", headers=headers)).json()
         assert "current_value" not in metadata["items"][0]
         assert "21.5" not in str(metadata)
@@ -75,6 +75,7 @@ async def test_preview_is_explicit_admin_only_bounded_and_separate_from_metadata
             "config/area_registry/list",
             "config/device_registry/list",
             "config/entity_registry/list",
+            "bifrost/negotiate",
         }
         for request in fixture.requests
     )

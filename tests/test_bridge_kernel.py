@@ -16,6 +16,8 @@ from homeassistant.core import Context, HomeAssistant, SupportsResponse, callbac
 from homeassistant.exceptions import Unauthorized
 
 from custom_components.bifrost import async_setup_entry
+from custom_components.bifrost.service_channel import Rejected
+from custom_components.bifrost.source_metadata import refresh_action, source_metadata
 
 
 @pytest.mark.ha
@@ -217,3 +219,85 @@ async def test_refresh_rejects_push_entities_and_accepts_actual_polling(tmp_path
     commands["service_call"](hass, connection, {**msg, "id": 3, "request_id": str(uuid4())})
     await hass.async_block_till_done()
     assert results[3]["outcome"] == "completed" and calls == [{"entity_id": "sensor.example"}]
+
+
+@pytest.mark.ha
+async def test_companion_refresh_uses_registered_device_only_and_metadata_prefers_entity_area(
+    tmp_path, monkeypatch
+):
+    from homeassistant.helpers import area_registry, device_registry, entity_registry
+
+    hass = HomeAssistant(str(tmp_path))
+    registration = SimpleNamespace(
+        config_entry_id="mobile-entry", platform="mobile_app", area_id="office", device_id="device"
+    )
+    monkeypatch.setattr(
+        entity_registry,
+        "async_get",
+        lambda hass: SimpleNamespace(
+            async_get=lambda identifier: (
+                registration if identifier == "device_tracker.phone" else None
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        device_registry,
+        "async_get",
+        lambda hass: SimpleNamespace(
+            async_get=lambda identifier: SimpleNamespace(area_id="living")
+        ),
+    )
+    monkeypatch.setattr(
+        area_registry,
+        "async_get",
+        lambda hass: SimpleNamespace(
+            async_get_area=lambda identifier: SimpleNamespace(
+                name="Büro" if identifier == "office" else "Wohnzimmer", icon="mdi:desk"
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        hass,
+        "config_entries",
+        SimpleNamespace(
+            async_get_entry=lambda identifier: SimpleNamespace(
+                domain="mobile_app", data={"webhook_id": "phone-registration"}
+            )
+        ),
+        raising=False,
+    )
+    hass.data["mobile_app"] = {
+        "notify": SimpleNamespace(
+            registered_targets={"mobile_app_example_phone": "phone-registration"}
+        )
+    }
+    hass.services.async_register("notify", "mobile_app_example_phone", lambda call: None)
+    assert refresh_action(
+        hass,
+        "companion_location",
+        {"entity_id": "device_tracker.phone", "permission_confirmed": True},
+    ) == ("notify", "mobile_app_example_phone", {"message": "request_location_update"})
+    with pytest.raises(Rejected):
+        refresh_action(
+            hass,
+            "companion_location",
+            {"entity_id": "device_tracker.phone", "permission_confirmed": False},
+        )
+    with pytest.raises(Rejected):
+        refresh_action(
+            hass,
+            "companion_location",
+            {"entity_id": "device_tracker.other", "permission_confirmed": True},
+        )
+    metadata = source_metadata(hass, ["device_tracker.phone"])
+    assert metadata == [
+        {
+            "entity_id": "device_tracker.phone",
+            "area_id": "office",
+            "area_name": "Büro",
+            "area_icon": "mdi:desk",
+            "refresh_profiles": ["companion_location"],
+        }
+    ]
+    registration.area_id = None
+    assert source_metadata(hass, ["device_tracker.phone"])[0]["area_name"] == "Wohnzimmer"

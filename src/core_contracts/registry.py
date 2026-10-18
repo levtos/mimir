@@ -15,6 +15,7 @@ from .ha_context import ContextProducer
 from .lifecycle import Lifecycle
 from .model import Model, canonical, semantic_fingerprint
 from .notifications import Notifications
+from .refresh_plan import RefreshCapability, RefreshPlan
 from .retention import RetentionPolicy
 from .schema import ContractType, FieldSchema, TypeRegistry
 
@@ -61,6 +62,18 @@ class Binding(Model):
     adapter: AdapterConfig
     transform: Transform | None = None
     display_name: str = ""
+    refresh: RefreshCapability | None = Field(default=None, exclude_if=lambda value: value is None)
+
+    @model_validator(mode="after")
+    def refresh_target(self) -> Self:
+        if self.refresh and (
+            self.adapter.kind not in {"ha_state", "ha_attribute"}
+            or not self.adapter.ha_entity_id
+            or self.refresh.profile == "companion_location"
+            and not self.adapter.ha_entity_id.startswith("device_tracker.")
+        ):
+            raise ValueError("refresh_not_supported")
+        return self
 
 
 class Input(Model):
@@ -77,6 +90,7 @@ class Contract(Model):
     parameters: dict[str, Any]
     display_name: str = ""
     description: str = ""
+    refresh_plan: RefreshPlan | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class Catalog(Model):
@@ -115,6 +129,8 @@ class RegistryConfig(Model):
         if self.config_schema_version == 1 and (
             self.notifications is not None
             or bool(self.context_producers)
+            or any(binding.refresh is not None for binding in self.bindings)
+            or any(contract.refresh_plan is not None for contract in self.contracts)
             or any(definition.language_version == 3 for definition in self.definitions)
             or any(b.adapter.kind == "ha_calendar" for b in self.bindings)
         ):

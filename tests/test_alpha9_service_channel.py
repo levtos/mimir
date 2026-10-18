@@ -70,6 +70,25 @@ async def test_calendar_response_replay_conflict_expiry_and_connection_boundary(
         },
         {"arguments": {"start": "x" * 66000, "end": "x"}},
         {"request_id": "not-a-uuid"},
+        {
+            "operation": "source_refresh",
+            "target_ids": ["device_tracker.phone"],
+            "arguments": {"profile": "companion_location"},
+        },
+        {
+            "operation": "source_refresh",
+            "target_ids": ["sensor.phone"],
+            "arguments": {"profile": "companion_location", "permission_confirmed": True},
+        },
+        {
+            "operation": "source_refresh",
+            "target_ids": ["device_tracker.phone"],
+            "arguments": {
+                "profile": "companion_location",
+                "permission_confirmed": True,
+                "message": "arbitrary",
+            },
+        },
     ],
 )
 async def test_rejected_request_never_calls_ha(change):

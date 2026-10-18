@@ -178,6 +178,9 @@ def complete_calendar(
 
 def restore_jobs(state: State, now: datetime) -> None:
     for job in state.tables["service_job"].values():
+        if job["kind"] == "refresh" and job["status"] in {"planned", "sent"}:
+            job["status"] = "indeterminate" if job["status"] == "sent" else "cancelled"
+            continue
         if job["status"] == "sent":
             job["status"] = "indeterminate"
             row = state.tables["service_state"].get(job["state_key"])

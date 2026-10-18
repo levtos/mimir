@@ -10,7 +10,7 @@ import { ConfirmDialog } from '@/components/ui/dialog';
 import { Empty, PageHeader, Panel, PanelHeader, Spinner } from '@/components/ui/layout';
 import { ContractEditor } from '@/editors/RegistryObjects';
 import { ReadOnlyNotice } from '@/features/authoring/DraftBar';
-import { asArray, str } from '@/features/authoring/model';
+import { asArray, asObject, str } from '@/features/authoring/model';
 import { refOptions, typeCatalog, typeKey } from '@/features/authoring/catalog';
 import { consumersOfContract, resolveRef } from '@/features/authoring/usage';
 import { useAuthoringSource } from '@/features/authoring/useAuthoringSource';
@@ -59,6 +59,13 @@ export default function ContractDetailPage() {
   const typeEntry = src.types.find((t) => t.key === typeKey(str(contract.type_id), Number(contract.type_version)));
   const consumers = consumersOfContract(src.config, contractId);
   const inputs = asArray(contract.inputs).filter(isObject);
+  const refreshBindings = asArray(src.config?.bindings).filter(isObject);
+  const refreshSources = asArray(src.config?.sources).filter(isObject).map(source => {
+    const bindingIndex = refreshBindings.findIndex(binding => binding.source_id === source.source_id);
+    const refresh = asObject(refreshBindings[bindingIndex]?.refresh);
+    return { id: str(source.source_id), name: str(source.display_name) || str(source.source_id), bindingIndex: bindingIndex >= 0 ? bindingIndex : undefined,
+      profile: refresh.profile === 'entity_poll' || refresh.profile === 'companion_location' && refresh.permission_confirmed === true ? str(refresh.profile) : undefined };
+  });
   const enabled = contract.enabled !== false;
   const activeTypes = typeCatalog(caps.data, active.data?.config);
   const displayFields = activeContract ? fieldsForContract(activeContract, active.data?.config ?? null, activeTypes) : {};
@@ -102,7 +109,7 @@ export default function ContractDetailPage() {
             content: (
               <Panel className="max-w-4xl p-5">
                 <fieldset disabled={!src.editable} className="min-w-0">
-                  <ContractEditor value={contract} pointer={pointer} types={src.types} refs={refs} onChange={(next) => doc.edit((c) => setAt(c, pointer, next))} onAddDevice={setDeviceInput} />
+                  <ContractEditor value={contract} pointer={pointer} types={src.types} refs={refs} refreshSources={refreshSources} onChange={(next) => doc.edit((c) => ({ ...setAt(c, pointer, next), ...(next.refresh_plan !== undefined ? { config_schema_version: 2 } : {}) }))} onAddDevice={setDeviceInput} />
                 </fieldset>
               </Panel>
             ),

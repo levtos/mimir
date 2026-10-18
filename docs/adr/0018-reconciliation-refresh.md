@@ -80,3 +80,23 @@ Betroffen: M30-43 §7, Build-Spezifikation §8/§9/§13/§14/§18/§21,
 Refresh-Orchestrierung, Bridge, Scheduler, Source-Capabilities und Formulare.
 
 Quelle: [HA Companion — Location-Anforderung](https://companion.home-assistant.io/docs/notifications/notification-commands/#request-location-updates).
+
+## Umsetzung A2
+
+Die v2-Abfrage `bifrost/source_metadata` liefert nur für tatsächlich geladene,
+aktiv abfragbare Entities das Profil `entity_poll`. Companion-Ziele werden über
+Entity- und Gerätezuordnung sowie die registrierte mobile_app-Empfängerzuordnung
+ermittelt; frei eingegebene Notify-Dienste sind ausgeschlossen. Die notwendige
+Telefonberechtigung wird je Verknüpfung ausdrücklich bestätigt.
+
+Zusätzliche konservative App-Grenzen: aktive Abfrage je Entity mindestens 10 s
+Abstand, höchstens fünf Aufrufe in 300 s und 10.000 pro UTC-Tag; Standortabfrage
+insgesamt mindestens 60 s Abstand, höchstens drei in 300 s und 50 pro UTC-Tag.
+Auch bestehende im Code deklarierte Refresh-Aufträge verwenden dieselben
+persistierten Grenzen. HA/Anbieter können enger begrenzen; eine definitive
+Ablehnung beendet weitere Versuche für das Ziel im laufenden Fenster.
+
+Formulare für die Fähigkeit einer Quelle und den Plan eines Vertrags verwenden
+Auswahllisten, Zahlenfelder mit Minutenhilfe und feste Verfahren. Kein JSON nötig.
+Die Tests prüfen Flanke, festes Fenster, echte neue Meldung, leere Bestätigung,
+Ausfall/Neustart, Stop, Ausschalten, Quoten und Commit-Fehler.

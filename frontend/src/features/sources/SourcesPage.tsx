@@ -243,7 +243,11 @@ export default function SourcesPage() {
                     pointer={pointer}
                     onChange={next => {
                       const adapter = asObject(next.adapter);
-                      if (adapter.kind !== 'ha_calendar') return onChange(next);
+                      if (adapter.kind !== 'ha_calendar') {
+                        if (next.refresh !== undefined) doc.edit(current => ({ ...setAt(current, pointer, next), config_schema_version: 2 }));
+                        else onChange(next);
+                        return;
+                      }
                       doc.edit(current => ({ ...setAt(current, pointer, next), config_schema_version: 2,
                         sources: asArray(current.sources).map(source => isObject(source) && source.source_id === next.source_id
                           ? { ...source, freshness: { ...asObject(source.freshness), mode: 'periodic_ttl', interval_s: adapter.max_age_s ?? 3600 } } : source) }));
