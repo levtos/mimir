@@ -38,7 +38,7 @@ it('creates and takes over a temperature contract in six clicks without entering
   const confirm = await screen.findByRole('dialog', { name: 'Konfiguration übernehmen' });
   await click(await within(confirm).findByRole('checkbox', { name: /Auswirkungen geprüft/ }));
   await click(within(confirm).getByRole('button', { name: 'Jetzt übernehmen' }));
-  await within(confirm).findByText('Version 1 ist aktiv');
+  await within(confirm).findByText("Konfiguration 1 ist aktiv");
   expect(clicks).toBe(6); expect(api.revisions).toHaveLength(1);
   const result = api.revisions[0]!.config;
   expect(result.dependencies).toHaveLength(1); expect(result.sources).toHaveLength(1); expect(result.bindings).toHaveLength(1); expect(result.contracts).toHaveLength(1);
@@ -48,7 +48,7 @@ it('creates and takes over a temperature contract in six clicks without entering
 
 it('filters the guided selection by area and domain and explains contact freshness', async () => {
   const user = userEvent.setup(); fake(); app('#/sources/devices');
-  await user.click(await screen.findByRole('button', { name: 'Gerät aus Home Assistant hinzufügen' }));
+  await user.click(await screen.findByRole('button', { name: 'Quelle hinzufügen' }));
   const wizard = await screen.findByRole('dialog'); await within(wizard).findByRole('radio', { name: 'Fensterkontakt' });
   await user.selectOptions(within(wizard).getByLabelText('Bereich'), 'flur');
   expect(within(wizard).queryByRole('radio', { name: 'Temperatur im Zimmer' })).not.toBeInTheDocument();
@@ -105,15 +105,15 @@ it('never silently discards malformed imported entries or changes an existing so
 
 it('keeps selection across source subpages and keeps the editor mounted while clearing and renaming its identifier', async () => {
   const user = userEvent.setup(); const api = fake(); app('#/sources/devices');
-  await user.click(await screen.findByRole('button', { name: 'Gerät aus Home Assistant hinzufügen' }));
+  await user.click(await screen.findByRole('button', { name: 'Quelle hinzufügen' }));
   await user.click(await screen.findByRole('button', { name: 'Ohne Gerät anlegen' }));
   await screen.findByLabelText('Name');
   const sourceEditor = screen.getByLabelText('Name').parentElement!.parentElement!;
   await user.click(within(sourceEditor).getAllByRole('button', { name: 'Erweitert' })[0]!);
-  const id = screen.getByLabelText('Quelle-ID'); await user.clear(id);
-  expect(screen.getByLabelText('Quelle-ID')).toBe(id);
+  const id = screen.getByLabelText("Quellenkennung"); await user.clear(id);
+  expect(screen.getByLabelText("Quellenkennung")).toBe(id);
   await user.type(id, 'source.temperatur');
-  expect(screen.getByLabelText('Quelle-ID')).toBe(id);
+  expect(screen.getByLabelText("Quellenkennung")).toBe(id);
   await user.type(screen.getByLabelText('Name'), 'Mein Sensor');
   await user.click(screen.getByRole('link', { name: 'Verknüpfungen' }));
   await screen.findByRole('heading', { level: 1, name: 'Verknüpfungen' });

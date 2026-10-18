@@ -2,8 +2,8 @@ import { t as uiText } from '@/i18n';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input, Select, Textarea } from '@/components/ui/form';
-import { Notice, Panel } from '@/components/ui/layout';
-import { setupRequest, validConnection, type Connection, type SetupStatus } from './setup';
+import { Notice, PageHeader, Panel } from '@/components/ui/layout';
+import { SetupError, setupRequest, validConnection, type Connection, type SetupStatus } from './setup';
 
 /**
  * First-run assistant. Behavior, texts and security checks are carried over from
@@ -58,7 +58,7 @@ export function SetupWizard({ initial, oncomplete, automatic = false }: { initia
   const [connection, setConnection] = useState<Connection>(() =>
     initial.database
       ? { ...initial.database, password: '' }
-      : { host: '', port: 5432, database: 'core_contracts_app', user: 'core_contracts_app', password: '', sslmode: 'verify-full', ca: '' },
+      : { host: '', port: 5432, database: 'mimir', user: 'mimir_app', password: '', sslmode: 'verify-full', ca: '' },
   );
   const [script, setScript] = useState('');
   const [code, setCode] = useState('');
@@ -81,7 +81,7 @@ export function SetupWizard({ initial, oncomplete, automatic = false }: { initia
     try {
       await callback();
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : uiText("setup.SetupWizard.einrichtung_fehlgeschlagen_959a79"));
+      setNotice(error instanceof SetupError ? error.message : uiText("setup.SetupWizard.einrichtung_fehlgeschlagen_959a79"));
     } finally {
       setBusy(false);
     }
@@ -129,13 +129,18 @@ export function SetupWizard({ initial, oncomplete, automatic = false }: { initia
 
   return (
     <main className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-5 px-6 py-10">
-      <header>
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent">{uiText("setup.SetupWizard.ersteinrichtung_84c9bd")}</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">{uiText("setup.SetupWizard.core_contracts_einrichten_c89657")}</h1>
-        <p className="mt-1 text-sm text-muted">
-          {uiText("setup.SetupWizard.schritt_c0f684")}{phase + 1} {uiText("setup.SetupWizard.von_16b4d3")}{PHASES.length}: {PHASES[phase]}
-        </p>
-      </header>
+      <PageHeader title={uiText('alpha9.setup.title')} description={uiText('alpha9.pages.setup')} actions={
+        <Button variant="primary" disabled={busy || status.phase === 'configuration_error' || (phase === 1 && !validNow) || (phase === 2 && (!confirm || (mode === 'new' && !code) || (connection.sslmode !== 'verify-full' && !insecure))) || (phase === 4 && (status.phase !== 'completed' || bridge !== 'active'))}
+          disabledReason={uiText('alpha9.setup.completeStep')}
+          onClick={() => {
+            if (phase === 0) setPhase(status.phase === 'completed' ? 3 : 1);
+            else if (phase === 1) void prepare();
+            else if (phase === 2) void connect();
+            else if (phase === 3) void action(async () => { await refresh(); setPhase(4); });
+            else void action(async () => { await setupRequest('finish', { confirm: true }, csrf); oncomplete(); });
+          }}>{uiText(phase === 0 ? status.phase === 'completed' ? 'setup.SetupWizard.datenbankschritte_uberspringen_d4f0ab' : 'alpha9.setup.start' : phase === 1 ? 'setup.SetupWizard.weiter_1e14bd' : phase === 2 ? 'setup.SetupWizard.prufen_und_ubernehmen_6d85d6' : phase === 3 ? 'setup.SetupWizard.weiter_ergebnisse_ansehen_a99408' : 'setup.SetupWizard.einrichtung_abschlie_en_und_oberflache_offnen_ba08e2')}</Button>
+      } />
+      <p className="text-sm text-muted">{uiText('alpha9.setup.step', { current: phase + 1, count: PHASES.length, name: PHASES[phase] })}</p>
       <nav aria-label={uiText("setup.SetupWizard.einrichtungsfortschritt_b753dc")}>
         <ol className="flex flex-wrap gap-2">
           {PHASES.map((name, index) => (
@@ -167,14 +172,13 @@ export function SetupWizard({ initial, oncomplete, automatic = false }: { initia
           {status.phase === 'completed' ? (
             <>
               <p className="text-sm text-muted">{uiText("setup.SetupWizard.datenbank_eingerichtet_installations_id_a2ec23")}{status.installation_id}{uiText("setup.SetupWizard.bestehende_identitat_wird_beibehalten_697e3e")}</p>
-              <div><Button variant="primary" onClick={() => setPhase(3)}>{uiText("setup.SetupWizard.datenbankschritte_uberspringen_d4f0ab")}</Button></div>
             </>
           ) : (
             status.database_configured && (
               <p className="text-sm text-muted">{uiText("setup.SetupWizard.vorhandene_verbindung_wird_gepruft_oberflache_bl_32f31b")}</p>
             )
           )}
-          <div><Button variant={status.database_configured ? 'outline' : 'primary'} onClick={() => setPhase(1)}>{uiText("setup.SetupWizard.verbindung_8ec4b6")}{status.database_configured ? uiText("setup.SetupWizard.ausdrucklich_neu_konfigurieren_8d323e") : uiText("setup.SetupWizard.einrichten_f456a9")}</Button></div>
+          {status.database_configured && <div><Button onClick={() => setPhase(1)}>{uiText("setup.SetupWizard.verbindung_8ec4b6")}{status.database_configured ? uiText("setup.SetupWizard.ausdrucklich_neu_konfigurieren_8d323e") : uiText("setup.SetupWizard.einrichten_f456a9")}</Button></div>}
         </Panel>
       ) : phase === 1 ? (
         <Panel className="flex flex-col gap-4 p-5">
@@ -226,7 +230,6 @@ export function SetupWizard({ initial, oncomplete, automatic = false }: { initia
               }
             >
               {uiText("setup.SetupWizard.erreichbarkeit_ohne_zugangsdaten_prufen_ab97c1")}</Button>
-            <Button variant="primary" disabled={busy || !validNow} onClick={prepare}>{uiText("setup.SetupWizard.weiter_1e14bd")}</Button>
           </div>
           {!validNow && (
             <p role="status" className="text-xs text-warn">
@@ -261,10 +264,7 @@ export function SetupWizard({ initial, oncomplete, automatic = false }: { initia
           )}
           <Check checked={confirm} onChange={setConfirm}>
             {uiText("setup.SetupWizard.verbindung_prufen_und_als_alleinige_db_konfigura_7c2dc2")}</Check>
-          <div>
-            <Button variant="primary" disabled={busy || !confirm || (mode === 'new' && !code) || (connection.sslmode !== 'verify-full' && !insecure)} onClick={connect}>
-              {uiText("setup.SetupWizard.prufen_und_ubernehmen_6d85d6")}</Button>
-          </div>
+
         </Panel>
       ) : phase === 3 ? (
         <Panel className="flex flex-col gap-3 p-5">
@@ -287,7 +287,6 @@ export function SetupWizard({ initial, oncomplete, automatic = false }: { initia
           )}
           <div className="flex flex-wrap gap-2">
             <Button disabled={busy} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => action(refresh)}>{uiText("setup.SetupWizard.bridge_erneut_prufen_78c8e3")}</Button>
-            <Button variant="primary" onClick={() => action(async () => { await refresh(); setPhase(4); })}>{uiText("setup.SetupWizard.weiter_ergebnisse_ansehen_a99408")}</Button>
             {bridge === 'installed_not_configured' && (
               <Button
                 disabled={busy} disabledReason={uiText('alpha7.copy.inProgress')}
@@ -308,21 +307,14 @@ export function SetupWizard({ initial, oncomplete, automatic = false }: { initia
         <Panel className="flex flex-col gap-3 p-5">
           <h2 className="text-lg font-semibold">{uiText("setup.SetupWizard.ergebnis_cd8e22")}</h2>
           <p className="text-sm text-muted">
-            {uiText("setup.SetupWizard.datenbank_6fda4b")}{status.phase === 'completed' ? uiText("setup.SetupWizard.eingerichtet_68b238") : uiText("setup.SetupWizard.initialisierung_noch_ausstehend_e337ae")}{uiText("setup.SetupWizard.bridge_d2884b")}{BRIDGE_LABELS[bridge] ?? bridge}.
+            {uiText("setup.SetupWizard.datenbank_6fda4b")}{status.phase === 'completed' ? uiText("setup.SetupWizard.eingerichtet_68b238") : uiText("setup.SetupWizard.initialisierung_noch_ausstehend_e337ae")}{uiText("setup.SetupWizard.bridge_d2884b")}{BRIDGE_LABELS[bridge] ?? BRIDGE_LABELS.unknown}.
           </p>
           {status.restart_required && (
             <Notice tone="warn" role="alert">{uiText("setup.SetupWizard.neue_verbindung_gespeichert_eigener_app_neustart_286a9f")}</Notice>
           )}
           <p className="text-sm text-muted">
             {uiText("setup.SetupWizard.ersteinrichtung_und_runtime_readiness_sind_getre_f1f378")}{status.registry_revision ? uiText("setup.SetupWizard.konfiguration_version_v0_ist_aktiv_3f9131", { v0: (status.registry_revision) }) : status.registry_revision === 0 ? uiText("setup.SetupWizard.es_ist_noch_keine_konfiguration_ubernommen_45abe2") : uiText("setup.SetupWizard.der_aktive_konfigurationsstand_ist_noch_nicht_be_8968d0")} {uiText("setup.SetupWizard.der_assistent_selbst_ubernimmt_keine_konfigurati_867ac0")}</p>
-          <div>
-            <Button
-              variant="primary"
-              disabled={status.phase !== 'completed' || bridge !== 'active' || busy}
-              onClick={() => action(async () => { await setupRequest('finish', { confirm: true }, csrf); oncomplete(); })}
-            >
-              {uiText("setup.SetupWizard.einrichtung_abschlie_en_und_oberflache_offnen_ba08e2")}</Button>
-          </div>
+
         </Panel>
       )}
       <div className="flex flex-wrap gap-2">

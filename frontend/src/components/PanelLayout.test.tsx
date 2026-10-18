@@ -40,13 +40,13 @@ it('moves with keyboard, resizes and resets without remounting a dirty editor or
   await user.type(input, 'private registry text');
   const initialMounts = mounted;
   await adjust();
-  const handle = screen.getByRole('button', { name: 'Panel Editor verschieben' });
+  const handle = screen.getByRole('button', { name: "Bereich Editor verschieben" });
   handle.focus();
   await user.keyboard('{ArrowDown}');
   expect(order()).toEqual(['validation', 'editor', 'diff']);
   expect(handle).toHaveFocus();
   expect(screen.getByLabelText('Unsaved editor')).toBe(input);
-  await user.selectOptions(screen.getByLabelText('Editor: Panelbreite'), '3');
+  await user.selectOptions(screen.getByLabelText("Editor: Breite des Bereichs"), '3');
   expect(document.querySelector('[data-layout-panel="editor"]')).toHaveAttribute('data-span', '3');
   await user.click(screen.getByRole('button', { name: "Anordnung zurücksetzen" }));
   expect(order()).toEqual(['editor', 'validation', 'diff']);
@@ -61,7 +61,7 @@ it('persists order and widths across reload, separated by installation and view'
   const view = render(<Layout />);
   await adjust();
   await user.click(screen.getByRole('button', { name: 'Editor: nach hinten' }));
-  await user.selectOptions(screen.getByLabelText('Editor: Panelbreite'), '1');
+  await user.selectOptions(screen.getByLabelText("Editor: Breite des Bereichs"), '1');
   view.unmount();
   const reload = render(<Layout />);
   expect(order()).toEqual(['validation', 'editor', 'diff']);
@@ -92,7 +92,7 @@ it('moves through the real native drag adapter in StrictMode and keeps the edito
   await adjust();
   const data = new Map<string, string>();
   const transfer = { types: [] as string[], effectAllowed: 'all', dropEffect: 'move', setData(type: string, value: string) { data.set(type, value); this.types.push(type); }, getData: (type: string) => data.get(type) ?? '', setDragImage() {} };
-  const handle = screen.getByRole('button', { name: 'Panel Editor verschieben' });
+  const handle = screen.getByRole('button', { name: "Bereich Editor verschieben" });
   const target = document.querySelector('[data-layout-panel="diff"]')!;
   const dragEvent = (element: Element, type: string, y: number) => {
     const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: 10, clientY: y });
@@ -124,8 +124,8 @@ it('keeps the actual source editor and dirty draft unchanged; layout actions sen
   const input = screen.getByLabelText('Name');
   await user.type(input, 'unsaved');
   await adjust();
-  await user.click(screen.getByRole('button', { name: 'Quelle-Editor: nach vorne' }));
-  await user.selectOptions(screen.getByLabelText('Quelle-Editor: Panelbreite'), '3');
+  await user.click(screen.getByRole('button', { name: 'Quelle bearbeiten: nach vorne' }));
+  await user.selectOptions(screen.getByLabelText("Quelle bearbeiten: Breite des Bereichs"), '3');
   await user.click(screen.getByRole('button', { name: "Anordnung zurücksetzen" }));
   expect(input).toHaveValue('unsaved');
   expect(screen.getByLabelText('Name')).toBe(input);

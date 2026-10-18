@@ -22,7 +22,7 @@ import { useAuthoringSource } from '@/features/authoring/useAuthoringSource';
 import { useWorkingDocument } from '@/features/authoring/WorkingDocument';
 import { isObject } from '@/lib/json';
 import { useCapabilities } from '@/lib/queries';
-import { ContractsTabs } from './ContractsPage';
+import { ContractsTabs, NewContractDialog } from './ContractsPage';
 import { describeError } from '@/lib/api';
 import { CategoryBadge, CategorySelect, EditorialPanel, useEditorial } from '@/features/editorial/Editorial';
 import { NO_ROOM, groupItems, type Category } from '@/features/editorial/model';
@@ -53,6 +53,7 @@ export default function DefinitionsPage() {
   const [category, setCategory] = useState<Category>('other'); const [busy, setBusy] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<Category | ''>(''); const [group, setGroup] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [creatingContract, setCreatingContract] = useState(false);
   const [typeId, setTypeId] = useState('');
   const [name, setName] = useState('');
   const [creationError, setCreationError] = useState('');
@@ -106,9 +107,9 @@ export default function DefinitionsPage() {
     <>
       <PageHeader
         title={uiText(builtin ? 'alpha7.nav.builtinTemplates' : 'alpha7.nav.ownTemplates')}
-        description={uiText("features.contracts.DefinitionsPage.definitionen_sind_deklarative_typen_mit_unverand_5b643c")}
+        description={uiText(builtin ? 'alpha9.pages.templatesBuiltin' : 'alpha9.pages.templatesOwn')}
         actions={
-          !builtin && <Button variant="primary" disabled={doc.starting} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => void start()}>
+          builtin ? <Button variant="primary" disabled={doc.starting} disabledReason={uiText('alpha7.copy.inProgress')} onClick={async () => { setCreationError(''); try { await doc.ensureDraft(); setCreatingContract(true); } catch (error) { setCreationError(describeError(error)); } }}>{uiText('alpha9.actions.createContract')}</Button> : <Button variant="primary" disabled={doc.starting} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => void start()}>
             <Plus size={15} /> {uiText("features.contracts.DefinitionsPage.neue_definition_fcff16")}</Button>
         }
       />
@@ -116,6 +117,7 @@ export default function DefinitionsPage() {
       {doc.starting && <p role="status" className="mb-3 text-sm text-muted">{uiText('alpha7.draft.preparing')}</p>}
       <div className="mb-4 flex flex-wrap items-end gap-3"><div className="w-56"><CategorySelect value={categoryFilter} onChange={setCategoryFilter} all /></div><Field label={uiText('alpha9.editorial.group')}>{props => <Select {...props} value={group ? 'category' : 'none'} onChange={event => setGroup(event.target.value === 'category')}><option value="none">{uiText('alpha9.editorial.noGrouping')}</option><option value="category">{uiText('alpha9.category.group')}</option></Select>}</Field></div>
       <ContractsTabs />
+      <NewContractDialog initialManual open={creatingContract} onOpenChange={setCreatingContract} onCreated={id => navigate(`/contracts/view/${encodeURIComponent(id)}`)} />
       <ReadOnlyNotice what={uiText("features.contracts.DefinitionsPage.definitionen_871a91")} />
       <PanelLayout view={builtin ? 'templates.builtin' : 'templates.own'}>{!builtin && <LayoutPanel id="definitions" title={uiText("features.contracts.DefinitionsPage.deklarative_definitionen_3a5155")}><Panel>
         <PanelHeader title={uiText("features.contracts.DefinitionsPage.deklarative_definitionen_3a5155")} description={uiText("features.contracts.DefinitionsPage.aktivierte_versionen_sind_gesperrt_eine_logikand_5deacf")} />

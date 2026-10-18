@@ -31,8 +31,8 @@ it('shows activation and rollback facts but leaves draft bookkeeping out', () =>
     { id: '4', operation: 'rollback', at, revision: 6 },
   ], [], []);
   expect(events).toHaveLength(2);
-  expect(eventText(events[0]!, config)).toBe('Version 4 übernommen');
-  expect(eventText(events[1]!, config)).toBe('Version 6 durch Zurücksetzen übernommen');
+  expect(eventText(events[0]!, config)).toBe("Konfiguration 4 übernommen");
+  expect(eventText(events[1]!, config)).toBe("Konfiguration 6 durch Zurücksetzen übernommen");
 });
 
 it('deduplicates repeated stale publications, remembers recovery and uses server onset', () => {
@@ -137,7 +137,7 @@ it('renders exactly three overview blocks and links the count to a filtered list
   api.activations.push({ revision: 4, at, operation: 'activate' });
   app();
   const main = await screen.findByRole('main');
-  await within(main).findByText('Version 4 übernommen');
+  await within(main).findByText("Konfiguration 4 übernommen");
   expect(within(main).getAllByRole('heading', { level: 2 }).map(h => h.textContent)).toEqual(['Schnellaktionen', 'Verträge', 'Letzte Ereignisse']);
   expect(within(main).queryByText('Installationskennung')).not.toBeInTheDocument();
   expect(within(main).queryByText('Bereiche')).not.toBeInTheDocument();
@@ -155,7 +155,7 @@ it('explains a problem without raw reason codes and opens new contract creation 
   app();
   expect(await screen.findByText('Ein benötigter Wert ist zu alt.')).toBeVisible();
   expect(screen.queryByText('input_stale')).not.toBeInTheDocument();
-  await user.click(screen.getByText('Was kann ich tun?'));
+  await user.click(screen.getByText("Details"));
   expect(screen.getByRole('link', { name: 'Quelle prüfen' })).toHaveAttribute('href', '#/sources/devices');
   await user.click(screen.getByRole('button', { name: 'Neuer Vertrag' }));
   expect(await screen.findByRole('dialog', { name: 'Neuer Vertrag' })).toBeVisible();

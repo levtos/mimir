@@ -1,6 +1,6 @@
 import { codeLabel } from '@/i18n/codes';
 import { t as uiText } from '@/i18n';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'react-router';
 import { NAVIGATION } from '@/lib/navigation';
 import { Copy, Eye, EyeOff, KeyRound } from 'lucide-react';
@@ -34,17 +34,19 @@ function InstallationPanel() {
       <PanelHeader title={uiText("features.admin.AdminPage.installation_einrichtung_342651")} aside={<Button size="sm" onClick={openSetup}>{uiText("features.admin.AdminPage.einrichtungsassistent_offnen_3e1fc4")}</Button>} />
       <div className="p-4">
         {info.isPending ? <Spinner /> : info.data ? (
-          <KeyValue
-            items={[
-              { label: uiText("features.admin.AdminPage.version_dd1679"), value: info.data.version },
-              { label: uiText("features.admin.AdminPage.installations_id_fc5797"), value: <code className="break-all text-xs">{info.data.installation_id}</code> },
-              { label: uiText("features.admin.AdminPage.bezeichnung_97d1e6"), value: info.data.installation_label || '–' },
-              { label: uiText("features.admin.AdminPage.protokolle_b4026e"), value: uiText("features.admin.AdminPage.api_v0_bridge_v1_schema_v2_feaecd", { v0: (info.data.api_protocol), v1: (info.data.bridge_protocol), v2: (info.data.config_schema_version) }) },
-              { label: uiText("features.admin.AdminPage.epoche_8a2707"), value: <code className="text-xs">{shortId(info.data.epoch_id, 16)}</code> },
-              { label: uiText("features.admin.AdminPage.aktive_revision_90097f"), value: active.data ? active.data.revision : uiText("features.admin.AdminPage.keine_db028e") },
-              { label: uiText("features.admin.AdminPage.serverzeit_utc_123303"), value: formatTime(info.data.server_time) },
-            ]}
-          />
+          <div className="space-y-4">
+            <KeyValue items={[
+              { label: uiText('alpha9.system.programVersion'), value: programVersion(info.data.version) },
+              { label: uiText('features.admin.AdminPage.bezeichnung_97d1e6'), value: info.data.installation_label || '–' },
+              { label: uiText('features.admin.AdminPage.aktive_revision_90097f'), value: active.data ? active.data.revision : uiText('features.admin.AdminPage.keine_db028e') },
+            ]} />
+            <details><summary className="cursor-pointer text-sm text-muted">{uiText('alpha7.contract.advanced')}</summary><div className="mt-3"><KeyValue items={[
+              { label: uiText('features.admin.AdminPage.installations_id_fc5797'), value: <code className="break-all text-xs">{info.data.installation_id}</code> },
+              { label: uiText('features.admin.AdminPage.protokolle_b4026e'), value: uiText('features.admin.AdminPage.api_v0_bridge_v1_schema_v2_feaecd', { v0: info.data.api_protocol, v1: info.data.bridge_protocol, v2: info.data.config_schema_version }) },
+              { label: uiText('features.admin.AdminPage.epoche_8a2707'), value: <code>{shortId(info.data.epoch_id, 16)}</code> },
+              { label: uiText('features.admin.AdminPage.serverzeit_utc_123303'), value: formatTime(info.data.server_time) },
+            ]} /></div></details>
+          </div>
         ) : <Notice tone="bad" title={uiText("features.admin.AdminPage.installationsdaten_nicht_lesbar_5882af")} />}
         <p className="mt-3 text-xs text-muted">{uiText("features.admin.AdminPage.der_assistent_andert_nichts_bevor_sie_ausdruckli_89e424")}</p>
       </div>
@@ -84,18 +86,20 @@ function ReadinessPanel() {
   </Panel>;
 }
 
-function BridgePanel() {
+function useDiscovery() { return useMutation({ mutationFn: () => api<HaEntityPage>('ha/entities?limit=1') }); }
+
+function BridgePanel({ discovery }: { discovery: ReturnType<typeof useDiscovery> }) {
   const live = useLive();
   const diagnostics = useDiagnostics(false);
   const bridge = useQuery({ queryKey: ['setup', 'bridge'], queryFn: () => setupRequest<{ state: string }>('bridge'), retry: false });
-  const discovery = useMutation({ mutationFn: () => api<HaEntityPage>('ha/entities?limit=1') });
-  const connection = { connecting: 'verbindet', open: 'verbunden', resyncing: 'synchronisiert', reconnecting: 'Wiederverbindung', offline: 'offline', mismatch: uiText("features.admin.AdminPage.andere_installation_616cdb"), stopped: 'gestoppt' }[live.connection];
+
+  const connection = codeLabel(live.connection);
   return (
     <Panel>
       <PanelHeader title={uiText("features.admin.AdminPage.bridge_verbindungsdiagnose_9a2dd6")} />
       <div className="flex flex-col gap-4 p-4">
         <KeyValue items={[
-          { label: uiText("features.admin.AdminPage.bridge_zustand_einrichtung_72ab84"), value: bridge.isPending ? uiText("features.admin.AdminPage.wird_gepruft_3242b4") : bridge.isError ? uiText("features.admin.AdminPage.nicht_lesbar_0bfbf9") : BRIDGE_LABELS[bridge.data.state] ?? bridge.data.state },
+          { label: uiText("features.admin.AdminPage.bridge_zustand_einrichtung_72ab84"), value: bridge.isPending ? uiText("features.admin.AdminPage.wird_gepruft_3242b4") : bridge.isError ? uiText("features.admin.AdminPage.nicht_lesbar_0bfbf9") : BRIDGE_LABELS[bridge.data.state] ?? BRIDGE_LABELS.unknown },
           { label: uiText("features.admin.AdminPage.bridge_version_12d174"), value: String(diagnostics.data?.bridge_version ?? '–') },
           { label: uiText("features.admin.AdminPage.bridge_abonnements_4ce4ee"), value: String(diagnostics.data?.bridge_subscriptions ?? '–') },
           { label: uiText("features.admin.AdminPage.live_websocket_74b350"), value: <Badge tone={live.connection === 'open' ? 'ok' : live.connection === 'mismatch' ? 'bad' : 'warn'}>{connection}</Badge> },
@@ -143,7 +147,7 @@ function TokensPanel() {
       .finally(() => setRotating(false));
   };
   return (
-    <Panel>
+    <Panel id="access-list" tabIndex={-1}>
       <PanelHeader title={uiText("features.admin.AdminPage.rollen_tokens_9fcf59")} description={uiText("features.admin.AdminPage.tokens_werden_nie_angezeigt_oder_gespeichert_au__7dbaa2")} />
       <div className="flex flex-col gap-4 p-4">
         {roles.isPending ? <Spinner /> : (
@@ -224,12 +228,18 @@ export default function AdminPage() {
   const section = location.pathname.split('/')[2] ?? 'system';
   const title = NAVIGATION.find(module => module.id === 'settings')?.children.find(item => item.to === location.pathname)?.label ?? uiText('alpha7.nav.system');
   const live = useLive();
+  const openSetup = useOpenSetup();
+  const queryClient = useQueryClient();
+  const discovery = useDiscovery();
+  const focus = (id: string) => { const target = document.getElementById(id); target?.scrollIntoView?.({ block: 'start' }); target?.focus(); };
+  const action = section === 'installation' ? openSetup : section === 'connections' ? () => discovery.mutate() : section === 'keys' ? () => focus('access-list') : section === 'log' ? () => { void queryClient.invalidateQueries({ queryKey: ['history'] }); void queryClient.invalidateQueries({ queryKey: ['events'] }); } : () => focus('readiness-details');
+  const actionKey = section === 'installation' ? 'openSetup' : section === 'connections' ? 'checkConnections' : section === 'keys' ? 'chooseAccess' : 'reload';
   return (
     <>
-      <PageHeader title={title} description={section === 'system' ? uiText('alpha9.system.description') : undefined} actions={section === 'system' ? <Button variant="primary" onClick={() => { const target = document.getElementById('readiness-details'); target?.scrollIntoView({ block: 'start' }); target?.focus(); }}>{uiText('alpha9.readiness.open')}</Button> : undefined} />
+      <PageHeader title={title} description={uiText(section === 'system' ? 'alpha9.system.description' : `alpha9.pages.${section}`)} actions={<Button variant="primary" disabled={section === 'connections' && discovery.isPending} disabledReason={uiText('alpha7.copy.inProgress')} onClick={action}>{uiText(section === 'system' ? 'alpha9.readiness.open' : `alpha9.actions.${actionKey}`)}</Button>} />
       {section === 'system' && <ReadinessPanel />}
       {section === 'installation' && <InstallationPanel />}
-      {section === 'connections' && <div className="space-y-5"><BridgePanel /><Panel><PanelHeader title={uiText('alpha7.settings.databaseMqtt')} /><div className="p-5"><KeyValue items={[
+      {section === 'connections' && <div className="space-y-5"><BridgePanel discovery={discovery} /><Panel><PanelHeader title={uiText('alpha7.settings.databaseMqtt')} /><div className="p-5"><KeyValue items={[
         { label: uiText('alpha7.settings.database'), value: connectionLabel(live.service?.persistence ?? 'unknown') },
         { label: uiText('alpha7.settings.mqtt'), value: connectionLabel(live.service?.mqtt ?? 'unknown') },
       ]} /></div></Panel><ContextProducersPanel /></div>}

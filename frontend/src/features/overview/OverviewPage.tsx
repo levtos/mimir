@@ -39,15 +39,14 @@ export function OverviewPage() {
     { key: 'degraded', filter: 'degraded', color: 'text-warn' }, { key: 'off', filter: 'off', color: 'text-muted' },
   ] as const;
   return <>
-    <PageHeader title={t('alpha7.nav.overview')} description={t('alpha7.overview.explanation')} />
+    <PageHeader title={t('alpha7.nav.overview')} description={t('alpha9.pages.overview')} actions={<Button variant="primary" onClick={() => navigate('/contracts/list/all?new=1')}><Plus size={16} />{t('alpha7.overview.newContract')}</Button>} />
     {!live.stale && live.service?.ha_disconnected_since && <p role="status" className="mb-4 rounded-xl border border-warn/40 p-4 text-sm text-warn">{t('alpha8.ha.disconnected', { since: new Date(live.service.ha_disconnected_since).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' }), count: live.service.ha_unbounded_values ?? 0 })}</p>}
     <PanelLayout view="overview.alpha7">
       <LayoutPanel id="actions" title={t('alpha7.overview.actions')}><Panel>
         <PanelHeader title={t('alpha7.overview.actions')} />
         <div className="flex flex-wrap gap-3 p-5">
-          <Button variant="primary" onClick={() => navigate('/contracts/list/all?new=1')}><Plus size={16} />{t('alpha7.overview.newContract')}</Button>
           <Button onClick={() => navigate('/contracts/import/json')}><Upload size={16} />{t('alpha7.nav.contractImport')}</Button>
-          {doc.draft && <ReviewDraftButton size="md">{t('alpha7.overview.apply')}</ReviewDraftButton>}
+          {doc.draft && <ReviewDraftButton size="md" variant="secondary">{t('alpha7.overview.apply')}</ReviewDraftButton>}
         </div>
       </Panel></LayoutPanel>
       <LayoutPanel id="contracts" title={t('alpha7.nav.contracts')}><Panel>

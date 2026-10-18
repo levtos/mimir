@@ -7,7 +7,7 @@ import { Field, Input } from '@/components/ui/form';
 import { Panel, PanelHeader } from '@/components/ui/layout';
 import { TypedValueEditor } from '@/editors/common';
 import { asArray, asObject, str, type FieldSchema } from '@/features/authoring/model';
-import { api } from '@/lib/api';
+import { ApiError, api, describeError } from '@/lib/api';
 import { useActiveRevision } from '@/lib/queries';
 import { isObject, type Json, type JsonObject } from '@/lib/json';
 import { formatTime } from '@/lib/format';
@@ -29,6 +29,7 @@ export function ManualSourcePanel({ sourceId }: { sourceId: string }) {
   const [value, setValue] = useState<Json>(schema.type === 'number' ? 0 : schema.type === 'bool' ? false : schema.type === 'object' ? {} : '');
   const [from, setFrom] = useState(''); const [until, setUntil] = useState(''); const [confirm, setConfirm] = useState(false); const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<JsonObject | null>(null); const [result, setResult] = useState('');
+  const [retryAvailable, setRetryAvailable] = useState(false);
   useEffect(() => { setValue(schema.type === 'number' ? 0 : schema.type === 'bool' ? false : schema.type === 'object' ? {} : schema.type === 'enum' ? String(asArray(schema.value_catalog)[0] ?? '') : schema.type === 'timestamp' ? new Date().toISOString() : ''); }, [schema.type]);
   const originSignature = JSON.stringify(declaredOrigin);
   useEffect(() => { const origin = JSON.parse(originSignature) as JsonObject; setOriginMetadata(origin); if (origin.kind === 'forecast') setValue([newForecastPoint(schema, origin)]); }, [originSignature]);
@@ -42,18 +43,29 @@ export function ManualSourcePanel({ sourceId }: { sourceId: string }) {
   const affected = contracts.filter(contract => reached.has(str(contract.contract_id)));
   if (!source) return null;
   const unbounded = asObject(source.freshness).mode === 'event_stateful' && !until;
-  const settled = (response: JsonObject) => { setResult(t(response.status === 'accepted' ? 'alpha9.manual.recorded' : 'alpha9.manual.failed')); setPending(null); void client.invalidateQueries({ queryKey: ['evidence', sourceId] }); };
+  const settled = (response: JsonObject) => { setResult(t(response.status === 'accepted' ? 'alpha9.manual.recorded' : 'alpha9.manual.failed')); setPending(null); setRetryAvailable(false); void client.invalidateQueries({ queryKey: ['evidence', sourceId] }); };
+  const submit = async (body: JsonObject) => {
+    setRetryAvailable(false);
+    try { settled(await api<JsonObject>(`manual-sources/${encodeURIComponent(sourceId)}/observations`, { method: 'POST', body })); }
+    catch (error) {
+      // A rejected request has no receipt; a lost response may already have committed.
+      if (error instanceof ApiError && error.status >= 400 && error.status < 500) { setPending(null); setResult(describeError(error)); }
+      else setResult(t('alpha9.manual.unknownResult'));
+    } finally { setBusy(false); }
+  };
   const send = async (action: 'set' | 'retract') => {
     if (busy || pending) return; setBusy(true); setResult('');
     const body: JsonObject = { request_id: crypto.randomUUID(), expected_active_revision: active.data!.revision, action, value: action === 'set' ? value : null, confirm_unbounded: confirm,
       ...(action === 'set' && originMetadata.kind && !Array.isArray(value) ? { value_origin: originMetadata } : {}),
       ...(from && action === 'set' ? { valid_from: new Date(from).toISOString() } : {}), ...(until && action === 'set' ? { valid_until: new Date(until).toISOString() } : {}) };
     setPending(body);
-    try { settled(await api<JsonObject>(`manual-sources/${encodeURIComponent(sourceId)}/observations`, { method: 'POST', body })); } catch { setResult(t('alpha9.manual.unknownResult')); } finally { setBusy(false); }
+    await submit(body);
   };
   const check = async () => {
     if (!pending || busy) return; setBusy(true);
-    try { settled(await api<JsonObject>(`manual-sources/${encodeURIComponent(sourceId)}/requests/${pending.request_id}`)); } catch { setResult(t('alpha9.manual.unknownResult')); } finally { setBusy(false); }
+    try { settled(await api<JsonObject>(`manual-sources/${encodeURIComponent(sourceId)}/requests/${pending.request_id}`)); }
+    catch (error) { const missing = error instanceof ApiError && error.status === 404; setRetryAvailable(missing); setResult(t(missing ? 'alpha9.manual.notRecorded' : 'alpha9.manual.unknownResult')); }
+    finally { setBusy(false); }
   };
   return <Panel><PanelHeader title={str(source.display_name) || t('alpha9.manual.origin')} description={t('alpha9.manual.description')} /><div className="space-y-4 p-5">
     <p className="flex gap-2 text-xs text-muted">{t('alpha9.manual.origin')}{!!entry.recorded_at && <time>{formatTime(str(entry.recorded_at))}</time>}</p>
@@ -70,6 +82,7 @@ export function ManualSourcePanel({ sourceId }: { sourceId: string }) {
       <div className="flex gap-3"><Button disabled={unbounded && !confirm} onClick={() => void send('set')}>{t('alpha9.manual.enter')}</Button><Button disabled={!entry.request_id} onClick={() => void send('retract')}>{t('alpha9.manual.retract')}</Button></div>
     </fieldset>
     {pending && <Button disabled={busy} onClick={() => void check()}>{t('alpha9.manual.checkResult')}</Button>}
+    {pending && retryAvailable && <Button disabled={busy} onClick={() => { setBusy(true); void submit(pending); }}>{t('alpha9.manual.retrySame')}</Button>}
     {result && <p role="status">{result}</p>}
   </div></Panel>;
 }

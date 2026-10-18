@@ -80,7 +80,7 @@ describe('explain shows only what was recorded', () => {
     expect(screen.getByText(/Gewählt: \[1\]/)).toBeInTheDocument();
     expect(screen.getByText('unentschieden')).toBeInTheDocument(); // null decision is not "false"
     expect(screen.getByText('Nur ein Teil der Nachweise ist verwendbar')).toBeInTheDocument();
-    expect(screen.getByText(/keine Historie|kein Herzschlag/)).toBeInTheDocument();
+    expect(screen.getByText(/kein vollständiger Verlauf aller Meldungen/)).toBeInTheDocument();
   });
 
   it('shows truncation explicitly', () => {
@@ -110,7 +110,7 @@ describe('history uses opaque cursors and bound filters', () => {
     ]);
     expect(screen.getByText('Ende der Historie')).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText("Vertrag-ID"), 'c2');
+    await user.type(screen.getByLabelText("Vertragskennung"), 'c2');
     await user.click(screen.getByRole('button', { name: 'Filter anwenden' }));
     await waitFor(() => expect(api.calls.at(-1)!.path).toBe('history/query/contracts?contract_id=c2&limit=50'));
   });
@@ -146,8 +146,8 @@ describe('evidence references are opaque and may legitimately be missing', () =>
     const api = installFakeApi();
     api.routes.push({ match: /^evidence\/reference\//, respond: (path) => reply(404, { error: 'evidence_not_found', reference: decodeURIComponent(path.split('/').pop()!) }) });
     wrap(<EvidenceTab />);
-    await user.click(screen.getByRole('button', { name: 'Erweitert: einzelnen Nachweis über Referenz suchen' }));
-    await user.type(screen.getByLabelText("Nachweis-Referenz"), 'v2:e:7:ha:12:binding.a');
+    await user.click(screen.getByRole('button', { name: "Erweitert: gespeicherten Nachweis suchen" }));
+    await user.type(screen.getByLabelText("Kennung des Nachweises"), 'v2:e:7:ha:12:binding.a');
     await user.click(screen.getByRole('button', { name: 'Auflösen' }));
     await screen.findByText('Kein gespeicherter Nachweis');
     expect(api.calls.at(-1)!.path).toBe(`evidence/reference/${encodeURIComponent('v2:e:7:ha:12:binding.a')}`);
@@ -167,7 +167,7 @@ describe('commands are typed, confirmed and idempotent', () => {
     api.routes.push({ match: /^commands$/, method: 'POST', respond: (_p, body) => reply(200, { command_id: body.command_id, status: 'accepted' }) });
     const store = new LiveStore({ createSocket: () => ({ onopen: null, onmessage: null, onclose: null, onerror: null, send() {}, close() {} }) });
     wrap(<CommandsPanel contractId="sm" onContract={() => {}} />, store);
-    const send = await screen.findByRole('button', { name: /Befehle senden/ });
+    const send = await screen.findByRole('button', { name: /Befehl senden/ });
     await user.click(send);
     expect(api.calls.some((c) => c.path === 'commands')).toBe(false); // nothing before confirmation
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Senden' }));
@@ -189,7 +189,7 @@ describe('commands are typed, confirmed and idempotent', () => {
       { match: /^commands\/.+/, method: 'GET', respond: (path) => reply(200, { command_id: path.split('/').pop(), status: 'rejected', reason: 'guard_rejected' }) },
     );
     wrap(<CommandsPanel contractId="sm" onContract={() => {}} />);
-    await user.click(await screen.findByRole('button', { name: /Befehle senden/ }));
+    await user.click(await screen.findByRole('button', { name: /Befehl senden/ }));
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Senden' }));
     await screen.findByText('Antwort unbekannt');
     await user.click(screen.getByRole('button', { name: 'Gespeichertes Ergebnis abfragen' }));

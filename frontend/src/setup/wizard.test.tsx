@@ -50,18 +50,18 @@ describe('setup wizard (ported from the Alpha-1 UI, same safeguards)', () => {
   it('invalid Supervisor options are visible and cannot be imported through the wizard', async () => {
     const fetch = backend({ ...initial, phase: 'configuration_error', authority: 'supervisor', error: 'invalid_supervisor_options' });
     render(<App />);
-    await screen.findByText(/Vorhandene App-Optionen sind ungültig/);
+    await screen.findByText(/Prüfe die Optionen der Mimir-App/);
     expect(document.querySelector('input')).toBeNull();
-    expect(document.body.textContent).not.toContain('Verbindung einrichten');
+    expect(screen.getByRole('button', { name: 'Verbindung einrichten' })).toBeDisabled();
     expect(fetch.mock.calls.some(([url]) => url.endsWith('/connect') || url.endsWith('/provision'))).toBe(false);
   });
 
   it('reload after DB initialization resumes the unfinished Bridge step', async () => {
     backend({ ...initial, phase: 'completed', authority: 'wizard', database_configured: true });
     render(<App />);
-    await screen.findByRole('heading', { name: "Mimir HA-Anbindung" });
-    expect(document.querySelector('h1')?.textContent).toBe("Mimir");
-    expect(document.body.textContent).toContain('SELF-INSTALL-01');
+    await screen.findByRole('heading', { name: "Bifröst: HA-Anbindung für Mimir" });
+    expect(document.querySelector('h1')?.textContent).toBe("Mimir einrichten");
+    expect(document.body.textContent).toContain('Installiere Bifröst über HACS');
   });
 
   it('database outage is not presented as an identity rejection', async () => {
@@ -75,7 +75,7 @@ describe('setup wizard (ported from the Alpha-1 UI, same safeguards)', () => {
     const status = { ...initial, phase: 'connecting' as SetupStatus['phase'], authority: 'wizard', database_configured: true, onboarding_complete: true };
     backend(status);
     render(<App />);
-    await screen.findByText("Mimir");
+    await screen.findByRole('heading', { name: 'Mimir einrichten', level: 1 });
     status.phase = 'completed';
     // Polling performs the same recovery refresh without changing configuration.
     await screen.findByText("Einstellungen", {}, { timeout: 5000 });
@@ -87,7 +87,7 @@ describe('setup wizard (ported from the Alpha-1 UI, same safeguards)', () => {
   it('fresh installation renders guided UI before any ordinary API request', async () => {
     const fetch = backend();
     render(<App />);
-    await screen.findByText("Mimir");
+    await screen.findByRole('heading', { name: 'Mimir einrichten', level: 1 });
     expect(document.body.textContent).toContain('Willkommen');
     expect(fetch.mock.calls.every(([url]) => url.includes('/setup/'))).toBe(true);
   });
@@ -95,12 +95,13 @@ describe('setup wizard (ported from the Alpha-1 UI, same safeguards)', () => {
   it('validates connection, moves forward/back and shows the script instead of a JSON editor', async () => {
     const fetch = backend();
     render(<SetupWizard initial={initial} oncomplete={vi.fn()} />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Verbindung einrichten' })).toBeEnabled());
     clickText('Verbindung einrichten');
     const host = document.querySelectorAll<HTMLInputElement>('input')[0]!;
     fireEvent.change(host, { target: { value: 'postgres-test' } });
     await waitFor(() => expect(screen.getByRole('button', { name: 'Weiter' })).toBeEnabled());
     clickText('^Weiter$');
-    await screen.findByRole('heading', { name: "Einrichtungsskript und geheimer Einlesen" });
+    await screen.findByRole('heading', { name: "Datenbank einrichten und Verbindung einlesen" });
     expect((document.querySelector('textarea') as HTMLTextAreaElement).value).toBe('reviewable-test-script');
     expect(document.querySelector('input[type=password]')).not.toBeNull();
     expect(fetch.mock.calls.some(([url]) => url.endsWith('/provision'))).toBe(true);
@@ -108,7 +109,7 @@ describe('setup wizard (ported from the Alpha-1 UI, same safeguards)', () => {
     const provision = fetch.mock.calls.find(([url]) => url.endsWith('/provision'))!;
     expect((provision[1] as RequestInit).headers).toMatchObject({ 'X-Setup-CSRF': 'ephemeral-csrf' });
     clickText('Zurück');
-    await screen.findByRole('heading', { name: 'PostgreSQL verbinden' });
+    await screen.findByRole('heading', { name: "Datenbank verbinden" });
   });
 
   it('existing Alpha setup skips DB provisioning and exposes the honest Bridge blocker', async () => {
@@ -117,8 +118,8 @@ describe('setup wizard (ported from the Alpha-1 UI, same safeguards)', () => {
     render(<SetupWizard initial={status} oncomplete={vi.fn()} />);
     await screen.findByText(/Bestehende Identität wird beibehalten/);
     await act(async () => clickText('Datenbankschritte überspringen'));
-    expect(document.body.textContent).toContain('Release-Blocker SELF-INSTALL-01');
-    expect(document.body.textContent).toContain('Legacy-Integration vorübergehend');
+    expect(document.body.textContent).toContain('Installiere Bifröst über HACS');
+    expect(document.body.textContent).toContain('bifrost');
     expect(fetch.mock.calls.some(([url]) => url.endsWith('/provision') || url.endsWith('/connect'))).toBe(false);
   });
 
@@ -130,7 +131,7 @@ describe('setup wizard (ported from the Alpha-1 UI, same safeguards)', () => {
     vi.stubGlobal('fetch', fetch);
     const done = vi.fn();
     render(<SetupWizard initial={status} oncomplete={done} />);
-    await screen.findByText("HA-Anbindung aktiv (Protokoll 1)");
+    await screen.findByText("HA-Anbindung aktiv");
     clickText('Ergebnisse ansehen');
     const finish = await screen.findByRole('button', { name: /Einrichtung abschließen/ });
     expect(screen.getByText(/Konfiguration: Version 9 ist aktiv/)).toBeInTheDocument();

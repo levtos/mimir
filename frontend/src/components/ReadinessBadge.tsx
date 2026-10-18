@@ -53,7 +53,7 @@ export function ReadinessBadge({ conditions, ready, revision, children }: { cond
         <Badge tone={complete ? 'ok' : waiting ? 'neutral' : conditions.some(condition => condition.tone === 'bad') ? 'bad' : 'warn'}>{label}</Badge>
       </button>
       {open && <div id={id} role="dialog" aria-label={t('alpha7.status.conditions')} className="absolute left-0 top-full z-40 w-[min(34rem,85vw)] pt-2" onFocus={() => setPinned(true)}>
-        <div className="rounded-xl border border-line-strong bg-panel p-4 shadow-2xl">
+        <div className="max-h-[70vh] overflow-y-auto rounded-xl border border-line-strong bg-panel p-4 shadow-2xl">
           <div className="flex items-center justify-between gap-3"><p className="font-semibold">{t('alpha7.status.conditions')}</p><Button variant="ghost" size="icon" aria-label={t('alpha7.status.close')} onClick={close}><X size={15} /></Button></div>
           {conditions.length ? <ul>{conditions.map(condition => <ConditionRow key={condition.code ?? condition.kind} condition={condition} />)}</ul> : waiting ? <p className="py-3 text-sm text-muted">{t('alpha7.status.waiting')} <Link to="/settings/connections" className="text-fg underline">{t('alpha7.status.connection')}</Link></p> : <p className="py-3 text-sm text-muted">{t('alpha7.status.allGood')}</p>}
         </div>

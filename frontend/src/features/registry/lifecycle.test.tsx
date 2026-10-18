@@ -178,13 +178,13 @@ describe('activation requires an explicit, version-checked confirmation', () => 
     const api = installFakeApi({ drafts: [makeDraft('d1', sampleConfig())], revisions: [{ revision: 4, config: sampleConfig(), checksum: 'c'.repeat(64), created_at: 'x' }] });
     renderDialog(<ActivateDialog draft={api.drafts.get('d1') as unknown as Draft} open onOpenChange={() => {}} />);
     const button = await screen.findByRole('button', { name: "Jetzt übernehmen" });
-    await screen.findByText(/Hier siehst du, was sich beim Übernehmen ändert/);
+    await screen.findByText(/Hier siehst du die geplanten Änderungen/);
     expect(button).toBeDisabled();
     await user.click(screen.getByRole('checkbox', { name: /Ich habe die Auswirkungen geprüft/ }));
     expect(screen.getByRole('checkbox', { name: /Ich habe die Auswirkungen geprüft/ }).closest('footer')).not.toBeNull();
     expect(button).toBeEnabled();
     await user.click(button);
-    await screen.findByText("Version 5 ist aktiv");
+    await screen.findByText("Konfiguration 5 ist aktiv");
     expect(api.calls.find((c) => c.path.endsWith('/activate'))!.body).toEqual({ draft_version: 1, expected_active_revision: 4 });
   });
 
@@ -192,14 +192,14 @@ describe('activation requires an explicit, version-checked confirmation', () => 
     const api = installFakeApi({ drafts: [makeDraft('d1', sampleConfig())], revisions: [{ revision: 1, config: sampleConfig(), checksum: 'c'.repeat(64), created_at: 'x' }] });
     api.failNext.push({ path: /\/activate$/, status: 409, body: { error: 'active_revision_conflict', details: [] } });
     renderDialog(<ActivateDialog draft={api.drafts.get('d1') as unknown as Draft} open onOpenChange={() => {}} />);
-    await screen.findByText(/Hier siehst du, was sich beim Übernehmen ändert/);
+    await screen.findByText(/Hier siehst du die geplanten Änderungen/);
     await user.click(screen.getByRole('checkbox', { name: /Ich habe die Auswirkungen geprüft/ }));
     await user.click(screen.getByRole('button', { name: "Jetzt übernehmen" }));
     await screen.findByText("Konflikt – nichts wurde übernommen");
     expect(screen.queryByText(/ist aktiv/)).toBeNull();
     expect(api.revisions).toHaveLength(1);
     await user.click(screen.getByRole('button', { name: /erneut prüfen/ }));
-    await screen.findByText(/Hier siehst du, was sich beim Übernehmen ändert/);
+    await screen.findByText(/Hier siehst du die geplanten Änderungen/);
   });
 
   it('rollback creates a new revision from history and also needs confirmation', async () => {
@@ -207,12 +207,12 @@ describe('activation requires an explicit, version-checked confirmation', () => 
     const r2 = { revision: 2, config: sampleConfig({ marker: 'two' }), checksum: 'b'.repeat(64), created_at: 'y' };
     const api = installFakeApi({ revisions: [r1, r2] });
     renderDialog(<RollbackDialog revision={r1} open onOpenChange={() => {}} />);
-    await screen.findByText(/Hier siehst du, was sich beim Übernehmen ändert/);
+    await screen.findByText(/Hier siehst du die geplanten Änderungen/);
     const go = screen.getByRole('button', { name: "Zurücksetzen" });
     expect(go).toBeDisabled();
-    await user.click(screen.getByRole('checkbox', { name: /als neue Version 3 übernehmen/ }));
+    await user.click(screen.getByRole('checkbox', { name: /als neue Konfiguration 3/ }));
     await user.click(go);
-    await screen.findByText(/Neue Version 3 aktiv/);
+    await screen.findByText('Konfiguration 3 ist übernommen.');
     expect(api.revisions).toHaveLength(3);
     expect(api.revisions[2]!.config).toMatchObject({ marker: 'one' }); // historical content
     expect(api.revisions[0]!.config).toMatchObject({ marker: 'one' }); // history untouched
@@ -224,8 +224,8 @@ describe('activation requires an explicit, version-checked confirmation', () => 
     const api = installFakeApi({ revisions: [r1, { ...r1, revision: 2 }] });
     api.failNext.push({ path: /^registry\/rollback$/, status: 409, body: { error: 'active_revision_conflict', details: [] } });
     renderDialog(<RollbackDialog revision={r1} open onOpenChange={() => {}} />);
-    await screen.findByText(/Hier siehst du, was sich beim Übernehmen ändert/);
-    await user.click(screen.getByRole('checkbox', { name: /als neue Version 3 übernehmen/ }));
+    await screen.findByText(/Hier siehst du die geplanten Änderungen/);
+    await user.click(screen.getByRole('checkbox', { name: /als neue Konfiguration 3/ }));
     await user.click(screen.getByRole('button', { name: "Zurücksetzen" }));
     await screen.findByText("Konflikt – nichts wurde übernommen");
     expect(api.revisions).toHaveLength(2);
@@ -256,7 +256,7 @@ describe('T1B-03: the check, the diff and the activation always concern the same
     await user.click(screen.getByText('zu B'));
     await user.click(screen.getByText('öffnen'));
     const dialog = await screen.findByRole('dialog');
-    await within(dialog).findByText(/Hier siehst du, was sich beim Übernehmen ändert/);
+    await within(dialog).findByText(/Hier siehst du die geplanten Änderungen/);
     expect(within(dialog).getByText(/Beta/)).toBeInTheDocument();
     expect(validated(api)).toEqual(['registry/drafts/b/validate']);
     await user.click(within(dialog).getByRole('checkbox', { name: /Auswirkungen geprüft/ }));
@@ -271,7 +271,7 @@ describe('T1B-03: the check, the diff and the activation always concern the same
     renderDialog(<Switcher api={api} />);
     await user.click(screen.getByText('öffnen'));
     const dialog = await screen.findByRole('dialog');
-    await within(dialog).findByText(/Hier siehst du, was sich beim Übernehmen ändert/);
+    await within(dialog).findByText(/Hier siehst du die geplanten Änderungen/);
     await user.click(within(dialog).getByRole('checkbox', { name: /Auswirkungen geprüft/ }));
     expect(within(dialog).getByRole('button', { name: "Jetzt übernehmen" })).toBeEnabled();
 
@@ -317,7 +317,7 @@ describe('T1B-03: the check, the diff and the activation always concern the same
         </MemoryRouter>
       </QueryClientProvider>,
     );
-    await screen.findByText(/Hier siehst du, was sich beim Übernehmen ändert/);
+    await screen.findByText(/Hier siehst du die geplanten Änderungen/);
     await user.click(screen.getByRole('checkbox', { name: /Auswirkungen geprüft/ }));
     expect(screen.getByRole('button', { name: "Jetzt übernehmen" })).toBeEnabled();
     act(() => sockets[0]!.onmessage!({ data: JSON.stringify({ type: 'snapshot', epoch_id: 'e', publication_seq: 9, registry_revision: 2, publication_confirmed: true, contracts: {} }) }));

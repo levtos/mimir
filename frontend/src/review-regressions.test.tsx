@@ -112,7 +112,7 @@ describe('activation checks the exact immutable candidate and base', () => {
     await act(async () => pending.resolve(reply(200, { valid: false, issues: [] })));
     await user.click(screen.getByRole('checkbox', { name: /Auswirkungen geprüft/ }));
     await user.click(screen.getByRole('button', { name: "Jetzt übernehmen" }));
-    await screen.findByText("Version 1 ist aktiv");
+    await screen.findByText("Konfiguration 1 ist aktiv");
     expect(api.calls.filter((c) => c.path.endsWith('/activate')).map((c) => c.path)).toEqual(['registry/drafts/b/activate']);
   });
 });
@@ -121,7 +121,7 @@ describe('schemas outside the fixtures keep actual JSON types', () => {
   it('keeps transform metadata when its graphical kind changes', async () => {
     let value: JsonObject = { binding_id: 'b', source_id: 's', adapter: { kind: 'mqtt', mqtt_topic: 'synthetic' }, transform: { kind: 'type_cast', target: 'number', x_future: [null, { id: 'keep' }] } };
     wrap(<Stateful initial={value} onValue={(next) => { value = next; }}>{(v, set) => <BindingEditor value={v} onChange={set} pointer="/bindings/0" sourceIds={['s']} catalogIds={[]} schema={caps.schemas.registry} onPickEntity={() => {}} />}</Stateful>);
-    await user.selectOptions(screen.getByLabelText('Transformation'), 'unit_scale');
+    await user.selectOptions(screen.getByLabelText("Umwandlung"), 'unit_scale');
     expect(value.transform).toMatchObject({ kind: 'unit_scale', x_future: [null, { id: 'keep' }] });
   });
 

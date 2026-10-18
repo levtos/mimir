@@ -3,7 +3,7 @@ import { createHashRouter, Navigate, RouterProvider, useLocation, type RouteObje
 import { legacyTarget } from '@/lib/navigation';
 import { RouteError } from '@/components/RouteError';
 import { Shell } from '@/components/Shell';
-import { Spinner } from '@/components/ui/layout';
+import { PageLoading } from '@/components/PageLoading';
 import { WorkingDocumentProvider } from '@/features/authoring/WorkingDocument';
 import type { LiveStore } from '@/lib/live';
 import { LiveProvider } from '@/lib/live-context';
@@ -14,7 +14,7 @@ import { OverviewPage } from '@/features/overview/OverviewPage';
 const lazyPage = (load: () => Promise<{ default: React.ComponentType }>) => {
   const Page = lazy(load);
   return (
-    <Suspense fallback={<Spinner />}>
+    <Suspense fallback={<PageLoading />}>
       <Page />
     </Suspense>
   );

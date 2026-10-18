@@ -1,9 +1,10 @@
-# Alpha 9 — Textvorschläge zur Durchsicht durch Benni
+# Alpha 9 — Freigegebene Texte und Umsetzung
 
 18.10.2026 · Basis: main/tag v1.0.0a8, Commit `6fcde2a83def3e5cde93d3dea46638d755cbf1e6`.
-**A1, noch nicht freigegeben.** Diese Datei ändert keine laufende Beschriftung.
-Erst nach Bennis Durchsicht werden bestätigte Texte in A2 umgesetzt. Auch die
-Löschliste ist bis dahin ein Vorschlag; de.json bleibt in A1 bytegleich.
+**A2 freigegeben durch Benni (Texte) und Claude (Technik), 18.10.2026.**
+Die nachfolgenden Tabellen dokumentieren die Prüfung des a8-Ausgangsstands.
+Die sechs ergänzenden Vorgaben aus der Freigabe sind eingearbeitet; die freigegebenen
+Texte werden in A2 zusammen mit den benötigten Formularen umgesetzt.
 
 ## Lesereihenfolge und Umfang
 
@@ -16,7 +17,7 @@ Die Orte stammen aus produktivem Quellcode einschließlich dynamischer Namensrä
 Tests/Beispiele gelten nicht als erreichbare Oberfläche. Dies ist eine Quelltextprüfung,
 kein vorweggenommener Bedien- oder Browsernachweis.
 
-Tabellen sind **Änderungsvorschläge**, keine Anweisung zum blinden Ersetzen von
+Die Tabellen enthalten die freigegebenen Zieltexte, keine Anweisung zum blinden Ersetzen von
 Teilstrings. Zusammengesetzte Sätze werden in A2 zu vollständigen Nachrichten mit
 benannten Platzhaltern und Einzahl/Mehrzahl zusammengeführt. Sichtbare Inhalte aus
 Namen/Notizen des Benutzers werden nicht übersetzt oder umgeschrieben. Fachliche
@@ -42,9 +43,9 @@ Gerätekennung als einzige Beschriftung. Nutzer müssen kein JSON eingeben.
 | Schlüssel / Ort | alt | neu | Grund |
 |---|---|---|---|
 | alpha7.overview.whatCanIDo / Übersicht | Was kann ich tun? | Details | Kurze eindeutige Aktion. |
-| alpha7.mode.live / Ansichtsschalter | Live ansehen | Aktueller Stand | Deutscher Begriff. |
+| alpha7.mode.live / Ansichtsschalter | Live ansehen | Ansehen | Deutscher Begriff. |
 | alpha7.nav.dependencies / Menü | Abhängigkeiten (Erweitert) | Abhängigkeiten | Kein Klammerzusatz; technische Inhalte im Bereich Erweitert. |
-| alpha7.nav.diagnostics / Menü | Experten-Diagnose | Erweitert | Keine Rolle oder Fachkenntnis voraussetzen. |
+| alpha7.nav.diagnostics / Menü | Experten-Diagnose | Fehlersuche | Keine Rolle oder Fachkenntnis voraussetzen. |
 | alpha7.status.version / Kopf | Version {count} | Konfiguration {count} | Gesamtstand von Vorlagen- und Programmversion trennen. |
 | NEU alpha9.header.noConfiguration / Kopf | Version – | Noch keine Konfiguration | Leere Installation erklären. |
 | System / Erklärsatz | Bereitschaft (kann der Dienst auswerten?) ist etwas anderes als die Qualität einzelner Werte. | Diese Punkte müssen erfüllt sein, damit Mimir deine Verträge auswerten kann. | Direkte Bedeutung statt Modellvergleich. |
@@ -54,7 +55,7 @@ Gerätekennung als einzige Beschriftung. Nutzer müssen kein JSON eingeben.
 | Auswirkungsprüfung / Gesamtstand | vollständiger Stand – Nach dem Übernehmen erhalten 0 Verträge die neue Versionsnummer. | Du übernimmst eine Konfiguration ohne Verträge. | Eigener Leerfall; keine technische Versionsbehauptung. |
 | Auswirkungsprüfung / sonst | Nach dem Übernehmen erhalten {n} Verträge die neue Versionsnummer. | Nach dem Übernehmen gilt die neue Konfiguration für {n} Verträge. | Kein Versprechen geänderter Fachlogik für jeden Vertrag. |
 | Ereignisse / Zusatz | Verbindungswechsel zu Home Assistant werden seit dem Öffnen dieser Browser-Sitzung angezeigt. | Hier stehen Verbindungsänderungen, seit du Mimir geöffnet hast. | Zeitlichen Umfang ohne Browserbegriff erklären. |
-| editors.RegistryObjects.eingange_bindung_an_quellen_und_andere_contracts_c3d83b / Vertragsformular | Eingänge (Bindung an Quellen und andere Verträge) | Verknüpfung | Bennis Wörterbuch. |
+| editors.RegistryObjects.eingange_bindung_an_quellen_und_andere_contracts_c3d83b / Vertragsformular | Eingänge (Bindung an Quellen und andere Verträge) | Verknüpfungen | Bennis Wörterbuch. |
 | repository.yaml:name / App-Store | Core Contracts Platform | Mimir | In Alpha 9 vorgezogen; A1 ändert die Datei noch nicht. |
 | Übersicht / leerer Vollständigkeitsbereich | leer | Zurzeit nichts unvollständig | Bestätigten Leerzustand zeigen; Lade-/Fehlerzustand bleibt getrennt. |
 
@@ -89,7 +90,7 @@ im Aktionsmenü oder neutralen Links erreichbar; kein Löschen als Hauptknopf.
 | /settings/connections | Erklärung und Hauptknopf fehlen | Verbindungen · Hier kannst du die Datenbankverbindung und die HA-Anbindung prüfen. | Verbindungen prüfen (nur lesend) |
 | /settings/keys | Erklärung und Hauptknopf fehlen; sensible Aktion im Panel | Zugangsschlüssel · Hier kannst du die Zugänge zu Mimir verwalten. | Zugang auswählen (Erneuern erst im bestätigten Dialog) |
 | /settings/log | Erklärung und Hauptknopf fehlen | Protokoll · Hier kannst du nachsehen, welche Änderungen Mimir gespeichert hat. | Neu laden |
-| /settings/diagnostics | Erklärung beginnt anders; kein Hauptknopf | Erweitert · Hier kannst du Nachweise, Berechnungen und frühere Zustände genauer prüfen. | Vertrag auswählen |
+| /settings/diagnostics | Erklärung beginnt anders; kein Hauptknopf | Fehlersuche · Hier kannst du Nachweise, Berechnungen und frühere Zustände genauer prüfen. | Vertrag auswählen |
 | Ersteinrichtung, Schritte 1–5 | gemeinsamer Titel, wechselnde Untertitel; Weiter/Zurück im Inhalt | Mimir einrichten · Hier kannst du Mimir Schritt für Schritt mit deinen Daten verbinden. | kontextabhängig Weiter / Verbindung prüfen / Einrichtung abschließen; Zurück sekundär |
 | Lade- und Fehlerseite | Titel, aber kein einheitlicher Erklärsatz/Hauptknopf | Mimir · Hier kannst du nach dem Laden mit deiner Einrichtung fortfahren. | Erneut versuchen; während Laden deaktiviert mit Erklärung |
 | NEU /settings/retention | fehlt | Aufbewahrung · Hier kannst du festlegen, wie lange Mimir Messwerte aufbewahrt. | Im Entwurf speichern |
@@ -145,7 +146,7 @@ vollständige Nachrichten und bestätigt alle neuen Seiten im echten Formularabl
 
 | Schlüssel | Ort in der Oberfläche | alt | neu | Grund |
 |---|---|---|---|---|
-| post1.validation.sourceConflict | Gemeinsame Oberfläche / Wertanzeige | Quelle „{source}“: {field} war in Version {revision} „{oldValue}“ und soll jetzt „{newValue}“ sein. Lege für einen anderen Typ oder eine andere Einheit eine neue Quelle an. Eine Werteliste darfst du nur ergänzen. | Quelle „{source}“: {field} war in Konfiguration {revision} „{oldValue}“ und soll „{newValue}“ werden. Für eine andere Werteart oder Einheit brauchst du eine neue Quelle. Eine Werteliste darfst du ergänzen. | Übernommenen Gesamtstand von Vorlagen- und Programmversion unterscheiden. |
+| post1.validation.sourceConflict | Gemeinsame Oberfläche / Wertanzeige | Quelle „{source}“: {field} war in Version {revision} „{oldValue}“ und soll jetzt „{newValue}“ sein. Lege für einen anderen Typ oder eine andere Einheit eine neue Quelle an. Eine Werteliste darfst du nur ergänzen. | Quelle „{source}“: {field} war in Konfiguration {revision} „{oldValue}“ und soll „{newValue}“ werden. Für eine andere Werteart oder Einheit brauchst du eine neue Quelle. Eine Werteliste darfst du nur erweitern, nicht kürzen. | Übernommenen Gesamtstand von Vorlagen- und Programmversion unterscheiden. |
 | alpha7.versions.explanation | Entwürfe und Konfigurationen | Hier findest du die bisher übernommenen Konfigurationen. Eine ältere Version kannst du prüfen und erneut übernehmen. | Hier kannst du frühere Konfigurationen ansehen, vergleichen und wieder übernehmen. | Übernommenen Gesamtstand von Vorlagen- und Programmversion unterscheiden. |
 | alpha7.versions.affectedOne | Entwürfe und Konfigurationen | Nach dem Übernehmen erhält 1 Vertrag die neue Versionsnummer. | Nach dem Übernehmen gilt die neue Konfiguration für einen Vertrag. | Übernommenen Gesamtstand von Vorlagen- und Programmversion unterscheiden. |
 | alpha7.evidence.help | Erweitert / Nachweise | Wähle eine Quelle. Die Tabelle zeigt ihre zuletzt gespeicherten Beobachtungen je Verknüpfung. Empfangszeit und Messzeit bleiben getrennt. | Wähle eine Quelle. Hier siehst du ihre gespeicherten Meldungen. Messzeit und Empfangszeit werden getrennt angezeigt. | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. Technische Angabe nur unter Erweitert. |
@@ -183,7 +184,7 @@ vollständige Nachrichten und bestätigt alle neuen Seiten im echten Formularabl
 | alpha7.overview.whatCanIDo | Übersicht | Was kann ich tun? | Details | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
 | alpha7.overview.thisSession | Übersicht | in dieser Sitzung | seit dem Öffnen von Mimir | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
 | alpha7.overview.connectionScope | Übersicht | Verbindungswechsel zu Home Assistant werden seit dem Öffnen dieser Browser-Sitzung angezeigt. | Hier stehen Verbindungsänderungen, seit du Mimir geöffnet hast. | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
-| alpha7.mode.live | Entwurf und Bearbeitung | Live ansehen | Aktueller Stand | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
+| alpha7.mode.live | Entwurf und Bearbeitung | Live ansehen | Ansehen | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
 | alpha7.status.version | Kopfleiste / offene Bedingungen | Version {count} | Konfiguration {count} | Übernommenen Gesamtstand von Vorlagen- und Programmversion unterscheiden. |
 | alpha7.status.publication | Kopfleiste / offene Bedingungen → Erweitert | Der zuletzt gespeicherte Stand wurde noch nicht bestätigt. | Die angezeigten Werte sind noch nicht mit dem gespeicherten Stand abgeglichen. | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. Technische Angabe nur unter Erweitert. |
 | alpha7.status.disconnected | Kopfleiste / offene Bedingungen | Die Live-Verbindung ist unterbrochen und gezeigt wird der letzte bekannte Stand. | Die Verbindung zu Mimir ist unterbrochen. Du siehst den letzten bekannten Stand. | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
@@ -193,7 +194,7 @@ vollständige Nachrichten und bestätigt alle neuen Seiten im echten Formularabl
 | alpha7.nav.transfer | Menü; Entwürfe und Konfigurationen | Import/Export | Import &amp; Export | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
 | alpha7.nav.system | Menü; Einstellungen | Systemstatus | System | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
 | alpha7.nav.installation | Menü | Installation &amp; Einrichtung | Einrichtung | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
-| alpha7.nav.diagnostics | Menü | Experten-Diagnose | Erweitert | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
+| alpha7.nav.diagnostics | Menü | Experten-Diagnose | Fehlersuche | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
 | alpha7.contract.choose | Vertrag und Vorlage | Wähle einen Vertrag. Hier siehst du seinen Wert, die Erklärung und den Verlauf. | Hier kannst du einen Vertrag auswählen und seinen Wert, seine Erklärung und seinen Verlauf ansehen. | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
 | alpha7.draft.explanation | Entwürfe und Konfigurationen | Ein Entwurf sammelt Änderungen. Sie gelten erst nach Übernehmen. | Hier kannst du Änderungen als Entwurf sammeln. Sie gelten erst, wenn du ihn übernimmst. | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
 | alpha7.import.explanation | Entwürfe und Konfigurationen | Lade eine Datei oder füge den Import-Text ein. Du prüfst die Änderungen, bevor sie gelten. | Hier kannst du eine gespeicherte Konfiguration einlesen. Du prüfst sie, bevor du sie übernimmst. | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
@@ -278,7 +279,7 @@ vollständige Nachrichten und bestätigt alle neuen Seiten im echten Formularabl
 | editors.RegistryObjects.contract_id_f9f7ff | Formular für Vorlage / Quelle / Vertrag | Vertrag-ID | Vertragskennung | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
 | editors.RegistryObjects.typ_version_1b7183 | Formular für Vorlage / Quelle / Vertrag | Typ &amp; Version | Vorlage und Version | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
 | editors.RegistryObjects.dieser_typ_ist_weder_als_paket_typ_noch_als_defi_0b1092 | Formular für Vorlage / Quelle / Vertrag | Dieser Typ ist weder als Paket-Typ noch als Vorlage bekannt. | Die ausgewählte Vorlage wurde nicht gefunden. | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
-| editors.RegistryObjects.eingange_bindung_an_quellen_und_andere_contracts_c3d83b | Formular für Vorlage / Quelle / Vertrag | Eingänge (Bindung an Quellen und andere Verträge) | Verknüpfung | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
+| editors.RegistryObjects.eingange_bindung_an_quellen_und_andere_contracts_c3d83b | Formular für Vorlage / Quelle / Vertrag | Eingänge (Bindung an Quellen und andere Verträge) | Verknüpfungen | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
 | editors.RegistryObjects.dieser_typ_deklariert_keine_eingange_8d0dc9 | Formular für Vorlage / Quelle / Vertrag | Dieser Typ deklariert keine Eingänge. | Diese Vorlage benötigt keine Eingänge. | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
 | editors.RegistryObjects.referenz_e13113 | Formular für Vorlage / Quelle / Vertrag | Referenz | Verknüpfter Wert | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
 | editors.RegistryObjects.nicht_gebunden_4105e9 | Formular für Vorlage / Quelle / Vertrag | — nicht gebunden — | Noch nicht verknüpft | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
@@ -376,7 +377,7 @@ vollständige Nachrichten und bestätigt alle neuen Seiten im echten Formularabl
 | features.authoring.model.objekt_fe41f9 | Entwurf und Bearbeitung | Objekt | Zusammengesetzte Angaben | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
 | features.authoring.WorkingDocument.workingdocumentprovider_fehlt_950e4e | Entwurf und Bearbeitung | WorkingDocumentProvider fehlt | Der Entwurf ist gerade nicht verfügbar. | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
 | features.contracts.ContractDetailPage.contract_konfiguration_d1e14f | Vertrag und Vorlage | Vertrag-Konfiguration | Einstellungen des Vertrags | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
-| features.contracts.ContractDetailPage.eingange_hangt_ab_von_24b089 | Vertrag und Vorlage | Eingänge (hängt ab von) | Verknüpfung | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
+| features.contracts.ContractDetailPage.eingange_hangt_ab_von_24b089 | Vertrag und Vorlage | Eingänge (hängt ab von) | Verknüpfungen | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
 | features.contracts.ContractDetailPage.keine_eingange_gebunden_b03857 | Vertrag und Vorlage | Keine Eingänge gebunden. | Noch keine Eingänge verknüpft. | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
 | features.contracts.ContractDetailPage.deklarative_definition_b0121f | Vertrag und Vorlage | Deklarative Vorlage  | Eigene Vorlage  | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
 | features.contracts.ContractDetailPage.paket_typ_44867a | Vertrag und Vorlage | Paket-Typ  | Eingebaute Vorlage  | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. |
@@ -431,8 +432,8 @@ vollständige Nachrichten und bestätigt alle neuen Seiten im echten Formularabl
 | features.diagnostics.DiagnosticsPage.veroffentlichungen_2f573d | Erweitert / Nachweise | Veröffentlichungen | Bereitgestellte Stände | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. Technische Angabe nur unter Erweitert. |
 | features.diagnostics.DiagnosticsPage.persistierte_contract_zustande_mit_epoche_und_se_30b8f1 | Erweitert / Nachweise → Erweitert | Persistierte Vertrag-Zustände mit Epoche und Sequenz. | Gespeicherte Vertragszustände mit Laufzeitabschnitt und laufender Nummer. | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. Technische Angabe nur unter Erweitert. |
 | features.diagnostics.DiagnosticsPage.revision_2e516d | Erweitert / Nachweise | Version | Konfiguration | Übernommenen Gesamtstand von Vorlagen- und Programmversion unterscheiden. Technische Angabe nur unter Erweitert. |
-| features.diagnostics.DiagnosticsPage.diagnose_historie_63b2ee | Erweitert / Nachweise | Diagnose &amp; Historie | Erweitert | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. Technische Angabe nur unter Erweitert. |
-| features.diagnostics.DiagnosticsPage.was_der_server_tatsachlich_wei_werte_quality_rea_24aab3 | Erweitert / Nachweise | Was die App tatsächlich weiß: Werte, Qualität, Gründe, Nachweis, Erklärung, Zeitregel-/Wiederherstellung-Zustand, Ablauf, Historie und Befehle. Es werden keine Werte oder Übergänge erfunden. | Hier kannst du gespeicherte Nachweise, Berechnungen und frühere Zustände genauer prüfen. | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. Technische Angabe nur unter Erweitert. |
+| features.diagnostics.DiagnosticsPage.diagnose_historie_63b2ee | Erweitert / Nachweise | Diagnose &amp; Historie | Fehlersuche | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. Technische Angabe nur unter Erweitert. |
+| features.diagnostics.DiagnosticsPage.was_der_server_tatsachlich_wei_werte_quality_rea_24aab3 | Erweitert / Nachweise | Was die App tatsächlich weiß: Werte, Qualität, Gründe, Nachweis, Erklärung, Zeitregel-/Wiederherstellung-Zustand, Ablauf, Historie und Befehle. Es werden keine Werte oder Übergänge erfunden. | Hier kannst du Nachweise, Berechnungen und frühere Zustände genauer prüfen. | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. Technische Angabe nur unter Erweitert. |
 | features.diagnostics.DiagnosticsPage.contract_diagnose_314975 | Erweitert / Nachweise | Vertrag-Diagnose | Vertrag genauer prüfen | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. Technische Angabe nur unter Erweitert. |
 | features.diagnostics.DiagnosticsPage.historie_4eaa80 | Erweitert / Nachweise | Historie | Verlauf | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. Technische Angabe nur unter Erweitert. |
 | features.diagnostics.DiagnosticsPage.publikationen_lucken_44dc70 | Erweitert / Nachweise | Publikationen &amp; Lücken | Gespeicherte Stände und Lücken | Verständlicher formulieren, Wörterbuch beachten und/oder Grammatik berichtigen. Technische Angabe nur unter Erweitert. |
@@ -1443,7 +1444,7 @@ Zusammen mit der Änderungstabelle oben ist dies das vollständige Verzeichnis a
 | features.contracts.ContractDetailPage.der_aktive_stand_enthalt_diesen_contract_nicht_e_15aef3 | Vertrag und Vorlage | Dieser Vertrag existiert bisher nur im Entwurf. Er liefert Werte, sobald du den Entwurf übernimmst. | wie bisher | Geprüft; beibehalten. |
 | features.contracts.ContractDetailPage.konfiguration_8df29d | Vertrag und Vorlage | Konfiguration | wie bisher | Geprüft; beibehalten. |
 | features.contracts.ContractDetailPage.abhangigkeiten_327cb1 | Vertrag und Vorlage | Abhängigkeiten | wie bisher | Geprüft; beibehalten. |
-| features.contracts.ContractDetailPage.eingange_53fb39 | Vertrag und Vorlage | Eingänge | wie bisher | Geprüft; beibehalten. |
+| features.contracts.ContractDetailPage.eingange_53fb39 | Vertrag und Vorlage | Verknüpfungen | wie bisher | Geprüft; beibehalten. |
 | features.contracts.ContractDetailPage.verwendet_von_656221 | Vertrag und Vorlage | Verwendet von | wie bisher | Geprüft; beibehalten. |
 | features.contracts.ContractDetailPage.contracts_die_diesen_contract_als_eingang_nutzen_763bf2 | Vertrag und Vorlage | Verträge, die diesen Vertrag als Eingang nutzen. | wie bisher | Geprüft; beibehalten. |
 | features.contracts.ContractDetailPage.kein_anderer_contract_nutzt_ihn_4582b8 | Vertrag und Vorlage | Kein anderer Vertrag nutzt ihn. | wie bisher | Geprüft; beibehalten. |
@@ -2638,3 +2639,354 @@ braucht das konkrete Formular folgende ergänzende Beschriftungen:
 | `alpha9.readiness.condition.ha_connection` | Bereitschaft und System | — | HA-Anbindung verbunden | Noch nicht prüfbare Voraussetzungen nicht verdecken. |
 | `alpha9.readiness.condition.publication` | Bereitschaft und System | — | Aktueller Stand bestätigt | Noch nicht prüfbare Voraussetzungen nicht verdecken. |
 | `alpha9.readiness.condition.input_capacity` | Bereitschaft und System | — | Weitere Meldungen möglich | Noch nicht prüfbare Voraussetzungen nicht verdecken. |
+
+
+## A2: Ergänzungen und vollständige Nachrichten
+
+Die Freigabe-Auflagen sind in den Tabellen oben eingearbeitet. Die folgenden Zeilen
+erfassen zusätzliche Formulartexte sowie die Zusammenführung bisheriger Satzfragmente.
+Kennungen aus Nutzereingaben bleiben unverändert. Technische Einzelheiten liegen unter
+„Erweitert“. Der Seitentest prüft alle 27 Routen einschließlich fehlender Objekte;
+Ladezustand und lesende Verbindungsprüfung sind zusätzlich abgedeckt.
+
+| Schlüssel | Ort in der Oberfläche | alt (A1-Ziel) | neu | Grund |
+|---|---|---|---|---|
+| post1.validation.sourceConflict | Gemeinsame Oberfläche / Wertanzeige | Quelle „{source}“: {field} war in Konfiguration {revision} „{oldValue}“ und soll „{newValue}“ werden. Für eine andere Werteart oder Einheit brauchst du eine neue Quelle. Eine Werteliste darfst du ergänzen. | Quelle „{source}“: {field} war in Konfiguration {revision} „{oldValue}“ und soll „{newValue}“ werden. Für eine andere Werteart oder Einheit brauchst du eine neue Quelle. Eine Werteliste darfst du nur erweitern, nicht kürzen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha7.versions.note | Entwürfe und Konfigurationen | Notiz zur neuen Version (freiwillig) | Notiz zur neuen Konfiguration (freiwillig) | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha7.versions.olderOnly | Entwürfe und Konfigurationen | Zurücksetzen ist nur auf eine ältere Version möglich. | Zurücksetzen ist nur auf eine ältere Konfiguration möglich. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha7.versions.selectTwo | Entwürfe und Konfigurationen | Wähle zwei Versionen über die Kästchen links aus. | Wähle zwei Konfigurationen über die Kästchen links aus. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha7.versions.activeFailed | Entwürfe und Konfigurationen | Die aktive Version konnte nicht geladen werden. Lade die Seite neu, bevor du eine Version zurücksetzt. | Die aktive Konfiguration konnte nicht geladen werden. Lade die Seite neu, bevor du eine Konfiguration zurücksetzt. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha7.event.activate | Dynamische Beschriftung; Namensraum im Quellcode erhalten | Version {version} übernommen | Konfiguration {version} übernommen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha7.event.rollback | Dynamische Beschriftung; Namensraum im Quellcode erhalten | Version {version} durch Zurücksetzen übernommen | Konfiguration {version} durch Zurücksetzen übernommen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha7.mode.live | Entwurf und Bearbeitung | Aktueller Stand | Ansehen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha7.nav.diagnostics | Menü | Erweitert | Fehlersuche | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| editors.RegistryObjects.eingange_bindung_an_quellen_und_andere_contracts_c3d83b | Formular für Vorlage / Quelle / Vertrag | Verknüpfung | Verknüpfungen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| features.contracts.ContractDetailPage.eingange_53fb39 | Vertrag und Vorlage | Eingänge | Verknüpfungen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| features.contracts.ContractDetailPage.eingange_hangt_ab_von_24b089 | Vertrag und Vorlage | Verknüpfung | Verknüpfungen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| features.diagnostics.DiagnosticsPage.diagnose_historie_63b2ee | Erweitert / Nachweise | Erweitert | Fehlersuche | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| features.diagnostics.DiagnosticsPage.was_der_server_tatsachlich_wei_werte_quality_rea_24aab3 | Erweitert / Nachweise | Hier kannst du gespeicherte Nachweise, Berechnungen und frühere Zustände genauer prüfen. | Hier kannst du Nachweise, Berechnungen und frühere Zustände genauer prüfen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| features.registry.ActivationDialogs.die_aktive_revision_hat_sich_wahrend_der_prufung_38126e | Entwürfe und Konfigurationen | Die aktive Version hat sich während der Prüfung geändert. Erneut prüfen. | Die aktive Konfiguration hat sich während der Prüfung geändert. Erneut prüfen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| features.registry.ActivationDialogs.die_aktive_revision_ist_inzwischen_v0_gepruft_ge_481253 | Entwürfe und Konfigurationen | Die aktive Version ist inzwischen {v0} (geprüft gegen {v1}). | Die aktive Konfiguration ist inzwischen {v0} (geprüft gegen {v1}). | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| features.registry.ActivationDialogs.der_historische_stand_wird_als_neue_revision_akt_62c809 | Entwürfe und Konfigurationen | Der frühere Stand wird als neue Version übernommen. Die bisherigen Versionen bleiben erhalten. | Der frühere Stand wird als neue Konfiguration übernommen. Die bisherigen Konfigurationen bleiben erhalten. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| features.registry.RegistryPage.basis_revision_690542 | Entwürfe und Konfigurationen | · auf Grundlage von Version  | · auf Grundlage von Konfiguration  | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| features.registry.RegistryPage.wird_endgultig_geloscht_version_v_5065b7 | Entwürfe und Konfigurationen | “ wird endgültig gelöscht (Version v | “ wird endgültig gelöscht (Konfiguration v | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| features.registry.RegistryPage.revisionen_sind_unveranderlich_aktivierung_und_r_45199a | Entwürfe und Konfigurationen | Versionen sind unveränderlich. Übernahme und Zurücksetzen erzeugen immer eine neue Version. | Konfigurationen sind unveränderlich. Übernahme und Zurücksetzen erzeugen immer eine neue Version. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| features.registry.RegistryPage.zwei_revisionen_vergleichen_ebd968 | Entwürfe und Konfigurationen | Zwei Versionen vergleichen ( | Zwei Konfigurationen vergleichen ( | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| features.registry.RegistryPage.noch_keine_revision_bf7c3f | Entwürfe und Konfigurationen | Noch keine Version | Noch keine Konfiguration | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| features.registry.RegistryPage.revision_v0_zum_vergleich_wahlen_d77c8e | Entwürfe und Konfigurationen | Version {v0} zum Vergleich wählen | Konfiguration {v0} zum Vergleich wählen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| features.registry.RegistryPage.revision_e330d8 | Entwürfe und Konfigurationen | Version  | Konfiguration  | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| features.registry.RegistryPage.zuruckrollen_1c5e6f | Entwürfe und Konfigurationen | Auf diese Version zurücksetzen | Auf diese Konfiguration zurücksetzen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| features.registry.RegistryPage.revision_v0_v1_1a2b5a | Entwürfe und Konfigurationen | Version {v0} ↔ {v1} | Konfiguration {v0} ↔ {v1} | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| features.registry.RegistryPage.strukturelle_differenz_der_konfigurationsdokumen_aee6e2 | Entwürfe und Konfigurationen | Hier siehst du, welche Einträge sich zwischen den beiden Versionen unterscheiden. Die Auswirkungen prüft die App vor dem Übernehmen oder Zurücksetzen. | Hier siehst du, welche Einträge sich zwischen den beiden Konfigurationen unterscheiden. Die Auswirkungen prüft die App vor dem Übernehmen oder Zurücksetzen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.calendar.add | Neue Formulare / Einstellungen / Hinweise | – (neu) | Kalender hinzufügen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.calendar.windowPast | Neue Formulare / Einstellungen / Hinweise | – (neu) | Vergangene Tage einlesen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.calendar.windowFuture | Neue Formulare / Einstellungen / Hinweise | – (neu) | Kommende Tage einlesen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.calendar.refresh | Neue Formulare / Einstellungen / Hinweise | – (neu) | Neu lesen nach (Minuten) | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.calendar.validFor | Neue Formulare / Einstellungen / Hinweise | – (neu) | Ohne neue Antwort gültig für (Minuten) | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.form.unavailable | Neue Formulare / Einstellungen / Hinweise | – (neu) | Diese Einstellung konnte nicht verarbeitet werden. Prüfe die markierten Felder. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| codes.ha_calendar | Oberfläche / Wörterbuch | – (neu) | Kalender aus Home Assistant | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.notifications.title | Neue Formulare / Einstellungen / Hinweise | – (neu) | Benachrichtigungen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.notifications.description | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du festlegen, welche Hinweise Mimir in Home Assistant zeigt. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.notifications.signal | Neue Formulare / Einstellungen / Hinweise | – (neu) | Bei gestörten Signalen benachrichtigen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.notifications.configuration | Neue Formulare / Einstellungen / Hinweise | – (neu) | Auf fehlende Angaben hinweisen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.notifications.configurationHelp | Neue Formulare / Einstellungen / Hinweise | – (neu) | Ein verwendbarer Wert mit fehlender Zuordnung ist kein gestörtes Signal. Hinweise dazu werden getrennt gesammelt. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.notifications.delay | Neue Formulare / Einstellungen / Hinweise | – (neu) | Erst melden, wenn das Problem so lange besteht (Sekunden) | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.notifications.clearDelay | Neue Formulare / Einstellungen / Hinweise | – (neu) | Als behoben melden nach (Sekunden) | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.notifications.updateDelay | Neue Formulare / Einstellungen / Hinweise | – (neu) | Geänderte Meldung frühestens nach (Sekunden) | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.notifications.maxItems | Neue Formulare / Einstellungen / Hinweise | – (neu) | Höchstens so viele Verträge in einer Meldung nennen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.notifications.preview | Neue Formulare / Einstellungen / Hinweise | – (neu) | So sieht der Hinweis aus. Es wird keine Nachricht gesendet. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.notifications.signalTitle | Neue Formulare / Einstellungen / Hinweise | – (neu) | Mimir: Signal gestört | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.notifications.configTitle | Neue Formulare / Einstellungen / Hinweise | – (neu) | Mimir: Angaben fehlen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.notifications.signalSummary | Neue Formulare / Einstellungen / Hinweise | – (neu) | {count} Werte sind nicht sicher bekannt. Öffne die Problemliste, um die Ursachen zu prüfen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.notifications.configSummary | Neue Formulare / Einstellungen / Hinweise | – (neu) | Bei {count} Werten fehlen noch Angaben. Die Hinweise stehen getrennt von gestörten Signalen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.context.automatic | Neue Formulare / Einstellungen / Hinweise | – (neu) | Änderung durch bekannte Automatik | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.context.unknown | Neue Formulare / Einstellungen / Hinweise | – (neu) | Auslöser nicht sicher bekannt | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| fields.producer_id | Oberfläche / Wörterbuch | – (neu) | Kennung des Dienstes | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| fields.context_producers | Oberfläche / Wörterbuch | – (neu) | Bekannte Automatikdienste | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| codes.policy | Oberfläche / Wörterbuch | – (neu) | Entscheidender Dienst | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| codes.apply | Oberfläche / Wörterbuch | – (neu) | Ausführender Dienst | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.refresh.title | Neue Formulare / Einstellungen / Hinweise | – (neu) | Quellen erneut abfragen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.refresh.trigger | Neue Formulare / Einstellungen / Hinweise | – (neu) | Dieser Vertrag löst die Abfrage aus | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.refresh.targets | Neue Formulare / Einstellungen / Hinweise | – (neu) | Diese Quellen abfragen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.refresh.attempts | Neue Formulare / Einstellungen / Hinweise | – (neu) | Versuche und Wartezeiten | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.refresh.window | Neue Formulare / Einstellungen / Hinweise | – (neu) | Nach dieser Zeit keine weiteren Versuche (Sekunden) | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.refresh.cooldown | Neue Formulare / Einstellungen / Hinweise | – (neu) | Frühester neuer Abfragelauf nach (Sekunden) | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.refresh.unsupported | Neue Formulare / Einstellungen / Hinweise | – (neu) | Diese Quelle kann nicht erneut abgefragt werden. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.refresh.help | Neue Formulare / Einstellungen / Hinweise | – (neu) | Eine Anfrage macht den bisherigen Wert nicht aktueller. Dafür muss die Quelle eine neue Meldung liefern. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.refresh.method | Neue Formulare / Einstellungen / Hinweise | – (neu) | So wird die Quelle erneut abgefragt | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.refresh.poll | Neue Formulare / Einstellungen / Hinweise | – (neu) | Wert vom Gerät neu lesen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.refresh.companion | Neue Formulare / Einstellungen / Hinweise | – (neu) | Standort vom Handy neu anfragen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.refresh.permission | Neue Formulare / Einstellungen / Hinweise | – (neu) | Ich habe geprüft, dass das Handy Standortabfragen im Hintergrund erlaubt. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.refresh.offset | Neue Formulare / Einstellungen / Hinweise | – (neu) | Wartezeit seit Beginn (Sekunden) | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.refresh.stop | Neue Formulare / Einstellungen / Hinweise | – (neu) | Beenden, sobald dieser Vertrag Ja meldet | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.refresh.reference | Neue Formulare / Einstellungen / Hinweise | – (neu) | {name} · {field} | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.deadline.duration | Neue Formulare / Einstellungen / Hinweise | – (neu) | Zeit bis zum nächsten Schritt | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.deadline.reset | Neue Formulare / Einstellungen / Hinweise | – (neu) | Frist neu beginnen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.deadline.absolute | Neue Formulare / Einstellungen / Hinweise | – (neu) | Zeitpunkt aus einem Eingang | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.deadline.unknown | Neue Formulare / Einstellungen / Hinweise | – (neu) | Bei fehlenden Werten warten | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.deadline.unknownHelp | Neue Formulare / Einstellungen / Hinweise | – (neu) | Der Ablauf wartet auf gültige Werte. Das bisherige Fristende bleibt bestehen; die Frist beginnt nicht von vorn. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.deadline.stateDuration | Neue Formulare / Einstellungen / Hinweise | – (neu) | Zeit bis zum nächsten Schritt in „{state}“ | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.deadline.fixed | Neue Formulare / Einstellungen / Hinweise | – (neu) | Feste Dauer | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.deadline.target | Neue Formulare / Einstellungen / Hinweise | – (neu) | Danach zu diesem Schritt | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.deadline.from | Neue Formulare / Einstellungen / Hinweise | – (neu) | Gilt im Schritt „{state}“ | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.deadline.priority | Neue Formulare / Einstellungen / Hinweise | – (neu) | Bei gleichem Zeitpunkt zuerst | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.deadline.action | Neue Formulare / Einstellungen / Hinweise | – (neu) | Was passiert mit der Frist? | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.deadline.keep | Neue Formulare / Einstellungen / Hinweise | – (neu) | Frist beibehalten | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.deadline.clear | Neue Formulare / Einstellungen / Hinweise | – (neu) | Frist beenden | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.manual.title | Neue Formulare / Einstellungen / Hinweise | – (neu) | Manuelle Quelle hinzufügen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.manual.description | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du eine eigene Angabe eintragen und ihre Gültigkeit festlegen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.manual.enter | Neue Formulare / Einstellungen / Hinweise | – (neu) | Angabe eintragen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.manual.value | Neue Formulare / Einstellungen / Hinweise | – (neu) | Deine Angabe | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.manual.validFrom | Neue Formulare / Einstellungen / Hinweise | – (neu) | Gültig ab | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.manual.validUntil | Neue Formulare / Einstellungen / Hinweise | – (neu) | Gültig bis | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.manual.unbounded | Neue Formulare / Einstellungen / Hinweise | – (neu) | Bis ich die Angabe ändere | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.manual.unboundedConfirm | Neue Formulare / Einstellungen / Hinweise | – (neu) | Diese Angabe bleibt ohne Frist gültig. Ich nehme sie selbst zurück, wenn sie nicht mehr stimmt. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.manual.origin | Neue Formulare / Einstellungen / Hinweise | – (neu) | Manuell eingegeben | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.manual.recorded | Neue Formulare / Einstellungen / Hinweise | – (neu) | Deine Angabe wurde gespeichert. Die verknüpften Verträge werden damit neu ausgewertet. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.manual.retract | Neue Formulare / Einstellungen / Hinweise | – (neu) | Angabe zurücknehmen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.manual.expired | Neue Formulare / Einstellungen / Hinweise | – (neu) | Diese Angabe ist nicht mehr gültig. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.manual.notYet | Neue Formulare / Einstellungen / Hinweise | – (neu) | Diese Angabe gilt erst ab {time}. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.manual.unknownResult | Neue Formulare / Einstellungen / Hinweise | – (neu) | Das Ergebnis ist noch unklar. Frage zuerst den gespeicherten Stand ab, bevor du die Angabe erneut sendest. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| codes.input_not_yet_valid | Oberfläche / Wörterbuch | – (neu) | Diese Angabe gilt noch nicht. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.manual.future | Neue Formulare / Einstellungen / Hinweise | – (neu) | Angaben mit einem späteren Beginn zulassen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.manual.affected | Neue Formulare / Einstellungen / Hinweise | – (neu) | Diese Verträge verwenden deine Angabe: {names} | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.manual.inactive | Neue Formulare / Einstellungen / Hinweise | – (neu) | Verknüpfe diese Quelle zuerst mit einem eingeschalteten Vertrag. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.manual.failed | Neue Formulare / Einstellungen / Hinweise | – (neu) | Die Angabe wurde nicht übernommen. Prüfe die Gültigkeit und lade die aktuelle Konfiguration neu. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.manual.checkResult | Neue Formulare / Einstellungen / Hinweise | – (neu) | Gespeichertes Ergebnis abfragen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.manual.unit | Neue Formulare / Einstellungen / Hinweise | – (neu) | Einheit | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.sensor.profile | Neue Formulare / Einstellungen / Hinweise | – (neu) | Sensorprüfung | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.sensor.unchangedFor | Neue Formulare / Einstellungen / Hinweise | – (neu) | Verdacht nach unverändertem Wert für (Tage) | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.sensor.tolerance | Neue Formulare / Einstellungen / Hinweise | – (neu) | Unterschiede bis zu diesem Wert ignorieren | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.sensor.minReports | Neue Formulare / Einstellungen / Hinweise | – (neu) | Mindestens so viele neue Meldungen prüfen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.sensor.recovery | Neue Formulare / Einstellungen / Hinweise | – (neu) | So viele abweichende Meldungen beenden den Verdacht | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.sensor.reference | Neue Formulare / Einstellungen / Hinweise | – (neu) | Zusätzlich mit dieser Quelle vergleichen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.sensor.suspicious | Neue Formulare / Einstellungen / Hinweise | – (neu) | Wert seit ungewöhnlich langer Zeit unverändert | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.sensor.help | Neue Formulare / Einstellungen / Hinweise | – (neu) | Gleiche Werte sind nicht automatisch falsch. Regelmäßige Meldungen und die Art des Sensors werden getrennt geprüft. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.valueOrigin.label | Neue Formulare / Einstellungen / Hinweise | – (neu) | Art des Werts | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.valueOrigin.measured | Neue Formulare / Einstellungen / Hinweise | – (neu) | Gemessen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.valueOrigin.replacement | Neue Formulare / Einstellungen / Hinweise | – (neu) | Ersatz | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.valueOrigin.model | Neue Formulare / Einstellungen / Hinweise | – (neu) | Modell | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.valueOrigin.forecast | Neue Formulare / Einstellungen / Hinweise | – (neu) | Prognose | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.valueOrigin.modelHelp | Neue Formulare / Einstellungen / Hinweise | – (neu) | Der Wert wurde aus einem Modell berechnet und nicht direkt am Gerät gemessen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.valueOrigin.replacementHelp | Neue Formulare / Einstellungen / Hinweise | – (neu) | Eine ausdrücklich gewählte andere Quelle liefert diesen Wert. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.valueOrigin.forecastHelp | Neue Formulare / Einstellungen / Hinweise | – (neu) | Der Wert ist eine Vorhersage für den angegebenen Zeitraum. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.valueOrigin.unknown | Neue Formulare / Einstellungen / Hinweise | – (neu) | Art der Herkunft nicht bekannt | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.sensor.choose | Neue Formulare / Einstellungen / Hinweise | – (neu) | Ausgewählte Sensorprüfung | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.sensor.defaultName | Neue Formulare / Einstellungen / Hinweise | – (neu) | Eigene Sensorprüfung | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.sensor.referenceDelta | Neue Formulare / Einstellungen / Hinweise | – (neu) | Mindestens diese Änderung bei der Vergleichsquelle | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.sensor.profileVersion | Neue Formulare / Einstellungen / Hinweise | – (neu) | Version der Sensorprüfung | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.valueOrigin.provider | Neue Formulare / Einstellungen / Hinweise | – (neu) | Anbieter oder Berechnung | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.valueOrigin.issued_at | Neue Formulare / Einstellungen / Hinweise | – (neu) | Erstellt am | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.valueOrigin.valid_from | Neue Formulare / Einstellungen / Hinweise | – (neu) | Gültig von | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.valueOrigin.valid_until | Neue Formulare / Einstellungen / Hinweise | – (neu) | Gültig bis | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.valueOrigin.output | Neue Formulare / Einstellungen / Hinweise | – (neu) | Art des Ergebnisses „{name}“ | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.valueOrigin.inputs | Neue Formulare / Einstellungen / Hinweise | – (neu) | Verwendete Eingänge: {kinds} | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.valueOrigin.point | Neue Formulare / Einstellungen / Hinweise | – (neu) | Vorhersage {number} | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.valueOrigin.addPoint | Neue Formulare / Einstellungen / Hinweise | – (neu) | Zeitraum hinzufügen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.valueOrigin.series | Neue Formulare / Einstellungen / Hinweise | – (neu) | {count} Zeiträume eingetragen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| codes.sensor_stuck_suspected | Oberfläche / Wörterbuch | – (neu) | Wert seit ungewöhnlich langer Zeit unverändert | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| codes.value_validity_gap | Oberfläche / Wörterbuch | – (neu) | Für diesen Zeitpunkt ist kein Wert gültig. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| fields.value_origin_path | Oberfläche / Wörterbuch | – (neu) | Herkunftsangabe im gelieferten Datensatz | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.category.label | Neue Formulare / Einstellungen / Hinweise | – (neu) | Kategorie | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.category.climate | Neue Formulare / Einstellungen / Hinweise | – (neu) | Klima | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.category.lightCover | Neue Formulare / Einstellungen / Hinweise | – (neu) | Licht & Rollos | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.category.presence | Neue Formulare / Einstellungen / Hinweise | – (neu) | Anwesenheit | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.category.sleepWake | Neue Formulare / Einstellungen / Hinweise | – (neu) | Schlaf & Wecken | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.category.media | Neue Formulare / Einstellungen / Hinweise | – (neu) | Medien | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.category.other | Neue Formulare / Einstellungen / Hinweise | – (neu) | Sonstiges | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.category.all | Neue Formulare / Einstellungen / Hinweise | – (neu) | Alle Kategorien | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.category.group | Neue Formulare / Einstellungen / Hinweise | – (neu) | Nach Kategorie ordnen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.room.label | Neue Formulare / Einstellungen / Hinweise | – (neu) | Raum | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.room.none | Neue Formulare / Einstellungen / Hinweise | – (neu) | Kein Raum | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.room.suggestion | Neue Formulare / Einstellungen / Hinweise | – (neu) | Vorschlag aus Home Assistant: {room} | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.room.accept | Neue Formulare / Einstellungen / Hinweise | – (neu) | Vorschlag verwenden | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.room.custom | Neue Formulare / Einstellungen / Hinweise | – (neu) | Eigenen Raumnamen eingeben | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.room.multiple | Neue Formulare / Einstellungen / Hinweise | – (neu) | Die Quellen gehören zu verschiedenen Räumen. Wähle einen Raum aus. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.room.missing | Neue Formulare / Einstellungen / Hinweise | – (neu) | Dieser Bereich ist in Home Assistant nicht mehr vorhanden. Der bisherige Name bleibt erhalten. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.room.group | Neue Formulare / Einstellungen / Hinweise | – (neu) | Nach Raum ordnen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.room.all | Neue Formulare / Einstellungen / Hinweise | – (neu) | Alle Räume | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.editorial.loadFailed | Neue Formulare / Einstellungen / Hinweise | – (neu) | Kategorie und Raum konnten nicht geladen werden. Lade die Seite neu, bevor du etwas änderst. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.editorial.change | Neue Formulare / Einstellungen / Hinweise | – (neu) | Kategorie und Raum ändern | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.editorial.changeCategory | Neue Formulare / Einstellungen / Hinweise | – (neu) | Kategorie ändern | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.editorial.loading | Neue Formulare / Einstellungen / Hinweise | – (neu) | Die Angaben werden geladen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.editorial.immediate | Neue Formulare / Einstellungen / Hinweise | – (neu) | Diese Angaben helfen dir beim Ordnen. Wenn du sie speicherst, gelten sie sofort. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.editorial.draft | Neue Formulare / Einstellungen / Hinweise | – (neu) | Diese Angaben werden mit dem Entwurf übernommen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.editorial.haUnavailable | Neue Formulare / Einstellungen / Hinweise | – (neu) | Home Assistant ist gerade nicht erreichbar. Du kannst einen eigenen Raumnamen eingeben. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.editorial.save | Neue Formulare / Einstellungen / Hinweise | – (neu) | Speichern | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.editorial.saved | Neue Formulare / Einstellungen / Hinweise | – (neu) | Die Angaben sind gespeichert. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.editorial.group | Neue Formulare / Einstellungen / Hinweise | – (neu) | Ordnen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.editorial.noGrouping | Neue Formulare / Einstellungen / Hinweise | – (neu) | Ohne Gruppierung | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.editorial.noMatches | Neue Formulare / Einstellungen / Hinweise | – (neu) | Keine passenden Vorlagen gefunden. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| codes.editorial_version_conflict | Oberfläche / Wörterbuch | – (neu) | Diese Angaben wurden inzwischen geändert. Lade sie neu und prüfe deine Auswahl. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| codes.editorial_scope_conflict | Oberfläche / Wörterbuch | – (neu) | Der Vertrag oder die Vorlage wurde inzwischen übernommen. Lade die Angaben neu. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| codes.editorial_object_not_found | Oberfläche / Wörterbuch | – (neu) | Der Vertrag oder die Vorlage wurde nicht gefunden. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| codes.editorial_draft_limit | Oberfläche / Wörterbuch | – (neu) | Zu diesem Entwurf sind zu viele Angaben gespeichert. Entferne nicht mehr benötigte Entwürfe. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| codes.editorial_restore_conflict | Oberfläche / Wörterbuch | – (neu) | Zwei gespeicherte Stände enthalten widersprüchliche Angaben zu Kategorie oder Raum. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.header.noConfiguration | Neue Formulare / Einstellungen / Hinweise | – (neu) | Noch keine Konfiguration | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.system.programVersion | Neue Formulare / Einstellungen / Hinweise | – (neu) | Programmversion | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.system.programVersionValue | Neue Formulare / Einstellungen / Hinweise | – (neu) | Mimir {version}{stage} | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.system.bridgeVersion | Neue Formulare / Einstellungen / Hinweise | – (neu) | Bifröst {version} | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.retention.title | Neue Formulare / Einstellungen / Hinweise | – (neu) | Aufbewahrung | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.retention.description | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du festlegen, wie lange Mimir Messwerte aufbewahrt. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.retention.rawDays | Neue Formulare / Einstellungen / Hinweise | – (neu) | Einzelmessungen aufbewahren (Tage) | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.retention.rawHelp | Neue Formulare / Einstellungen / Hinweise | – (neu) | So lange bleiben einzelne Messungen und ihre Nachweise im Verlauf erhalten. Bereits benötigte Nachweise können länger erhalten bleiben. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.retention.rollupDays | Neue Formulare / Einstellungen / Hinweise | – (neu) | Stundenwerte aufbewahren (Tage) | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.retention.rollupHelp | Neue Formulare / Einstellungen / Hinweise | – (neu) | Mimir fasst ältere Zahlenwerte stündlich zusammen. Diese Zusammenfassungen ersetzen keine einzelnen Messungen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.retention.suggestion | Neue Formulare / Einstellungen / Hinweise | – (neu) | Vorschlag: 7 Tage für Einzelmessungen und 730 Tage für Stundenwerte. Noch ist nichts gespeichert. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.retention.relationError | Neue Formulare / Einstellungen / Hinweise | – (neu) | Bewahre Stundenwerte mindestens so lange auf wie Einzelmessungen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.retention.rawRange | Neue Formulare / Einstellungen / Hinweise | – (neu) | Gib eine ganze Zahl zwischen 1 und 3650 ein. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.retention.rollupRange | Neue Formulare / Einstellungen / Hinweise | – (neu) | Gib eine ganze Zahl zwischen 1 und 36500 ein. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.retention.save | Neue Formulare / Einstellungen / Hinweise | – (neu) | Im Entwurf speichern | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.retention.pending | Neue Formulare / Einstellungen / Hinweise | – (neu) | Die Regel ist im Entwurf gespeichert. Sie gilt erst, wenn du ihn prüfst und übernimmst. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.retention.deleteEffect | Neue Formulare / Einstellungen / Hinweise | – (neu) | Messungen außerhalb der neuen Frist können endgültig entfernt werden. Späteres Verlängern holt entfernte Messungen nicht zurück. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.retention.batch | Neue Formulare / Einstellungen / Hinweise | – (neu) | Messungen je Verarbeitungsschritt | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.retention.interval | Neue Formulare / Einstellungen / Hinweise | – (neu) | Abstand der Verarbeitungsschritte (Sekunden) | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.readiness.retentionMissing | Neue Formulare / Einstellungen / Hinweise | – (neu) | Aufbewahrung fehlt | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.readiness.retentionLink | Neue Formulare / Einstellungen / Hinweise | – (neu) | Aufbewahrung festlegen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.readiness.noConfiguration | Neue Formulare / Einstellungen / Hinweise | – (neu) | Noch keine Konfiguration übernommen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.readiness.configurationLink | Neue Formulare / Einstellungen / Hinweise | – (neu) | Entwurf öffnen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.readiness.notCheckable | Neue Formulare / Einstellungen / Hinweise | – (neu) | Noch nicht prüfbar | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.readiness.open | Neue Formulare / Einstellungen / Hinweise | – (neu) | Offene Punkte ansehen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.system.alpha | Neue Formulare / Einstellungen / Hinweise | – (neu) | Alpha {count} | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.system.beta | Neue Formulare / Einstellungen / Hinweise | – (neu) | Beta {count} | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.retention.startDraft | Neue Formulare / Einstellungen / Hinweise | – (neu) | Öffne zuerst einen Entwurf über „Im Entwurf speichern“. Danach kannst du die Fristen ändern und speichern. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.retention.advancedError | Neue Formulare / Einstellungen / Hinweise | – (neu) | Verarbeite zwischen 1 und 10000 Messungen je Schritt. Der Abstand muss zwischen 60 und 86400 Sekunden liegen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.readiness.uncheckedDetail | Neue Formulare / Einstellungen / Hinweise | – (neu) | Einige Voraussetzungen können noch nicht geprüft werden. Prüfe zuerst die übrigen offenen Punkte. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.readiness.overload | Neue Formulare / Einstellungen / Hinweise | – (neu) | Zu viele Meldungen auf einmal | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.readiness.overloadDetail | Neue Formulare / Einstellungen / Hinweise | – (neu) | Mimir kann gerade keine weiteren Meldungen annehmen. Prüfe die Verbindungen und die Fehlersuche. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.system.bridgeVersionLabel | Neue Formulare / Einstellungen / Hinweise | – (neu) | Programmversion von Bifröst | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.system.description | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du sehen, ob Mimir arbeiten kann und welche Voraussetzungen noch fehlen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.configuration.emptySection | Neue Formulare / Einstellungen / Hinweise | – (neu) | Zurzeit nichts unvollständig | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.readiness.unknownCondition | Neue Formulare / Einstellungen / Hinweise | – (neu) | {condition}: Noch nicht prüfbar | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.readiness.otherCondition | Neue Formulare / Einstellungen / Hinweise | – (neu) | Weitere Voraussetzung | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.readiness.condition.supervisor_options | Neue Formulare / Einstellungen / Hinweise | – (neu) | App eingerichtet | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.readiness.condition.database | Neue Formulare / Einstellungen / Hinweise | – (neu) | Datenbank erreichbar | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.readiness.condition.active_configuration | Neue Formulare / Einstellungen / Hinweise | – (neu) | Konfiguration übernommen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.readiness.condition.history_retention | Neue Formulare / Einstellungen / Hinweise | – (neu) | Aufbewahrung festgelegt | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.readiness.condition.first_ha_state | Neue Formulare / Einstellungen / Hinweise | – (neu) | Erster Stand aus Home Assistant | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.readiness.condition.ha_connection | Neue Formulare / Einstellungen / Hinweise | – (neu) | HA-Anbindung verbunden | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.readiness.condition.publication | Neue Formulare / Einstellungen / Hinweise | – (neu) | Aktueller Stand bestätigt | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.readiness.condition.input_capacity | Neue Formulare / Einstellungen / Hinweise | – (neu) | Weitere Meldungen möglich | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.configuration.noContracts | Neue Formulare / Einstellungen / Hinweise | – (neu) | Du übernimmst eine Konfiguration ohne Verträge. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.evidence.one | Neue Formulare / Einstellungen / Hinweise | – (neu) | 1 gespeicherter Nachweis | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.evidence.many | Neue Formulare / Einstellungen / Hinweise | – (neu) | {count} gespeicherte Nachweise | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.evidence.open | Neue Formulare / Einstellungen / Hinweise | – (neu) | Nachweise ansehen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.pages.overview | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du deine Verträge, offene Probleme und letzte Änderungen ansehen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.pages.contracts | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du deine Verträge finden, ordnen und neue anlegen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.pages.contract | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du den Wert, den Verlauf und die Einstellungen dieses Vertrags ansehen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.pages.contractImport | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du eine gespeicherte Konfiguration einlesen und vor dem Übernehmen prüfen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.pages.graph | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du sehen, welche Quellen und Verträge miteinander verknüpft sind. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.pages.templatesOwn | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du eigene Vorlagen finden und ihre Berechnung festlegen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.pages.templatesBuiltin | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du die mitgelieferten Vorlagen ansehen und für einen Vertrag auswählen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.pages.template | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du diese Vorlagenversion ansehen und eine neue Version vorbereiten. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.pages.sources | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du Geräte verbinden oder manuelle Angaben als Quelle anlegen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.pages.bindings | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du festlegen, woher eine Quelle ihre Werte erhält. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.pages.catalogs | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du erlaubte Werte und ihre Zuordnung festlegen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.pages.dependencies | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du festlegen, welche Verbindung eine Quelle braucht. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.pages.drafts | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du Änderungen sammeln, öffnen und prüfen, bevor sie gelten. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.pages.draft | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du deinen Entwurf prüfen und die Änderungen übernehmen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.pages.versions | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du frühere Konfigurationen vergleichen oder wieder übernehmen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.pages.transfer | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du eine Konfiguration sichern oder eine gespeicherte Datei einlesen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.pages.system | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du sehen, ob Mimir arbeiten kann und welche Voraussetzungen noch fehlen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.pages.installation | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du die Einrichtung von Mimir prüfen und fortsetzen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.pages.connections | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du die Datenbankverbindung und die HA-Anbindung prüfen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.pages.keys | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du die Zugänge zu Mimir verwalten. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.pages.log | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du nachsehen, welche Änderungen Mimir gespeichert hat. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.pages.diagnostics | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du Nachweise, Berechnungen und frühere Zustände genauer prüfen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.pages.setup | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du Mimir Schritt für Schritt mit deinen Daten verbinden. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.pages.loading | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du nach dem Laden mit deiner Einrichtung fortfahren. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.actions.resetView | Neue Formulare / Einstellungen / Hinweise | – (neu) | Ansicht zurücksetzen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.actions.saveDraft | Neue Formulare / Einstellungen / Hinweise | – (neu) | Im Entwurf speichern | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.actions.editContract | Neue Formulare / Einstellungen / Hinweise | – (neu) | Vertrag bearbeiten | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.actions.readFile | Neue Formulare / Einstellungen / Hinweise | – (neu) | Datei oder Text einlesen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.actions.backup | Neue Formulare / Einstellungen / Hinweise | – (neu) | Konfiguration sichern | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.actions.createContract | Neue Formulare / Einstellungen / Hinweise | – (neu) | Vertrag anlegen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.actions.addSource | Neue Formulare / Einstellungen / Hinweise | – (neu) | Quelle hinzufügen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.actions.compare | Neue Formulare / Einstellungen / Hinweise | – (neu) | Konfigurationen vergleichen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.actions.openSetup | Neue Formulare / Einstellungen / Hinweise | – (neu) | Einrichtung öffnen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.actions.checkConnections | Neue Formulare / Einstellungen / Hinweise | – (neu) | Verbindungen prüfen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.actions.chooseAccess | Neue Formulare / Einstellungen / Hinweise | – (neu) | Zugang auswählen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.actions.reload | Neue Formulare / Einstellungen / Hinweise | – (neu) | Neu laden | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.actions.chooseContract | Neue Formulare / Einstellungen / Hinweise | – (neu) | Vertrag auswählen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.contract.missingInDraft | Neue Formulare / Einstellungen / Hinweise | – (neu) | Dieser Vertrag fehlt im geöffneten Entwurf. Öffne einen passenden Entwurf oder lege einen neuen an. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.template.unnamed | Neue Formulare / Einstellungen / Hinweise | – (neu) | Vorlage ohne Namen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.configuration.confirm | Neue Formulare / Einstellungen / Hinweise | – (neu) | Ich habe die Auswirkungen geprüft und übernehme Konfiguration {revision}. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.configuration.activateFrom | Neue Formulare / Einstellungen / Hinweise | – (neu) | Dieser Entwurf ersetzt Konfiguration {revision}. Prüfe zuerst die Auswirkungen. Zum Zurücksetzen kannst du später eine frühere Konfiguration übernehmen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.configuration.activateFirst | Neue Formulare / Einstellungen / Hinweise | – (neu) | Du übernimmst deine erste Konfiguration. Prüfe zuerst die Auswirkungen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.configuration.rollbackConfirm | Neue Formulare / Einstellungen / Hinweise | – (neu) | Ich möchte Konfiguration {before} als neue Konfiguration {after} übernehmen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.configuration.rollbackDone | Neue Formulare / Einstellungen / Hinweise | – (neu) | Konfiguration {revision} ist übernommen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.configuration.rollbackContent | Neue Formulare / Einstellungen / Hinweise | – (neu) | Der Inhalt entspricht Konfiguration {before}. Geänderte Regeln können laufende Fristen neu beginnen lassen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.configuration.rollbackFrom | Neue Formulare / Einstellungen / Hinweise | – (neu) | Du übernimmst eine frühere Konfiguration anstelle von Konfiguration {revision}. Prüfe zuerst die Auswirkungen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.actions.addBinding | Neue Formulare / Einstellungen / Hinweise | – (neu) | Verknüpfung hinzufügen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.actions.addCatalog | Neue Formulare / Einstellungen / Hinweise | – (neu) | Werteliste hinzufügen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.actions.addDependency | Neue Formulare / Einstellungen / Hinweise | – (neu) | Verbindung hinzufügen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.versions.needTwo | Neue Formulare / Einstellungen / Hinweise | – (neu) | Zum Vergleichen brauchst du mindestens zwei übernommene Konfigurationen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.export.noConfiguration | Neue Formulare / Einstellungen / Hinweise | – (neu) | Es gibt noch keine Konfiguration und keinen geöffneten Entwurf zum Sichern. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.export.saveFile | Neue Formulare / Einstellungen / Hinweise | – (neu) | Datei sichern | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.export.scope | Neue Formulare / Einstellungen / Hinweise | – (neu) | Was möchtest du sichern? | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.draft.applyText | Neue Formulare / Einstellungen / Hinweise | – (neu) | Text in den Entwurf übernehmen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.actions.viewContract | Neue Formulare / Einstellungen / Hinweise | – (neu) | Vertrag ansehen | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.pages.app | Neue Formulare / Einstellungen / Hinweise | – (neu) | Hier kannst du Mimir öffnen und die Verbindung prüfen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.setup.title | Neue Formulare / Einstellungen / Hinweise | – (neu) | Mimir einrichten | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.setup.start | Neue Formulare / Einstellungen / Hinweise | – (neu) | Verbindung einrichten | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.setup.step | Neue Formulare / Einstellungen / Hinweise | – (neu) | Schritt {current} von {count}: {name} | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.setup.completeStep | Neue Formulare / Einstellungen / Hinweise | – (neu) | Warte auf die Prüfung und ergänze die erforderlichen Angaben und Bestätigungen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.manual.notRecorded | Neue Formulare / Einstellungen / Hinweise | – (neu) | Mimir hat noch keinen Nachweis für diese Eingabe. Du kannst genau dieselbe Eingabe erneut senden; sie wird höchstens einmal übernommen. | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+| alpha9.manual.retrySame | Neue Formulare / Einstellungen / Hinweise | – (neu) | Dieselbe Eingabe erneut senden | Freigabe-Auflage, vollständige Nachricht oder neues A2-Formular; Konfiguration und Vorlagenversion getrennt. |
+
+### Entfernte Schlüssel
+
+Die folgenden 44 Schlüssel werden nach der Umstellung im Produktivcode
+nicht mehr verwendet. Die A1-Tabelle bleibt als Prüfspur des Ausgangsstands erhalten.
+
+- `App.installationszustand_wird_gepruft_d072db`
+- `alpha7.import.explanation`
+- `alpha7.status.create`
+- `alpha7.versions.explanation`
+- `common.requestFailed`
+- `components.ContractLiveState.auflosbar_ac9e6e`
+- `components.ContractLiveState.diagnose_64dd65`
+- `components.ContractLiveState.en_dbd3a4`
+- `components.ContractLiveState.evidenz_referenz_2c494f`
+- `components.ContractLiveState.in_der_9c92b1`
+- `editors.MachineEditor.eine_deadline_pro_contract_994bde`
+- `editors.RegistryObjects.deklarative_typen_haben_keine_instanzparameter_r_67dbe1`
+- `editors.RegistryObjects.parameter_dd066e`
+- `features.admin.AdminPage.andere_installation_616cdb`
+- `features.admin.AdminPage.nicht_erreichbar_b129fa`
+- `features.admin.AdminPage.verfugbar_e5a644`
+- `features.admin.AdminPage.version_dd1679`
+- `features.contracts.ContractsPage.instanzen_binden_einen_typ_an_quellen_definition_c07fc7`
+- `features.contracts.DefinitionDetailPage.deklarative_definition_07f53d`
+- `features.contracts.DefinitionDetailPage.v0_version_v1_1d1973`
+- `features.contracts.DefinitionsPage.definitionen_sind_deklarative_typen_mit_unverand_5b643c`
+- `features.graph.GraphPage.quellen_contracts_und_abgeleitete_ergebnisse_kan_5cf87d`
+- `features.registry.ActivationDialogs.aktiv_3139fc`
+- `features.registry.ActivationDialogs.aktivieren_fdb22a`
+- `features.registry.ActivationDialogs.als_neue_revision_9a365f`
+- `features.registry.ActivationDialogs.atomar_und_mit_versionsprufung_rucknahme_geht_nu_906a06`
+- `features.registry.ActivationDialogs.auswirkungen_gegenuber_der_aktuell_aktiven_revis_056129`
+- `features.registry.ActivationDialogs.drafts_sind_bis_zu_diesem_schritt_wirkungslos_di_60155e`
+- `features.registry.ActivationDialogs.gehaltene_zeitkontexte_konnen_bei_geanderten_fin_7ae16f`
+- `features.registry.ActivationDialogs.ich_habe_die_auswirkungen_gepruft_und_aktiviere__007da8`
+- `features.registry.ActivationDialogs.ich_mochte_revision_5d682d`
+- `features.registry.ActivationDialogs.inhalt_entspricht_revision_3fded2`
+- `features.registry.ActivationDialogs.neue_revision_1e5cad`
+- `features.registry.DraftPage.draft_v0_v_v1_basis_revision_v2_zuletzt_gespeich_24aa87`
+- `features.registry.DraftPage.draft_wird_geoffnet_7f5df8`
+- `features.registry.DraftPage.ubernehmen_936378`
+- `features.registry.RegistryPage.ersten_draft_anlegen_8191b5`
+- `features.registry.RegistryPage.es_sind_bereits_100_entwurfe_vorhanden_zuerst_ei_f0bbd8`
+- `lib.status.leere_konfiguration_e2bdda`
+- `lib.status.offline_8e2c7a`
+- `setup.SetupWizard.core_contracts_einrichten_c89657`
+- `setup.SetupWizard.ersteinrichtung_84c9bd`
+- `setup.SetupWizard.schritt_c0f684`
+- `setup.SetupWizard.von_16b4d3`
+
+### Seitenregel: Ergebnis
+
+Alle Seiten aus der freigegebenen Routentabelle haben Titel, Erklärung und eine
+Hauptaktion im Kopf. Dialoge behalten ihre ausdrückliche Bestätigung. Bei Ladezuständen
+ist die Aktion mit Erklärung gesperrt; fehlende Objekte bieten den Weg zur Übersicht.
+Es bleiben keine unbehandelten Abweichungen aus der A1-Liste.

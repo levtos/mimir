@@ -1,3 +1,4 @@
+import { PageLoading } from '@/components/PageLoading';
 import { t as uiText } from '@/i18n';
 import { ArrowLeft, Stethoscope, Trash2 } from 'lucide-react';
 import { useState } from 'react';
@@ -7,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs } from '@/components/ui/controls';
 import { ConfirmDialog } from '@/components/ui/dialog';
-import { Empty, PageHeader, Panel, PanelHeader, Spinner } from '@/components/ui/layout';
+import { Empty, PageHeader, Panel, PanelHeader } from '@/components/ui/layout';
 import { ContractEditor } from '@/editors/RegistryObjects';
 import { ReadOnlyNotice } from '@/features/authoring/DraftBar';
 import { asArray, asObject, str } from '@/features/authoring/model';
@@ -22,6 +23,7 @@ import { fieldsForContract } from './presentation';
 import { ContractSummary } from './ContractSummary';
 import { DeviceWizard } from '@/features/sources/DeviceWizard';
 import { EditorialPanel } from '@/features/editorial/Editorial';
+import { describeError } from '@/lib/api';
 
 export default function ContractDetailPage() {
   const { contractId = '' } = useParams();
@@ -34,6 +36,7 @@ export default function ContractDetailPage() {
   const [params, setParams] = useSearchParams();
   const [removing, setRemoving] = useState(false);
   const [deviceInput, setDeviceInput] = useState<string | null>(null);
+  const [actionError, setActionError] = useState('');
   const list = asArray(src.config?.contracts).filter(isObject);
   const index = list.findIndex((c) => str(c.contract_id) === contractId);
   const contract = index >= 0 ? list[index]! : null;
@@ -42,12 +45,12 @@ export default function ContractDetailPage() {
   const candidate = live.contracts?.[contractId];
   const envelope = activeContract && candidate && candidate.registry_revision === active.data?.revision ? candidate : null;
 
-  if (src.loading && !contract) return <Spinner />;
+  if (src.loading && !contract) return <PageLoading title={uiText('alpha7.nav.contracts')} description={uiText('alpha9.pages.contract')} />;
 
   if (!contract) {
     return (
       <>
-        <BackLink />
+        <PageHeader title={uiText('alpha7.nav.contracts')} description={uiText('alpha9.pages.contract')} actions={<Button variant="primary" onClick={() => navigate('/contracts/list/all')}>{uiText('components.RouteError.zur_ubersicht_22bfde')}</Button>} />
         <Empty title={uiText("features.contracts.ContractDetailPage.contract_v0_nicht_gefunden_c09b7a", { v0: (contractId) })}>
           {src.source === 'draft' ? uiText("features.contracts.ContractDetailPage.er_existiert_im_geoffneten_draft_nicht_cb5eb3") : uiText("features.contracts.ContractDetailPage.er_existiert_in_der_aktiven_registry_nicht_25b321")}
           {envelope && uiText("features.contracts.ContractDetailPage.der_server_liefert_dennoch_einen_zustand_dafur_0cfd01")}
@@ -77,9 +80,19 @@ export default function ContractDetailPage() {
       <BackLink />
       <PageHeader
         title={<span className="block truncate" title={contractId}>{str(contract.display_name) || contractId}</span>}
-        description={<span className="block max-w-xl truncate" title={contractId}>{contractId}</span>}
+        description={uiText('alpha9.pages.contract')}
         actions={
           <>
+            <Button variant="primary" disabled={doc.starting || doc.saving} disabledReason={uiText('alpha7.copy.inProgress')} onClick={async () => {
+              setActionError('');
+              try {
+                if (src.editable) { if (await doc.save() !== 'saved') setActionError(uiText('alpha7.draft.saveBeforeReview')); }
+                else {
+                  if (doc.draft && !asArray(doc.config?.contracts).filter(isObject).some(item => item.contract_id === contractId)) { setActionError(uiText('alpha9.contract.missingInDraft')); return; }
+                  await doc.ensureDraft(); setParams({ tab: 'config' });
+                }
+              } catch (failure) { setActionError(describeError(failure)); }
+            }}>{uiText(src.editable ? 'alpha9.actions.saveDraft' : 'alpha9.actions.editContract')}</Button>
             {draftOnly ? <Badge tone="info">{uiText('alpha7.contract.state.draft')}</Badge> : <Badge>{enabled ? uiText("features.contracts.ContractDetailPage.aktiviert_acb27b") : uiText("features.contracts.ContractDetailPage.deaktiviert_10f33e")}</Badge>}
             <Button size="sm" onClick={() => navigate(`/settings/diagnostics?contract=${encodeURIComponent(contractId)}`)}><Stethoscope size={14} /> {uiText("features.contracts.ContractDetailPage.diagnose_64dd65")}</Button>
             {src.editable && <Button size="sm" variant="danger" onClick={() => setRemoving(true)}><Trash2 size={14} /> {uiText("features.contracts.ContractDetailPage.entfernen_382837")}</Button>}
@@ -87,6 +100,7 @@ export default function ContractDetailPage() {
         }
       />
       <ReadOnlyNotice what={uiText("features.contracts.ContractDetailPage.contract_konfiguration_d1e14f")} />
+      {actionError && <p role="alert" className="mb-3 text-sm text-bad">{actionError}</p>}
       <EditorialPanel object={{ kind: 'contract', id: contractId }} />
       <Tabs
         value={params.get('tab') ?? 'state'}

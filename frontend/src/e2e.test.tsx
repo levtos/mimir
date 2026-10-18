@@ -110,7 +110,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     const verdict = await raw<{ valid: boolean; issues: unknown[] }>('registry/validate', json('POST', drafts[0]!.config));
     expect(verdict).toMatchObject({ status: 200, body: { valid: true, issues: [] } });
     const dialog = await f.activateOpenDraft(draftId);
-    await within(dialog).findByText("Version 1 ist aktiv", {}, { timeout: 20_000 });
+    await within(dialog).findByText("Konfiguration 1 ist aktiv", {}, { timeout: 20_000 });
     await user.click(within(dialog).getAllByRole('button', { name: 'Schließen' }).at(-1)!);
     await expectSameAsActive(registry); // what the server activated is semantically the registry that was built
 
@@ -136,11 +136,11 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
 
     // 5. Semantic change through the UI: new immutable version of test.truth, migrate fixture.left.
     await f.go('#/definitions/test.truth/1');
-    await screen.findByText(/Aktivierte Version – semantisch unveränderlich/);
+    await screen.findByText(/Übernommene Vorlagenversion/);
     await user.click(screen.getByRole('button', { name: /Neue Version/ }));
     const versioning = await screen.findByRole('dialog', { name: /Neue Version von test.truth/ });
     await user.click(within(versioning).getByRole('checkbox', { name: 'fixture.right' })); // only fixture.left migrates
-    await user.click(within(versioning).getByRole('button', { name: 'Version anlegen' }));
+    await user.click(within(versioning).getByRole('button', { name: "Konfiguration anlegen" }));
     await screen.findByRole('tab', { name: 'Allgemein' });
     await f.tab(/Ausgaben/);
     await f.setOp('/definitions/5/outputs/value', 'not'); // v2 negates its input (unlocked, never activated)
@@ -150,13 +150,13 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
       expect(current.config.definitions).toHaveLength(6);
     }, { timeout: 15_000 });
     const second = await f.activateOpenDraft(reimported.draft_id);
-    await within(second).findByText("Version 2 ist aktiv", {}, { timeout: 65_000 });
+    await within(second).findByText("Konfiguration 2 ist aktiv", {}, { timeout: 65_000 });
     await user.click(within(second).getAllByRole('button', { name: 'Schließen' }).at(-1)!);
     await waitFor(() => expect(store.getSnapshot().registryRevision).toBe(2), { timeout: 20_000 });
 
     // 6. Rollback to revision 1 through the UI: a NEW revision with the historical content.
     await f.go('#/changes/versions');
-    const rev1 = (await within(screen.getByRole('main')).findByText("Version 1", {}, { timeout: 65_000 })).closest('li')!;
+    const rev1 = (await within(screen.getByRole('main')).findByText("Konfiguration 1", {}, { timeout: 65_000 })).closest('li')!;
     const rollbackButton = await within(rev1).findByRole('button', { name: 'Auf diese Version zurücksetzen' }, { timeout: 65_000 });
     await waitFor(() => expect(rollbackButton).toBeEnabled(), { timeout: 65_000 });
     await user.click(rollbackButton);
@@ -172,12 +172,12 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
 
     // 7. A concurrent change by another session is reported as a conflict and overwrites nothing.
     await f.go(`#/registry/drafts/${draftId}`);
-    await waitFor(() => expect(screen.getByLabelText("Entwurf-Name")).toHaveValue('E2E'), { timeout: 65_000 });
+    await waitFor(() => expect(screen.getByLabelText("Name des Entwurfs")).toHaveValue('E2E'), { timeout: 65_000 });
     await f.go('#/contracts');
     await user.click(await screen.findByRole('button', { name: /Neuer Vertrag/ }));
     await user.click(await screen.findByRole('button', { name: 'Ohne Gerät anlegen' }));
     const create = await screen.findByRole('dialog', { name: "Neuer Vertrag" });
-    await f.type(within(create).getByLabelText("Vertrag-ID"), 'fixture.extra');
+    await f.type(within(create).getByLabelText("Vertragskennung"), 'fixture.extra');
     await user.click(within(create).getByRole('button', { name: 'Anlegen' }));
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Neuer Vertrag' })).not.toBeInTheDocument(), { timeout: 65_000 });
     await user.click(await screen.findByRole('tab', { name: 'Konfiguration' }));
@@ -196,7 +196,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     const imported = (await raw<{ draft_id: string; display_name: string }[]>('registry/drafts')).body.find(draft => draft.display_name === 'UX12 Geräteführung')!;
     await f.go('#/sources/devices');
     for (const binding of ux12.bindings) {
-      await user.click(await screen.findByRole('button', { name: 'Gerät aus Home Assistant hinzufügen' }));
+      await user.click(await screen.findByRole('button', { name: 'Quelle hinzufügen' }));
       const wizard = await screen.findByRole('dialog', { name: 'Gerät aus Home Assistant hinzufügen' });
       const source = ux12.sources.find(source => source.source_id === binding.source_id)!;
       await user.click(await within(wizard).findByRole('radio', { name: source.display_name }, { timeout: 65_000 }));
@@ -290,7 +290,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     const check = within(moving).getByRole('button', { name: 'Umzug prüfen' });
     await waitFor(() => expect(check).toBeEnabled(), { timeout: 65_000 }); await user.click(check);
     await within(moving).findByText(/Direkt umgestellte Verträge: 1/, {}, { timeout: 65_000 });
-    await user.click(within(moving).getByRole('button', { name: 'In Entwurf übernehmen' }));
+    await user.click(within(moving).getByRole('button', { name: "Im Entwurf speichern" }));
     await takeover();
     const after = (await raw<JsonObject>('registry/active/export')).body;
     expect(objects(after.sources)).toHaveLength(2);

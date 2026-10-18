@@ -46,17 +46,18 @@ function DraftsTab() {
   };
 
   return (
+    <>
+    <PageHeader title={uiText('alpha7.nav.drafts')} description={uiText('alpha9.pages.drafts')} actions={<Button variant="primary" disabled={list.length >= 100} disabledReason={uiText('alpha7.import.limit')} onClick={() => setCreating(true)}><FilePlus2 size={15} />{uiText('features.registry.RegistryPage.neuer_draft_610fb2')}</Button>} />
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted">{list.length} {uiText("features.registry.RegistryPage.von_100_drafts_drafts_sind_niemals_live_sie_durf_c3fc1f")}</p>
-        <Button variant="primary" disabled={list.length >= 100} disabledReason={uiText('alpha7.import.limit')} title={list.length >= 100 ? uiText("features.registry.RegistryPage.es_sind_bereits_100_entwurfe_vorhanden_zuerst_ei_f0bbd8") : undefined} onClick={() => setCreating(true)}><FilePlus2 size={15} /> {uiText("features.registry.RegistryPage.neuer_draft_610fb2")}</Button>
       </div>
       {error && <Notice tone="bad" title={uiText("features.registry.RegistryPage.aktion_fehlgeschlagen_3a20cc")}>{error}</Notice>}
       <Panel>
         {drafts.isPending ? (
           <Spinner />
         ) : list.length === 0 ? (
-          <Empty title={uiText("features.registry.RegistryPage.noch_keine_drafts_a1dbb9")} action={<Button variant="primary" onClick={() => setCreating(true)}>{uiText("features.registry.RegistryPage.ersten_draft_anlegen_8191b5")}</Button>}>
+          <Empty title={uiText("features.registry.RegistryPage.noch_keine_drafts_a1dbb9")}>
             {uiText("features.registry.RegistryPage.legen_sie_einen_leeren_draft_an_kopieren_sie_die_ecb749")}</Empty>
         ) : (
           <ul className="divide-y divide-line">
@@ -71,7 +72,7 @@ function DraftsTab() {
                   <p className="text-xs text-muted">{uiText("features.registry.RegistryPage.v_4c9448")}{draft.draft_version} {uiText("features.registry.RegistryPage.basis_revision_690542")}{draft.base_revision ?? '–'} {uiText("features.registry.RegistryPage.erstellt_555e13")}{formatTime(draft.created_at)} {uiText("features.registry.RegistryPage.geandert_4147a3")}{formatTime(draft.updated_at)}</p>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  <Button size="sm" variant="primary" onClick={() => open(draft)}><Pencil size={13} /> {uiText("features.registry.RegistryPage.bearbeiten_84e45e")}</Button>
+                  <Button size="sm" onClick={() => open(draft)}><Pencil size={13} /> {uiText("features.registry.RegistryPage.bearbeiten_84e45e")}</Button>
                   <Button size="sm" onClick={() => setCopyOf(draft)}><Copy size={13} /> {uiText("features.registry.RegistryPage.duplizieren_9d400c")}</Button>
                   <Button size="sm" onClick={() => downloadText(`${safeFilename(draftLabel(draft))}.json`, exportRegistry(draft.config))}><Download size={13} /> {uiText("features.registry.RegistryPage.export_366489")}</Button>
                   <Button size="sm" variant="danger" onClick={() => setDeleting(draft)}><Trash2 size={13} /> {uiText("features.registry.RegistryPage.loschen_6c2d35")}</Button>
@@ -107,7 +108,7 @@ function DraftsTab() {
           });
         }}
       />
-    </div>
+    </div></>
   );
 }
 
@@ -122,6 +123,7 @@ function RevisionsTab() {
   const [copyOf, setCopyOf] = useState<RevisionRow | null>(null);
   const [selected, setSelected] = useState<number[]>([]);
   const [comparing, setComparing] = useState(false);
+  const [selecting, setSelecting] = useState(false);
   const navigate = useNavigate();
   const operations = useMemo(() => new Map((activations.data?.pages.flatMap((p) => p.items) ?? []).map((a) => [Number(a.revision), String(a.operation)])), [activations.data]);
   const rows = [...(revisions.data ?? [])].sort((a, b) => b.revision - a.revision);
@@ -130,8 +132,10 @@ function RevisionsTab() {
   const actors = new Map((audit.data?.pages.flatMap((page) => page.items) ?? []).filter((event) => event.operation === 'activate' || event.operation === 'rollback').map((event) => [Number(asObject(event.details).revision ?? event.revision), asObject(event.actor)]));
   const pair = selected.length === 2 ? selected.map((n) => rows.find((r) => r.revision === n)!).sort((a, b) => a.revision - b.revision) : null;
 
-  if (revisions.isPending) return <Spinner />;
+  const header = <PageHeader title={uiText('alpha7.nav.versions')} description={uiText('alpha9.pages.versions')} actions={<Button variant="primary" disabled={revisions.isPending || rows.length < 2} disabledReason={uiText('alpha9.versions.needTwo')} onClick={() => pair ? setComparing(true) : setSelecting(true)}><GitCompare size={15} />{uiText('alpha9.actions.compare')}</Button>} />;
+  if (revisions.isPending) return <>{header}<Spinner /></>;
   return (
+    <>{header}
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted">{uiText("features.registry.RegistryPage.revisionen_sind_unveranderlich_aktivierung_und_r_45199a")}</p>
@@ -195,7 +199,10 @@ function RevisionsTab() {
           })()}
         </Dialog>
       )}
-    </div>
+      <Dialog open={selecting} onOpenChange={setSelecting} title={uiText('alpha9.actions.compare')} description={uiText('alpha7.versions.selectTwo')} footer={<Button variant="primary" disabled={selected.length !== 2} onClick={() => { setSelecting(false); setComparing(true); }}>{uiText('alpha9.actions.compare')}</Button>}>
+        <ul className="space-y-3">{rows.map(row => <li key={row.revision}><label className="flex items-center gap-3 text-sm"><input type="checkbox" checked={selected.includes(row.revision)} onChange={event => setSelected(current => event.target.checked ? [...current, row.revision].slice(-2) : current.filter(number => number !== row.revision))} />{uiText('alpha7.versions.name', { n: row.revision })}</label></li>)}</ul>
+      </Dialog>
+    </div></>
   );
 }
 
@@ -203,7 +210,6 @@ export default function RegistryPage() {
   const versions = useLocation().pathname === '/changes/versions';
   return (
     <>
-      <PageHeader title={uiText(versions ? 'alpha7.nav.versions' : 'alpha7.nav.drafts')} description={uiText(versions ? 'alpha7.versions.explanation' : 'alpha7.draft.explanation')} />
       {versions ? <RevisionsTab /> : <DraftsTab />}
     </>
   );

@@ -1,3 +1,4 @@
+import { PageLoading } from '@/components/PageLoading';
 import { t as uiText } from '@/i18n';
 import { ArrowLeft, GitBranchPlus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
@@ -36,10 +37,11 @@ export default function DefinitionDetailPage() {
   const index = definitions.findIndex((d) => str(d.type_id) === typeId && String(d.type_version) === version);
   const definition = index >= 0 ? definitions[index]! : null;
 
+  if (src.loading && !definition) return <PageLoading title={uiText('alpha7.nav.templates')} description={uiText('alpha9.pages.template')} />;
   if (!definition) {
     return (
       <>
-        <Back />
+        <PageHeader title={uiText('alpha7.nav.templates')} description={uiText('alpha9.pages.template')} actions={<Button variant="primary" onClick={() => navigate('/templates/own')}>{uiText('components.RouteError.zur_ubersicht_22bfde')}</Button>} />
         <Empty title={uiText("features.contracts.DefinitionDetailPage.definition_v0_v1_nicht_gefunden_d09de5", { v0: (typeId), v1: (version) })}>{versionError || (src.source === 'draft' ? uiText("features.contracts.DefinitionDetailPage.sie_existiert_im_geoffneten_draft_nicht_0632aa") : uiText("features.contracts.DefinitionDetailPage.sie_existiert_in_der_aktiven_registry_nicht_8e5152"))}</Empty>
       </>
     );
@@ -80,13 +82,17 @@ export default function DefinitionDetailPage() {
     <>
       <Back />
       <PageHeader
-        title={<span className="font-mono">{typeId}</span>}
-        description={uiText("features.contracts.DefinitionDetailPage.v0_version_v1_1d1973", { v0: (str(definition.display_name) || uiText("features.contracts.DefinitionDetailPage.deklarative_definition_07f53d")), v1: (version) })}
+        title={str(definition.display_name) || uiText('alpha9.template.unnamed')}
+        description={uiText('alpha9.pages.template')}
         actions={
           <>
             <Badge>{uiText("features.contracts.DefinitionDetailPage.v_4c9448")}{version}</Badge>
             {lockedSince !== null ? <LockBadge /> : <Badge tone="info">{uiText("features.contracts.DefinitionDetailPage.entwurf_2ba46e")}</Badge>}
-            <Button size="sm" disabled={doc.starting} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => void beginVersion()}><GitBranchPlus size={14} />{uiText('features.contracts.DefinitionDetailPage.neue_version_e81cfe')}</Button>
+            <Button variant="primary" disabled={doc.starting || doc.saving} disabledReason={uiText('alpha7.copy.inProgress')} onClick={async () => {
+              if (locked) { await beginVersion(); return; }
+              if (await doc.save() !== 'saved') setVersionError(uiText('alpha7.draft.saveBeforeReview'));
+            }}>{locked ? <><GitBranchPlus size={14} />{uiText('features.contracts.DefinitionDetailPage.neue_version_e81cfe')}</> : uiText('alpha9.actions.saveDraft')}</Button>
+            {!locked && <Button size="sm" disabled={doc.starting} onClick={() => void beginVersion()}>{uiText('features.contracts.DefinitionDetailPage.neue_version_e81cfe')}</Button>}
             {src.editable && <Button size="sm" variant="danger" onClick={() => setRemoving(true)}><Trash2 size={14} />{uiText('features.contracts.DefinitionDetailPage.entfernen_382837')}</Button>}
           </>
         }

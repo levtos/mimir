@@ -42,7 +42,7 @@ export function ContractLiveState({ envelope, stale, fields = {} }: { envelope: 
                   {field.since_at && (<><dt>{uiText("components.ContractLiveState.seit_b00312")}</dt><dd>{formatTime(field.since_at)}</dd></>)}
                   {field.held_until && (<><dt>{uiText("components.ContractLiveState.gehalten_bis_c18ae5")}</dt><dd>{formatTime(field.held_until)}</dd></>)}
                 </dl>
-                {field.attribution && <pre className="max-w-full overflow-auto text-xs">{JSON.stringify(field.attribution, null, 2)}</pre>}
+                {field.attribution && <details><summary className="cursor-pointer text-xs text-muted">{uiText('alpha7.contract.advanced')}</summary><pre className="max-w-full overflow-auto text-xs">{JSON.stringify(field.attribution, null, 2)}</pre></details>}
                 {field.reasons.length > 0 && (
                   <ul className="flex flex-col gap-0.5 text-xs">
                     {field.reasons.map((reason, i) => (
@@ -50,7 +50,7 @@ export function ContractLiveState({ envelope, stale, fields = {} }: { envelope: 
                     ))}
                   </ul>
                 )}
-                {field.evidence.length > 0 && <p className="text-xs text-muted">{field.evidence.length} {uiText("components.ContractLiveState.evidenz_referenz_2c494f")}{field.evidence.length === 1 ? '' : uiText("components.ContractLiveState.en_dbd3a4")} {uiText("components.ContractLiveState.in_der_9c92b1")}<Link className="text-fg hover:underline" to={`/diagnostics?contract=${encodeURIComponent(envelope.contract_id)}`}>{uiText("components.ContractLiveState.diagnose_64dd65")}</Link> {uiText("components.ContractLiveState.auflosbar_ac9e6e")}</p>}
+                {field.evidence.length > 0 && <p className="text-xs text-muted">{uiText(field.evidence.length === 1 ? 'alpha9.evidence.one' : 'alpha9.evidence.many', { count: field.evidence.length })} · <Link className="text-fg hover:underline" to={`/settings/diagnostics?contract=${encodeURIComponent(envelope.contract_id)}`}>{uiText('alpha9.evidence.open')}</Link></p>}
               </div>
             </div>
           ))}
@@ -60,7 +60,7 @@ export function ContractLiveState({ envelope, stale, fields = {} }: { envelope: 
         <LayoutPanel id="machine" title={uiText("components.ContractLiveState.state_machine_801376")}>
         <Panel>
           <PanelHeader title={uiText("components.ContractLiveState.state_machine_801376")} />
-          <pre className="max-h-72 overflow-auto p-4 text-xs">{JSON.stringify(envelope.state_machine, null, 2)}</pre>
+          <details className="p-4"><summary className="cursor-pointer text-sm text-muted">{uiText('alpha7.contract.advanced')}</summary><pre className="max-h-72 overflow-auto py-3 text-xs">{JSON.stringify(envelope.state_machine, null, 2)}</pre></details>
         </Panel>
         </LayoutPanel>
       )}

@@ -1,3 +1,4 @@
+import { PageLoading } from '@/components/PageLoading';
 import { t as uiText } from '@/i18n';
 import { useQuery } from '@tanstack/react-query';
 import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
@@ -9,14 +10,13 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/controls';
 import { Collapsible } from '@/components/ui/controls';
 import { ConfirmDialog } from '@/components/ui/dialog';
-import { Empty, KeyValue, Notice, PageHeader, Panel, PanelHeader, Spinner } from '@/components/ui/layout';
+import { Empty, KeyValue, Notice, PageHeader, Panel, PanelHeader } from '@/components/ui/layout';
 import { Input, Textarea } from '@/components/ui/form';
-import { draftLabel } from '@/features/authoring/DraftBar';
+import { draftLabel, ReviewDraftButton } from '@/features/authoring/DraftBar';
 import { downloadText, exportRegistry, parseRegistryJson, safeFilename } from '@/features/authoring/importExport';
 import { asArray } from '@/features/authoring/model';
 import { useWorkingDocument } from '@/features/authoring/WorkingDocument';
 import { api } from '@/lib/api';
-import { formatTime } from '@/lib/format';
 import type { Draft } from '@/lib/types';
 import { DiffView } from './DiffView';
 import { IssueList } from './IssueList';
@@ -42,7 +42,7 @@ function JsonExpert() {
       <Textarea aria-label={uiText("features.registry.DraftPage.registry_json_dceba9")} rows={18} spellCheck={false} value={text} onChange={(e) => { setText(e.target.value); setError(''); }} />
       {error && <p role="alert" className="text-xs text-bad">{error}</p>}
       <div className="flex gap-2">
-        <Button size="sm" variant="primary" disabled={text === current} disabledReason={uiText('alpha7.copy.unchanged')} onClick={() => { const parsed = parseRegistryJson(text); if (parsed.ok) { doc.replaceAll(parsed.config); setError(''); } else setError(parsed.error); }}>{uiText("features.registry.DraftPage.ubernehmen_936378")}</Button>
+        <Button size="sm" disabled={text === current} disabledReason={uiText('alpha7.copy.unchanged')} onClick={() => { const parsed = parseRegistryJson(text); if (parsed.ok) { doc.replaceAll(parsed.config); setError(''); } else setError(parsed.error); }}>{uiText('alpha9.draft.applyText')}</Button>
         <Button size="sm" disabled={text === current} disabledReason={uiText('alpha7.copy.unchanged')} onClick={() => { setText(current); setError(''); }}>{uiText("features.registry.DraftPage.zurucksetzen_1ba046")}</Button>
       </div>
     </div>
@@ -65,7 +65,7 @@ export default function DraftPage() {
   if (server.isError && !isOpen) {
     return (
       <>
-        <Back />
+        <PageHeader title={uiText('alpha7.nav.drafts')} description={uiText('alpha9.pages.draft')} actions={<Link to="/changes/drafts"><Button variant="primary">{uiText('features.registry.DraftPage.zum_geoffneten_draft_855199')}</Button></Link>} />
         <Empty title={uiText("features.registry.DraftPage.draft_v0_nicht_gefunden_ea702b", { v0: (draftId) })}>{uiText("features.registry.DraftPage.er_wurde_geloscht_oder_hat_nie_existiert_0556f2")}</Empty>
       </>
     );
@@ -73,7 +73,7 @@ export default function DraftPage() {
   if (blocked) {
     return (
       <>
-        <Back />
+        <PageHeader title={uiText('alpha7.nav.drafts')} description={uiText('alpha9.pages.draft')} actions={<Link to={`/changes/drafts/${encodeURIComponent(doc.draft?.draft_id ?? '')}`}><Button variant="primary">{uiText('features.registry.DraftPage.zum_geoffneten_draft_855199')}</Button></Link>} />
         <Notice tone="warn" title={uiText("features.registry.DraftPage.ein_anderer_draft_hat_ungespeicherte_anderungen_261d0b")}>
           {uiText("features.registry.DraftPage.geoffnet_ist_e6c05b")}{doc.draft ? draftLabel(doc.draft) : ''}{uiText("features.registry.DraftPage.speichern_sie_ihn_zuerst_oder_verwerfen_sie_die__baa37d")}<div className="mt-2 flex gap-2">
             <Link to={`/changes/drafts/${encodeURIComponent(doc.draft?.draft_id ?? '')}`}><Button size="sm">{uiText("features.registry.DraftPage.zum_geoffneten_draft_855199")}</Button></Link>
@@ -84,7 +84,7 @@ export default function DraftPage() {
       </>
     );
   }
-  if (!isOpen || !doc.draft || !doc.config) return <><Back /><Spinner label={uiText("features.registry.DraftPage.draft_wird_geoffnet_7f5df8")} /></>;
+  if (!isOpen || !doc.draft || !doc.config) return <PageLoading title={uiText('alpha7.nav.drafts')} description={uiText('alpha9.pages.draft')} />;
 
   const { draft, config, validation } = doc;
   const validNow = validation.state === 'done' && validation.result?.valid === true && !validation.stale;
@@ -94,9 +94,10 @@ export default function DraftPage() {
       <Back />
       <PageHeader
         title={draftLabel({ draft_id: draft.draft_id, display_name: doc.displayName })}
-        description={uiText("features.registry.DraftPage.draft_v0_v_v1_basis_revision_v2_zuletzt_gespeich_24aa87", { v0: (draft.draft_id), v1: (draft.draft_version), v2: (draft.base_revision ?? '–'), v3: (formatTime(draft.updated_at)) })}
+        description={uiText('alpha9.pages.draft')}
         actions={
           <>
+            {validNow ? <ReviewDraftButton size="md" /> : <Button variant="primary" onClick={() => void doc.validateNow()} disabled={doc.validation.state === 'checking' || doc.saving} disabledReason={uiText('alpha7.copy.validationRunning')}>{uiText('features.authoring.DraftBar.prufen_a1ca13')}</Button>}
             <Button onClick={() => downloadText(`${safeFilename(doc.displayName || draft.draft_id)}.json`, exportRegistry(config))}><Download size={14} /> {uiText("features.registry.DraftPage.export_366489")}</Button>
           </>
         }

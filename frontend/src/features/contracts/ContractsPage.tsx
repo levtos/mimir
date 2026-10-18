@@ -48,9 +48,9 @@ interface Row {
 
 const col = createColumnHelper<Row>();
 
-export function NewContractDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (o: boolean) => void; onCreated: (id: string) => void }) {
-  const [manual, setManual] = useState(false);
-  const change = (next: boolean) => { if (!next) setManual(false); onOpenChange(next); };
+export function NewContractDialog({ open, onOpenChange, onCreated, initialManual = false }: { open: boolean; onOpenChange: (o: boolean) => void; onCreated: (id: string) => void; initialManual?: boolean }) {
+  const [manual, setManual] = useState(initialManual);
+  const change = (next: boolean) => { if (!next) setManual(initialManual); onOpenChange(next); };
   return <><DeviceWizard open={open && !manual} onOpenChange={change} title={uiText('alpha7.overview.newContract')} contract="new" onAdded={result => result.contractId && onCreated(result.contractId)} manualOption={<Button onClick={() => setManual(true)}>{uiText('alpha7.device.withoutDevice')}</Button>} /><ManualNewContractDialog open={open && manual} onOpenChange={change} onCreated={onCreated} /></>;
 }
 
@@ -202,7 +202,7 @@ export default function ContractsPage() {
     <>
       <PageHeader
         title={uiText("features.contracts.ContractsPage.contracts_definitionen_499616")}
-        description={uiText("features.contracts.ContractsPage.instanzen_binden_einen_typ_an_quellen_definition_c07fc7")}
+        description={uiText('alpha9.pages.contracts')}
         actions={
           <Button variant="primary" disabled={doc.starting} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => void start()}>
             <Plus size={15} /> {uiText("features.contracts.ContractsPage.neue_instanz_e3e518")}</Button>

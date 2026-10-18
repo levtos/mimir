@@ -1,6 +1,6 @@
 import { t as uiText } from '@/i18n';
 import { useEffect, useState } from 'react';
-import { Spinner } from '@/components/ui/layout';
+import { PageLoading } from '@/components/PageLoading';
 import { SetupWizard } from '@/setup/SetupWizard';
 import { setupRequest, type SetupStatus } from '@/setup/setup';
 import { Workbench } from '@/Workbench';
@@ -35,7 +35,7 @@ export function App() {
   if (error) {
     return (
       <main className="mx-auto max-w-2xl p-10">
-        <h1 className="text-xl font-semibold">{uiText("App.terra_workbench_7ad523")}</h1>
+        <PageLoading loading={!error} />
         <p role="alert" className="mt-3 text-bad">{error}</p>
       </main>
     );
@@ -43,8 +43,7 @@ export function App() {
   if (!status) {
     return (
       <main className="mx-auto max-w-2xl p-10">
-        <h1 className="text-xl font-semibold">{uiText("App.terra_workbench_7ad523")}</h1>
-        <Spinner label={uiText("App.installationszustand_wird_gepruft_d072db")} />
+        <PageLoading loading={!error} />
       </main>
     );
   }
