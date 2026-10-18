@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, configure, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import WebSocket from 'ws'; // jsdom's global Event and Node's WebSocket are not compatible
@@ -27,6 +27,9 @@ import { objects } from '@/features/sources/sourceMigration';
  *   MIMIR_E2E_URL=http://127.0.0.1:8123 npm run test:e2e
  */
 const base = process.env.MIMIR_E2E_URL;
+// Real HTTP requests share the production client's 61-second request window.
+// Await the acknowledged UI state rather than jsdom's default one-second window.
+configure({ asyncUtilTimeout: 65_000 });
 vi.unmock('@/lib/request-budget');
 const user = userEvent.setup();
 const f = flow(user);
@@ -97,6 +100,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     const drafts = (await waitFor(async () => {
       const list = (await raw<{ draft_id: string; draft_version: number; config: JsonObject }[]>('registry/drafts')).body;
       expect(list[0]!.draft_version).toBeGreaterThan(1);
+      expect(list[0]!.config).toEqual(registry);
       return list;
     }, { timeout: 15_000 }));
     const draftId = drafts[0]!.draft_id;
@@ -175,6 +179,9 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     const create = await screen.findByRole('dialog', { name: "Neuer Vertrag" });
     await f.type(within(create).getByLabelText("Vertrag-ID"), 'fixture.extra');
     await user.click(within(create).getByRole('button', { name: 'Anlegen' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Neuer Vertrag' })).not.toBeInTheDocument(), { timeout: 65_000 });
+    await user.click(await screen.findByRole('tab', { name: 'Konfiguration' }));
+    await f.type(screen.getByLabelText(/^(Anzeigename|Name)$/), 'Zusatzvertrag');
     const current = (await raw<{ draft_version: number; config: JsonObject }>(`registry/drafts/${draftId}`)).body;
     const other = await raw(`registry/drafts/${draftId}`, json('PUT', { config: { ...current.config, other_session: true }, draft_version: current.draft_version }));
     expect(other.status).toBe(200);
@@ -203,7 +210,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     const saved = await waitFor(async () => {
       const draft = (await raw<{ config: JsonObject; draft_version: number }>(`registry/drafts/${imported.draft_id}`)).body;
       expect(draft.draft_version).toBeGreaterThan(1); return draft;
-    });
+    }, { timeout: 65_000 });
     const document = saved.config;
     const sources = document.sources as JsonObject[];
     const bindings = document.bindings as JsonObject[];

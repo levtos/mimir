@@ -31,7 +31,8 @@ export function flow(user: UserEvent) {
   const saveButton = async () => {
     const menu = screen.getByLabelText('Weitere Entwurfsaktionen');
     if (!menu.closest('details')?.open) await user.click(menu);
-    return screen.getByRole('button', { name: 'Speichern' });
+    const button = await screen.findByRole('button', { name: 'Speichern' }, { timeout: 65_000 });
+    return button;
   };
 
   /** Builds the complete Alpha-4 example registry in the open (empty) draft, by operating controls only. */
@@ -94,7 +95,10 @@ export function flow(user: UserEvent) {
       const dialog = await screen.findByRole('dialog', { name: "Neuer Vertrag" });
       await steps.type(within(dialog).getByLabelText("Vertrag-ID"), id);
       await user.selectOptions(within(dialog).getByLabelText('Typ & Version'), type);
-      await user.click(within(dialog).getByRole('button', { name: 'Anlegen' }));
+      const create = within(dialog).getByRole('button', { name: 'Anlegen' });
+      await waitFor(() => expect(create).toBeEnabled(), { timeout: 65_000 });
+      await user.click(create);
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Neuer Vertrag' })).not.toBeInTheDocument(), { timeout: 65_000 });
       await user.click(await screen.findByRole('tab', { name: 'Konfiguration' }));
       const selects = await screen.findAllByLabelText('Referenz');
       for (const [i, ref] of refs.entries()) await user.selectOptions(selects[i]!, ref);
@@ -107,7 +111,7 @@ export function flow(user: UserEvent) {
     const button = await screen.findByRole('button', { name: 'Übernehmen' });
     await waitFor(() => expect(button).toBeEnabled(), { timeout: 65_000 });
     await user.click(button);
-    const dialog = await screen.findByRole('dialog', { name: "Konfiguration übernehmen" });
+    const dialog = await screen.findByRole('dialog', { name: "Konfiguration übernehmen" }, { timeout: 65_000 });
     await user.click(await within(dialog).findByRole('checkbox', { name: /Auswirkungen geprüft/ }, { timeout: 65_000 }));
     await user.click(within(dialog).getByRole('button', { name: "Jetzt übernehmen" }));
     return dialog;
