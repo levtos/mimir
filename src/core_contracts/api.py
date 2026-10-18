@@ -362,6 +362,24 @@ class API:
             result = await runtime.submit(
                 "manual_restart_preview", path.removeprefix("manual-restarts/preview/")
             )
+        elif path.startswith("manual-sources/") and method in {"GET", "POST"}:
+            parts = path.split("/")
+            if len(parts) == 3 and parts[2] == "observations" and method == "POST":
+                result = await runtime.submit(
+                    "manual_source_enter",
+                    {
+                        "source_id": parts[1],
+                        "request": await request.json(),
+                        "_actor": request["actor"],
+                    },
+                )
+            elif len(parts) == 4 and parts[2] == "requests" and method == "GET":
+                record = await runtime.store.get("manual_request", parts[3])
+                if record is None or record["source_id"] != parts[1]:
+                    raise web.HTTPNotFound()
+                result = record["result"]
+            else:
+                raise web.HTTPNotFound()
         elif path == "manual-restarts" and method == "POST":
             result = await runtime.submit(
                 "manual_restart", {"request": await request.json(), "_actor": request["actor"]}

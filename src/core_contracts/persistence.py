@@ -46,6 +46,7 @@ TABLES = (
     "diagnostic_event",
     "service_job",
     "service_state",
+    "manual_request",
 )
 IMMUTABLE = {
     "registry_revision",
@@ -55,6 +56,7 @@ IMMUTABLE = {
     "sm_transition",
     "history_gap",
     "diagnostic_event",
+    "manual_request",
 }
 LOCK_ID = 1128484913
 LOGGER = logging.getLogger(__name__)

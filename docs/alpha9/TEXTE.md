@@ -2570,3 +2570,18 @@ braucht das konkrete Formular folgende ergänzende Beschriftungen:
 | alpha9.deadline.action | Vorlage → Ablauf | — | Was passiert mit der Frist? | Auswahl im freigegebenen Fristenformular. |
 | alpha9.deadline.keep | Vorlage → Ablauf | — | Frist beibehalten | Auswahl im freigegebenen Fristenformular. |
 | alpha9.deadline.clear | Vorlage → Ablauf | — | Frist beenden | Auswahl im freigegebenen Fristenformular. |
+
+### Formularbeschriftungen A2: manuelle Angaben
+
+| Schlüssel | Ort | alt | neu | Grund |
+|---|---|---|---|---|
+| codes.manual | Manuelle Quelle | — | Manuell eingegeben | Bedienung, Gültigkeit und Ergebnisabfrage ohne JSON. |
+| codes.input_not_yet_valid | Manuelle Quelle | — | Diese Angabe gilt noch nicht. | Bedienung, Gültigkeit und Ergebnisabfrage ohne JSON. |
+| alpha9.manual.future | Manuelle Quelle | — | Angaben mit einem späteren Beginn zulassen | Bedienung, Gültigkeit und Ergebnisabfrage ohne JSON. |
+| alpha9.manual.affected | Manuelle Quelle | — | Diese Verträge verwenden deine Angabe: {names} | Bedienung, Gültigkeit und Ergebnisabfrage ohne JSON. |
+| alpha9.manual.inactive | Manuelle Quelle | — | Verknüpfe diese Quelle zuerst mit einem eingeschalteten Vertrag. | Bedienung, Gültigkeit und Ergebnisabfrage ohne JSON. |
+| alpha9.manual.failed | Manuelle Quelle | — | Die Angabe wurde nicht übernommen. Prüfe die Gültigkeit und lade die aktuelle Konfiguration neu. | Bedienung, Gültigkeit und Ergebnisabfrage ohne JSON. |
+| alpha9.manual.checkResult | Manuelle Quelle | — | Gespeichertes Ergebnis abfragen | Bedienung, Gültigkeit und Ergebnisabfrage ohne JSON. |
+| alpha9.manual.unit | Manuelle Quelle | — | Einheit | Bedienung, Gültigkeit und Ergebnisabfrage ohne JSON. |
+| alpha9.manual.minimum | Manuelle Quelle | — | Kleinster erlaubter Wert | Bedienung, Gültigkeit und Ergebnisabfrage ohne JSON. |
+| alpha9.manual.maximum | Manuelle Quelle | — | Größter erlaubter Wert | Bedienung, Gültigkeit und Ergebnisabfrage ohne JSON. |

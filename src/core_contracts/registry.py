@@ -22,7 +22,7 @@ from .schema import ContractType, FieldSchema, TypeRegistry
 
 class Dependency(Model):
     dependency_id: str
-    kind: Literal["ha", "mqtt", "other", "clock", "connectivity"]
+    kind: Literal["ha", "mqtt", "other", "clock", "connectivity", "manual"]
     monitor: Literal["internal", "source"]
     source_id: str | None = None
 
@@ -36,6 +36,38 @@ class Source(Model):
     physical_source_key: str = Field(min_length=1)
     display_name: str = ""
     value_schema: FieldSchema | None = None
+    origin: Literal["manual"] | None = Field(default=None, exclude_if=lambda value: value is None)
+    manual_allow_future: bool = Field(
+        default=False, strict=True, exclude_if=lambda value: not value
+    )
+    manual_minimum: float | None = Field(default=None, exclude_if=lambda value: value is None)
+    manual_maximum: float | None = Field(default=None, exclude_if=lambda value: value is None)
+
+    @model_validator(mode="after")
+    def manual_declaration(self) -> Self:
+        if self.origin == "manual" and (
+            self.value_schema is None
+            or self.value_schema.type == "enum"
+            and not self.value_schema.value_catalog
+            or self.freshness.mode not in {"periodic_ttl", "event_stateful"}
+            or self.freshness.future_tolerance_s != 0
+            or self.freshness.interval_s is not None
+            and self.freshness.interval_s > 31_536_000
+        ):
+            raise ValueError("manual_schema_and_validity_required")
+        if self.manual_allow_future and self.origin != "manual":
+            raise ValueError("manual_source_required")
+        if self.manual_minimum is not None or self.manual_maximum is not None:
+            if (
+                self.origin != "manual"
+                or self.value_schema is None
+                or self.value_schema.type != "number"
+                or self.manual_minimum is not None
+                and self.manual_maximum is not None
+                and self.manual_minimum > self.manual_maximum
+            ):
+                raise ValueError("manual_numeric_bounds_required")
+        return self
 
 
 class Transform(Model):
@@ -128,11 +160,12 @@ class RegistryConfig(Model):
             raise ValueError("duplicate_context_producer")
         if self.config_schema_version == 1 and (
             self.notifications is not None
+            or any(source.origin == "manual" for source in self.sources)
             or bool(self.context_producers)
             or any(binding.refresh is not None for binding in self.bindings)
             or any(contract.refresh_plan is not None for contract in self.contracts)
             or any(definition.language_version == 3 for definition in self.definitions)
-            or any(b.adapter.kind == "ha_calendar" for b in self.bindings)
+            or any(b.adapter.kind in {"ha_calendar", "manual"} for b in self.bindings)
         ):
             raise ValueError("registry_schema_2_required")
         return self

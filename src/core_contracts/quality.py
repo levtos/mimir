@@ -15,6 +15,7 @@ class ReasonCode(StrEnum):
     INPUT_UNAVAILABLE = "input_unavailable"
     INPUT_UNKNOWN = "input_unknown"
     INPUT_STALE = "input_stale"
+    INPUT_NOT_YET_VALID = "input_not_yet_valid"
     INPUT_RESTORED = "input_restored"
     INPUT_ABSENT = "input_absent"
     UNMAPPED_VALUE = "unmapped_value"

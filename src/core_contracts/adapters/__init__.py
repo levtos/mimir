@@ -10,7 +10,9 @@ from ..model import Model
 
 
 class AdapterConfig(Model):
-    kind: Literal["ha_state", "ha_attribute", "ha_calendar", "mqtt", "scheduler", "connectivity"]
+    kind: Literal[
+        "ha_state", "ha_attribute", "ha_calendar", "mqtt", "scheduler", "connectivity", "manual"
+    ]
     ha_entity_id: str | None = None
     ha_attribute: str | None = None
     ha_time_attribute: str | None = None
@@ -28,6 +30,18 @@ class AdapterConfig(Model):
 
     @model_validator(mode="after")
     def address(self) -> Self:
+        if self.kind == "manual" and any(
+            value is not None
+            for value in (
+                self.ha_entity_id,
+                self.ha_attribute,
+                self.ha_time_attribute,
+                self.mqtt_topic,
+                self.mqtt_value_path,
+                self.mqtt_time_path,
+            )
+        ):
+            raise ValueError("manual_source_has_no_transport_address")
         if self.kind == "ha_calendar":
             import re
 

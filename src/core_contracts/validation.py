@@ -313,6 +313,23 @@ def validate_document(
     addresses: set[tuple[str | None, ...]] = set()
     for index, binding in enumerate(config.bindings):
         path, key, adapter = f"/bindings/{index}", binding.binding_id, binding.adapter
+        manual_source = sources.get(binding.source_id)
+        if manual_source and (
+            (manual_source.origin == "manual") != (adapter.kind == "manual")
+            or adapter.kind == "manual"
+            and (
+                binding.transform is not None
+                or dependencies.get(manual_source.dependency_id) is None
+                or dependencies[manual_source.dependency_id].kind != "manual"
+                or dependencies[manual_source.dependency_id].monitor != "internal"
+            )
+        ):
+            add(
+                "manual_binding_required",
+                path,
+                "manual source requires its own manual binding and dependency",
+                key,
+            )
         if adapter.kind == "ha_calendar" and (calendar_source := sources.get(binding.source_id)):
             if (
                 calendar_source.value_schema is None
@@ -339,14 +356,18 @@ def validate_document(
                     key,
                 )
         address = (
-            (adapter.kind, adapter.ha_entity_id, adapter.ha_attribute)
-            if adapter.kind.startswith("ha_")
+            ("manual", binding.source_id)
+            if adapter.kind == "manual"
             else (
-                adapter.kind,
-                canonical(adapter.calendar.model_dump())
-                if adapter.calendar
-                else adapter.mqtt_topic,
-                adapter.mqtt_value_path,
+                (adapter.kind, adapter.ha_entity_id, adapter.ha_attribute)
+                if adapter.kind.startswith("ha_")
+                else (
+                    adapter.kind,
+                    canonical(adapter.calendar.model_dump())
+                    if adapter.calendar
+                    else adapter.mqtt_topic,
+                    adapter.mqtt_value_path,
+                )
             )
         )
         if address in addresses:

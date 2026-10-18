@@ -18,6 +18,7 @@ import { problemAdvice } from '@/features/overview/overviewModel';
 import { contractSources, contractState } from './presentation';
 import { ContractStateChip } from './ContractStateChip';
 import { MachineRestartPanel } from './MachineRestartPanel';
+import { ManualSourcePanel } from '@/features/sources/ManualSourcePanel';
 
 interface Point { at: string; field: FieldValue | null }
 export function historyPoints(rows: HistoryItem[], contractId: string, field: string, revision?: number, gaps: HistoryItem[] = []): Point[] {
@@ -98,6 +99,7 @@ export function ContractSummary({ envelope, stale, fields, config, machine }: { 
     <Panel><PanelHeader title={t('alpha7.contract.history')} description={t('alpha7.contract.historyScope')} /><div className="space-y-5 p-5">
       {history.isPending ? <Spinner /> : history.isError ? <p role="alert" className="text-sm text-bad">{t('alpha7.contract.historyUnavailable')}</p> : Object.keys(envelope.fields).map(name => <MiniHistory key={name} name={name} schema={fields[name]} current={stale || gaps.isPending || gaps.isError ? undefined : envelope.fields[name]} points={historyPoints(history.isPlaceholderData ? [] : history.data?.pages.flatMap(page => page.items) ?? [], envelope.contract_id, name, envelope.registry_revision, gaps.isPlaceholderData ? [] : gaps.data?.pages.flatMap(page => page.items) ?? [])} />)}
     </div></Panel>
+    {sources.filter(source => asArray(config?.sources).map(asObject)[source.sourceIndex]?.origin === 'manual').map(source => <ManualSourcePanel key={source.id} sourceId={source.id} />)}
     {machine && <CommandsPanel contractId={envelope.contract_id} onContract={() => {}} fixed />}
     {machine && <MachineRestartPanel key={envelope.contract_id} contractId={envelope.contract_id} />}
     <details onToggle={event => setAdvanced(event.currentTarget.open)}><summary className="cursor-pointer py-2 text-sm text-muted">{t('alpha7.contract.advanced')}</summary>{advanced && <ContractLiveState envelope={envelope} stale={stale} fields={fields} />}</details>

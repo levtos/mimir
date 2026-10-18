@@ -498,7 +498,7 @@ class Runtime:
         restore_jobs(state, self.clock.now_utc())
         if reason == "process_restart":
             for observation in state.tables["source_observation_current"].values():
-                if observation["adapter"] != "ha_calendar":
+                if observation["adapter"] not in {"ha_calendar", "manual"}:
                     observation["observation_kind"] = "restore"
         for node in state.tables["node_state"].values():
             for context in self._temporal_contexts(node):
@@ -623,7 +623,7 @@ class Runtime:
             self.persistence = True
             self.first_snapshot = False
             for observation in self.state.tables["source_observation_current"].values():
-                if observation["adapter"] != "ha_calendar":
+                if observation["adapter"] not in {"ha_calendar", "manual"}:
                     observation["observation_kind"] = "restore"
             # Coalesced outage input is snapshot evidence, never replayed as events.
             buffered = dict(self.latest)
@@ -1048,6 +1048,10 @@ class Runtime:
             from .manual_restart import execute
 
             return await execute(self, state, payload)
+        if operation == "manual_source_enter":
+            from .manual_source import enter
+
+            return await enter(self, state, payload)
         if operation == "snapshot":
             for obs in payload:
                 if (
@@ -1237,6 +1241,15 @@ class Runtime:
             if ref in visited:
                 return unknown(ReasonCode.DEPENDENCY_UNAVAILABLE, ref, now)
             source = sources[ref]
+            manual_observation = observations.get(by_source.get(ref, ""))
+            if (
+                source.origin == "manual"
+                and manual_observation
+                and manual_observation.manual
+                and manual_observation.manual.source_fingerprint
+                != self._evaluation_plan(state, config)[0][ref]
+            ):
+                return unknown(ReasonCode.RESTORE_INCOMPATIBLE, ref, now)
             calendar_binding = next(
                 (
                     binding
@@ -1796,10 +1809,17 @@ class Runtime:
                             due.append(
                                 stamp - timedelta(seconds=source.freshness.future_tolerance_s)
                             )
+                            if manual := Observation.model_validate(raw).manual:
+                                due.append(manual.valid_from)
+                                if manual.valid_until:
+                                    due.append(manual.valid_until)
                             if source.freshness.interval_s is not None:
                                 due.append(
                                     stamp
-                                    + timedelta(seconds=source.freshness.interval_s, microseconds=1)
+                                    + timedelta(
+                                        seconds=source.freshness.interval_s,
+                                        microseconds=0 if raw.get("adapter") == "manual" else 1,
+                                    )
                                 )
             for contract in config.contracts:
                 callback = types.get(contract.type_id, contract.type_version).next_due
@@ -1823,7 +1843,7 @@ class Runtime:
             self.next_evaluation
             and config
             and (
-                any(b.adapter.calendar for b in config.bindings)
+                any(b.adapter.calendar or b.adapter.kind == "manual" for b in config.bindings)
                 or any(d.machine and d.machine.unknown_deadline for d in config.definitions)
                 or bool(self.state.tables["service_state"])
                 or any(node.get("clock_due") for node in self.state.tables["node_state"].values())

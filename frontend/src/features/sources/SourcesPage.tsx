@@ -20,6 +20,8 @@ import { useCapabilities } from '@/lib/queries';
 import { describeError } from '@/lib/api';
 import { DeviceWizard } from './DeviceWizard';
 import { CalendarSourceDialog } from './CalendarSourceDialog';
+import { ManualSourceDialog } from './ManualSourceDialog';
+import { ManualSourcePanel } from './ManualSourcePanel';
 import { codeLabel } from '@/i18n/codes';
 import { useSourceSelection } from './useSourceSelection';
 import { SourceMigrationDialog } from './SourceMigrationDialog';
@@ -113,6 +115,7 @@ function Collection({ name, idKey, singular, make, render, subtitle, usage, onMo
             <fieldset disabled={!src.editable} className="min-w-0">
               {render(current, `/${name}/${selected}`, (next) => doc.edit((c) => setAt(c, `/${name}/${selected}`, next)), config)}
             </fieldset>
+            {name === 'sources' && current.origin === 'manual' && !src.editable && <ManualSourcePanel key={str(current.source_id)} sourceId={str(current.source_id)} />}
           </div>
         )}
       </MasterDetail>
@@ -156,6 +159,7 @@ export default function SourcesPage() {
   const [picker, setPicker] = useState<null | ((entityId: string, attributes: string[]) => void)>(null);
   const [addingDevice, setAddingDevice] = useState(false);
   const [addingCalendar, setAddingCalendar] = useState(false);
+  const [addingManual, setAddingManual] = useState(false);
   const [deviceError, setDeviceError] = useState('');
   const [movingSource, setMovingSource] = useState<string | null>(null);
   const doc = useWorkingDocument();
@@ -182,7 +186,8 @@ export default function SourcesPage() {
     <>
       <PageHeader title={pageTitle} actions={location.pathname === '/sources/devices' && <Button variant="primary" onClick={() => void addDevice()}>{uiText('alpha7.device.title')}</Button>} />
       {deviceError && <p role="alert" className="mb-3 text-sm text-bad">{deviceError}</p>}
-      <DeviceWizard open={addingDevice} onOpenChange={setAddingDevice} manualOption={<><Button onClick={() => { setAddingDevice(false); setAddingCalendar(true); }}>{uiText('alpha9.calendar.add')}</Button><Button onClick={() => void addWithoutDevice()}>{uiText('alpha7.device.withoutDevice')}</Button></>} onAdded={result => setParams({ tab: 'sources', item: String(result.sourceIndex) }, { replace: true })} />
+      <DeviceWizard open={addingDevice} onOpenChange={setAddingDevice} manualOption={<><Button onClick={() => { setAddingDevice(false); setAddingManual(true); }}>{uiText('alpha9.manual.title')}</Button><Button onClick={() => { setAddingDevice(false); setAddingCalendar(true); }}>{uiText('alpha9.calendar.add')}</Button><Button onClick={() => void addWithoutDevice()}>{uiText('alpha7.device.withoutDevice')}</Button></>} onAdded={result => setParams({ tab: 'sources', item: String(result.sourceIndex) }, { replace: true })} />
+      <ManualSourceDialog open={addingManual} onOpenChange={setAddingManual} onAdded={index => setParams({ tab: 'sources', item: String(index) }, { replace: true })} />
       <CalendarSourceDialog open={addingCalendar} onOpenChange={setAddingCalendar} onAdded={index => setParams({ tab: 'sources', item: String(index) }, { replace: true })} />
       {movingSource && <SourceMigrationDialog key={movingSource} sourceId={movingSource} onClose={() => setMovingSource(null)} />}
       <ReadOnlyNotice what={uiText("features.sources.SourcesPage.sources_bindings_613cff")} />

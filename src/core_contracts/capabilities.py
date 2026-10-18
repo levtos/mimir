@@ -72,6 +72,7 @@ REASONS = {
     ReasonCode.INPUT_UNAVAILABLE: "The source reports unavailable.",
     ReasonCode.INPUT_UNKNOWN: "Decisive input has no usable value.",
     ReasonCode.INPUT_STALE: "The measurement exceeds its configured freshness interval.",
+    ReasonCode.INPUT_NOT_YET_VALID: "The manual input is not valid yet.",
     ReasonCode.INPUT_RESTORED: "Restored source data is not new measurement evidence.",
     ReasonCode.INPUT_ABSENT: "No observation exists for the required input.",
     ReasonCode.UNMAPPED_VALUE: "The map has no entry for this input.",

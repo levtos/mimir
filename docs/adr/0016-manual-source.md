@@ -68,3 +68,28 @@ Antwort, absolute Gültigkeitsgrenzen, TTL/event_stateful, Widerruf, History/Res
 Commit-Fehler und A-06 bei neuer Verknüpfung. Formulartests ohne JSON.
 Betroffen: M30-25, §8/§9/§10/§19/§21 der Build-Spezifikation, Source/Binding,
 Observation/Processor, API, History und UI. Keine Wake-Ausnahmeseite oder Fachverträge.
+
+## Umsetzung A2
+
+Eigene Source mit `origin:manual`, eigenem adresslosen `manual`-Binding und
+interner Abhängigkeit `kind:manual`. Einheiten stammen ausschließlich aus dem
+deklarierten Wertschema. Optionale `manual_minimum`/`manual_maximum` gelten nur
+für Zahlen. Zukünftiger Gültigkeitsbeginn benötigt `manual_allow_future:true`;
+ein rückdatierter Beginn wird abgewiesen. Alle Angaben müssen endlich, begrenzt
+und nach dem aktiven Schema gültig sein.
+
+`POST manual-sources/{source_id}/observations` verwendet das obige Format mit
+UUID-`request_id` und optional `action:set|retract` sowie
+`confirm_unbounded:true`. `GET manual-sources/{source_id}/requests/{request_id}`
+liest das committed Ergebnis. Die append-only Tabelle `manual_request` hält
+Prüfsumme und Ergebnis, ohne die Laufzeit mit historischen Anfragen zu belasten.
+Anfrage, Observation, Folgezustände und Ergebnis werden atomar committed.
+
+Serverzeit der Eingabe, deklarierter Gültigkeitsbeginn, optionales Ende,
+administrative Herkunft, Notiz und Widerruf bleiben getrennt gespeichert.
+Kein Gerätezeitpunkt wird erfunden. Die Quellenprüfsumme verhindert die Nutzung
+einer alten Angabe nach einer Bedeutungsänderung. Neustart erneuert keine Frist.
+Ein absoluter Gültigkeitsbeginn/-schluss wird über Clock geplant; die Grenzen
+sind halb offen. Das Formular benennt vor Eingabe betroffene Verträge und
+verlangt die Bestätigung einer zeitlich unbegrenzten Angabe. Bei verlorener
+Antwort lässt es vor einer weiteren Eingabe das gespeicherte Ergebnis abfragen.

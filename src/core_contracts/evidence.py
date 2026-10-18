@@ -6,6 +6,7 @@ from typing import Any, Literal, Self
 from pydantic import Field, field_validator, model_validator
 
 from .ha_context import Attribution, HAContext
+from .manual_source import ManualEvidence
 from .model import Model, utc
 from .quality import FieldValue, ReasonCode, unknown
 
@@ -29,9 +30,18 @@ class Observation(Model):
     source_id: str
     binding_id: str
     adapter: Literal[
-        "ha_state", "ha_attribute", "ha_calendar", "mqtt", "scheduler", "connectivity", "command"
+        "ha_state",
+        "ha_attribute",
+        "ha_calendar",
+        "mqtt",
+        "scheduler",
+        "connectivity",
+        "command",
+        "manual",
     ]
     source_origin: str = "local"
+    origin: Literal["manual"] | None = Field(default=None, exclude_if=lambda value: value is None)
+    manual: ManualEvidence | None = Field(default=None, exclude_if=lambda value: value is None)
     value_raw: Any = None
     value_normalized: Any = None
     normalized: bool = False
@@ -77,6 +87,8 @@ class Observation(Model):
 
     @property
     def measurement(self) -> datetime | None:
+        if self.adapter == "manual" and self.manual:
+            return self.manual.valid_from
         if self.device_time:
             return self.device_time
         return self.ha_measurement
@@ -164,6 +176,19 @@ def assess(
             "unavailable": ReasonCode.INPUT_UNAVAILABLE,
             "unknown": ReasonCode.INPUT_UNKNOWN,
         }[observation.availability]
+    elif observation.adapter == "manual":
+        entry = observation.manual
+        if entry is None or entry.revoked:
+            code = ReasonCode.INPUT_ABSENT
+        elif now < entry.valid_from:
+            code = ReasonCode.INPUT_NOT_YET_VALID
+        elif (
+            entry.valid_until
+            and now >= entry.valid_until
+            or policy.mode == "periodic_ttl"
+            and (now - entry.valid_from).total_seconds() >= (policy.interval_s or 0)
+        ):
+            code = ReasonCode.INPUT_STALE
     elif observation.ha_restored or observation.observation_kind == "restore":
         code = ReasonCode.INPUT_RESTORED
     elif observation.assumed_state:
