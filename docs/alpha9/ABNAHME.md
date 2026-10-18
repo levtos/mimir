@@ -17,7 +17,7 @@ und Review-Nachweise sind vom gesondert freizugebenden Teil B getrennt.
 | G12 Ablauf-Fristen | `5fba6cc` | `tests/test_alpha9_deadlines.py`, `frontend/src/editors/deadlines.test.tsx`: Reset ohne neue Episode, Parameter/Zustandsdauer, absoluter Eingang, unknown-Hold, Altdefinitionen |
 | G10 manuelle Quelle | `1a26906` | `tests/test_alpha9_manual_source.py`, `frontend/src/features/sources/manual.test.tsx`, `frontend/src/editors/manual-source.test.tsx`: typisiert, Gültigkeit, Herkunft, atomare Belege, identische Kennung nach verlorener Antwort, Grenzen ohne JSON; [Firefox](bilder/04-manuelle-quelle.png) |
 | G8/G9 Sensorprüfung und Wertherkunft | `13ecc91` | `tests/test_alpha9_sensor_origin.py`: echte Meldungen, Neustart, Vergleichsquelle, Erholung, Halbintervalle/Prognoselücken und überlappende Belege; Formulartests in `frontend/src/editors/` |
-| Kategorien/Raum außerhalb der Konfiguration | `3a9ab79` | `tests/test_alpha9_editorial.py`, PostgreSQL-Restore-/Zurücksetzen-Test, `frontend/src/features/editorial/`: unveränderte Prüfsumme und Abläufe, aktuelle Ordnung bleibt bei früherem Stand und historischem Entwurf; [Liste](bilder/01-vertraege-kategorie-raum.png), [Vertrag](bilder/02-vertrag-kategorie-raum.png), [Ändern](bilder/03-vertrag-ordnung-aendern.png) |
+| Kategorien/Raum außerhalb der Konfiguration | `3a9ab79` | `tests/test_alpha9_editorial.py`, PostgreSQL-Restore-/Zurücksetzen-Test, `frontend/src/alpha9/editorial.test.tsx`: unveränderte Prüfsumme und Abläufe, aktuelle Ordnung bleibt bei früherem Stand und historischem Entwurf; [Liste](bilder/01-vertraege-kategorie-raum.png), [Vertrag](bilder/02-vertrag-kategorie-raum.png), [Ändern](bilder/03-vertrag-ordnung-aendern.png) |
 | Aufbewahrung, alle Bedingungen, Kopf und Programmversion | `035a95e` | `tests/test_retention.py`, `frontend/src/alpha9/retention-readiness.test.tsx`: 7/730 nur Vorschlag, Stundenwerte ≥ Einzelmessungen, Entwurf → Prüfen → Übernehmen, alle fehlenden Bedingungen ab Erststart, Alpha/Beta dynamisch; [Aufbewahrung](bilder/06-aufbewahrung.png), [System](bilder/07-systemstatus.png), [Kopf](bilder/08-kopfleiste-bereitschaft.png) |
 | Freigegebene Texte und Seitenregel | `b042f0d`, `86abebc` | [TEXTE.md](TEXTE.md), `frontend/src/alpha9-pages.test.tsx`: 27 Routen, Lade-/Fehlerfälle, eine Hauptaktion, lesende Verbindungsprüfung; i18n-Scan **0 harte Oberflächentexte**; [Übersicht](bilder/09-uebersicht.png), [Vollständigkeit](bilder/10-vollstaendigkeit.png) |
 
@@ -25,7 +25,7 @@ und Review-Nachweise sind vom gesondert freizugebenden Teil B getrennt.
 
 - Lokal: **649 Python-Tests bestanden**, vier übersprungen, 19 PostgreSQL-bezogene
   Fälle abgewählt. PostgreSQL, MQTT und HA-Kernel laufen in CI.
-- Frontend: **343 Tests bestanden**, fünf separat gegen die echte Engine ausgeführte
+- Frontend: **344 Tests**, fünf separat gegen die echte Engine ausgeführte
   Fälle in diesem Lauf übersprungen; TypeScript, Wörterbuchprüfung einschließlich acht
   Scanner-Tests, Build und Paketprüfung. Der Ablauf gegen die echte Test-Engine
   baut Verträge über Formulare, prüft/übernimmt sie und testet Umzug, Zurücksetzen
@@ -39,6 +39,12 @@ und Review-Nachweise sind vom gesondert freizugebenden Teil B getrennt.
   echte API/Engine mit flüchtigem Speicher und synthetischen Daten. Keine externen
   Browserabrufe und keine JavaScript-Fehler. Die Aufbewahrungsregel wird für die
   Aufnahmen weder gespeichert noch übernommen.
+
+Zusätzlicher Regressionstest in `frontend/src/alpha7/versions.test.tsx`: Ein
+Bestätigungsdialog bleibt geöffnet, wenn ein neuer Konfigurationsstand die
+Seitenprüfung im Hintergrund zurücksetzt. Der Test schlug vor der Korrektur
+fehl und besteht danach; 31 betroffene Dialog-/Entwurfstests bestehen zusammen.
+„Prüfen“ und „Übernehmen“ verwenden denselben Dialog-Eigentümer im Seitenkopf.
 
 Neue Datenbankmigrationen: 004 (Service-Aufträge/Cache), 005 (manuelle Belege),
 006 (redaktionelle Daten). Laufende Installationen wurden in A2 nicht verändert.

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it } from 'vitest';
 import { Workbench } from '@/Workbench';
@@ -9,13 +9,30 @@ import type { Diff } from '@/lib/types';
 import { installFakeApi, makeDraft, sampleConfig } from '../../test/fakeApi';
 import { idleLive, wrap } from '../../test/harness';
 import valid from '../../test/fixtures/validate-ok.json';
+import { keys } from '@/lib/queries';
 
 beforeEach(() => { sessionStorage.clear(); localStorage.clear(); });
 function app(hash: string) {
   window.location.hash = hash;
-  return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><Workbench onSetup={() => {}} live={idleLive()} /></QueryClientProvider>);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return { ...render(<QueryClientProvider client={client}><Workbench onSetup={() => {}} live={idleLive()} /></QueryClientProvider>), client };
 }
 const revision = (n: number) => ({ revision: n, checksum: String(n).repeat(64), config: sampleConfig(), created_at: '2026-10-16T12:00:00Z' });
+
+it('keeps the page confirmation mounted when a background configuration update resets validation', async () => {
+  const fake = installFakeApi({ revisions: [revision(1)], drafts: [makeDraft('d1', sampleConfig())] });
+  const { client } = app('#/changes/drafts/d1');
+  await screen.findByRole('heading', { name: 'd1', level: 1 });
+  await userEvent.click(await screen.findByRole('button', { name: 'Prüfen' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Übernehmen' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Konfiguration übernehmen' });
+  await within(dialog).findByRole('checkbox', { name: /Auswirkungen geprüft/ });
+  fake.revisions.push(revision(2));
+  await act(async () => { client.setQueryData(keys.active, revision(2)); });
+  await waitFor(() => expect(document.querySelector('[data-page-header] button[data-variant="primary"]')).toHaveTextContent('Prüfen'));
+  await waitFor(() => expect(dialog).toBeVisible());
+  expect(fake.calls.some(call => call.path.endsWith('/activate'))).toBe(false);
+});
 
 it('shows one global save button on the open draft page', async () => {
   installFakeApi({ drafts: [makeDraft('d1', sampleConfig())] }); app('#/changes/drafts/d1');

@@ -97,7 +97,7 @@ export default function DraftPage() {
         description={uiText('alpha9.pages.draft')}
         actions={
           <>
-            {validNow ? <ReviewDraftButton size="md" /> : <Button variant="primary" onClick={() => void doc.validateNow()} disabled={doc.validation.state === 'checking' || doc.saving} disabledReason={uiText('alpha7.copy.validationRunning')}>{uiText('features.authoring.DraftBar.prufen_a1ca13')}</Button>}
+            <ReviewDraftButton size="md" checkFirst={!validNow} />
             <Button onClick={() => downloadText(`${safeFilename(doc.displayName || draft.draft_id)}.json`, exportRegistry(config))}><Download size={14} /> {uiText("features.registry.DraftPage.export_366489")}</Button>
           </>
         }

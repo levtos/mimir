@@ -140,7 +140,7 @@ export function ValidationChip() {
   </>;
 }
 
-export function ReviewDraftButton({ children, size = 'sm', variant = 'primary' }: { children?: React.ReactNode; size?: 'sm' | 'md'; variant?: 'primary' | 'secondary' | 'ghost' }) {
+export function ReviewDraftButton({ children, size = 'sm', variant = 'primary', checkFirst = false }: { children?: React.ReactNode; size?: 'sm' | 'md'; variant?: 'primary' | 'secondary' | 'ghost'; checkFirst?: boolean }) {
   const doc = useWorkingDocument();
   const [target, setTarget] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
@@ -152,7 +152,7 @@ export function ReviewDraftButton({ children, size = 'sm', variant = 'primary' }
     finally { setBusy(false); }
   };
   return <>
-    <Button size={size} variant={variant} disabled={!doc.draft || busy || doc.saving} onClick={() => void review()}>{busy ? uiText('alpha7.draft.preparingReview') : children ?? uiText('alpha7.draft.apply')}</Button>
+    <Button size={size} variant={variant} disabled={!doc.draft || busy || doc.saving || checkFirst && doc.validation.state === 'checking'} disabledReason={uiText('alpha7.copy.validationRunning')} onClick={() => checkFirst ? void doc.validateNow() : void review()}>{busy ? uiText('alpha7.draft.preparingReview') : children ?? uiText(checkFirst ? 'features.authoring.DraftBar.prufen_a1ca13' : 'alpha7.draft.apply')}</Button>
     {!doc.draft && <span className="text-xs text-muted">{uiText('alpha7.draft.noDraft')}</span>}
     {error && <span role="alert" className="text-xs text-bad">{error}</span>}
     {target && <ActivateDialog draft={target} open onOpenChange={open => !open && setTarget(null)} />}
