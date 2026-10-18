@@ -20,7 +20,7 @@ it('opens without a red identity error, adds the prefix automatically and create
   await user.click(await screen.findByRole('button', { name: 'Neue Vorlage' }, { timeout: 5000 }));
   const dialog = await screen.findByRole('dialog', { name: 'Neue Vorlage' });
   expect(dialog.querySelector('[aria-invalid="true"]')).toBeNull();
-  expect(within(dialog).queryByLabelText('Typ-ID')).not.toBeInTheDocument();
+  expect(within(dialog).queryByLabelText("Vorlagenkennung")).not.toBeInTheDocument();
   await user.type(within(dialog).getByLabelText('Name (freiwillig)'), 'Fenster offen');
   await user.click(within(dialog).getByRole('button', { name: 'Anlegen' }));
   await user.click(screen.getByLabelText('Weitere Entwurfsaktionen'));
@@ -45,12 +45,12 @@ it('lets Live viewers inspect every template tab while metadata and semantic con
   const user = userEvent.setup();
   const api = installFakeApi({ revisions: [{ revision: 1, config: example as unknown as JsonObject, checksum: 'sum', created_at: '2026-10-16T12:00:00Z' }] });
   app('#/templates/details/test.flow/1');
-  const name = await screen.findByLabelText('Anzeigename (redaktionell)', {}, { timeout: 5000 });
+  const name = await screen.findByLabelText("Anzeigename", {}, { timeout: 5000 });
   expect(name).toBeDisabled();
   for (const tab of [/Eingänge/, /Ausgaben/, /Benannte Regeln/, /Ablauf/, /JSON/]) {
     const target = screen.getByRole('tab', { name: tab });
     expect(target).toBeEnabled(); await user.click(target); expect(target).toHaveAttribute('aria-selected', 'true');
-    if (tab.source === 'Eingänge') expect(within(screen.getByRole('tabpanel')).queryByText('bool', { exact: true })).not.toBeInTheDocument();
+    if (tab.source === "Verknüpfungen") expect(within(screen.getByRole('tabpanel')).queryByText('bool', { exact: true })).not.toBeInTheDocument();
   }
   expect(screen.getByRole('button', { name: 'Bearbeiten' })).toHaveAttribute('aria-pressed', 'false');
   expect(api.calls.some(call => ['POST', 'PUT', 'DELETE'].includes(call.method))).toBe(false);

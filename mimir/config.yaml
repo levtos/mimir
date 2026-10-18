@@ -1,7 +1,7 @@
 name: Mimir
-version: 1.0.0a8
+version: 1.0.0a9
 slug: mimir
-description: Mimir – Verträge verständlich anlegen und verwalten (Alpha 8)
+description: Mimir – Verträge verständlich anlegen und verwalten (Alpha 9)
 url: https://github.com/Levtos/mimir
 arch: [amd64, aarch64]
 startup: services

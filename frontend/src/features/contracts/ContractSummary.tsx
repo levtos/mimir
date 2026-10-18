@@ -18,6 +18,7 @@ import { problemAdvice } from '@/features/overview/overviewModel';
 import { contractSources, contractState } from './presentation';
 import { ContractStateChip } from './ContractStateChip';
 import { MachineRestartPanel } from './MachineRestartPanel';
+import { ManualSourcePanel } from '@/features/sources/ManualSourcePanel';
 
 interface Point { at: string; field: FieldValue | null }
 export function historyPoints(rows: HistoryItem[], contractId: string, field: string, revision?: number, gaps: HistoryItem[] = []): Point[] {
@@ -86,6 +87,11 @@ export function ContractSummary({ envelope, stale, fields, config, machine }: { 
       <div className="flex flex-wrap gap-x-12 gap-y-5 p-6">{Object.entries(envelope.fields).map(([name, field]) => <div key={name}>
         {Object.keys(envelope.fields).length > 1 && <p className="mb-1 text-sm text-muted">{fieldLabel(name)}</p>}
         <p className="text-4xl font-semibold tabular-nums" data-testid={`value-${name}`}>{displayValue(field, typeof fields[name]?.unit === 'string' ? fields[name].unit : undefined)}</p>
+        {field.value_origin && <p className="mt-2 text-sm text-muted">{t('alpha9.valueOrigin.label')}: {t(`alpha9.valueOrigin.${field.value_origin.kind}`)}</p>}
+        {!!field.input_origins?.length && <p className="mt-1 text-xs text-muted">{t('alpha9.valueOrigin.inputs', { kinds: [...new Set(field.input_origins.map(origin => t(`alpha9.valueOrigin.${origin.kind}`)))].join(', ') })}</p>}
+        {field.plausibility === 'suspicious' && <p className="mt-2 text-sm text-warn">{t('alpha9.sensor.suspicious')}</p>}
+        {!!field.valid_until && <p className="mt-1 text-xs text-muted">{t('alpha9.manual.validUntil')}: {formatTime(field.valid_until)}</p>}
+        {(field.attribution || sources.some(source => source.entityId)) && <p className="mt-2 text-xs text-muted">{t(field.attribution?.kind === 'known_automatic' ? 'alpha9.context.automatic' : 'alpha9.context.unknown')}</p>}
       </div>)}</div>
       <p className="px-6 pb-4 text-xs text-muted">{t('alpha7.contract.liveVersion', { version: envelope.registry_revision, time: formatTime(envelope.published_at) })}</p>
     </Panel>
@@ -97,6 +103,7 @@ export function ContractSummary({ envelope, stale, fields, config, machine }: { 
     <Panel><PanelHeader title={t('alpha7.contract.history')} description={t('alpha7.contract.historyScope')} /><div className="space-y-5 p-5">
       {history.isPending ? <Spinner /> : history.isError ? <p role="alert" className="text-sm text-bad">{t('alpha7.contract.historyUnavailable')}</p> : Object.keys(envelope.fields).map(name => <MiniHistory key={name} name={name} schema={fields[name]} current={stale || gaps.isPending || gaps.isError ? undefined : envelope.fields[name]} points={historyPoints(history.isPlaceholderData ? [] : history.data?.pages.flatMap(page => page.items) ?? [], envelope.contract_id, name, envelope.registry_revision, gaps.isPlaceholderData ? [] : gaps.data?.pages.flatMap(page => page.items) ?? [])} />)}
     </div></Panel>
+    {sources.filter(source => asArray(config?.sources).map(asObject)[source.sourceIndex]?.origin === 'manual').map(source => <ManualSourcePanel key={source.id} sourceId={source.id} />)}
     {machine && <CommandsPanel contractId={envelope.contract_id} onContract={() => {}} fixed />}
     {machine && <MachineRestartPanel key={envelope.contract_id} contractId={envelope.contract_id} />}
     <details onToggle={event => setAdvanced(event.currentTarget.open)}><summary className="cursor-pointer py-2 text-sm text-muted">{t('alpha7.contract.advanced')}</summary>{advanced && <ContractLiveState envelope={envelope} stale={stale} fields={fields} />}</details>

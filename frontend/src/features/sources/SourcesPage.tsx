@@ -1,8 +1,8 @@
+import { Collapsible } from '@/components/ui/controls';
 import { t as uiText } from '@/i18n';
 import { Copy, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router';
-import { NAVIGATION } from '@/lib/navigation';
 import { MasterDetail } from '@/components/MasterDetail';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { ConfirmDialog } from '@/components/ui/dialog';
 import { Empty, PageHeader } from '@/components/ui/layout';
 import { ReadOnlyNotice } from '@/features/authoring/DraftBar';
 import { useAllIssues } from '@/features/authoring/issues';
-import { asArray, str, uniqueName } from '@/features/authoring/model';
+import { asArray, asObject, str, uniqueName } from '@/features/authoring/model';
 import { bindingsUsingCatalog, consumersOfSource, sourcesUsingDependency } from '@/features/authoring/usage';
 import { useAuthoringSource } from '@/features/authoring/useAuthoringSource';
 import { useWorkingDocument } from '@/features/authoring/WorkingDocument';
@@ -19,6 +19,9 @@ import { clone, isObject, setAt, type JsonObject } from '@/lib/json';
 import { useCapabilities } from '@/lib/queries';
 import { describeError } from '@/lib/api';
 import { DeviceWizard } from './DeviceWizard';
+import { CalendarSourceDialog } from './CalendarSourceDialog';
+import { ManualSourceDialog } from './ManualSourceDialog';
+import { ManualSourcePanel } from './ManualSourcePanel';
 import { codeLabel } from '@/i18n/codes';
 import { useSourceSelection } from './useSourceSelection';
 import { SourceMigrationDialog } from './SourceMigrationDialog';
@@ -86,20 +89,22 @@ function Collection({ name, idKey, singular, make, render, subtitle, usage, onMo
 
   return (
     <>
+      {name !== 'sources' && <PageHeader title={uiText(`alpha7.nav.${name}`)} description={uiText(`alpha9.pages.${name}`)} actions={<Button variant="primary" disabled={doc.starting || doc.saving} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => void add()}>{uiText(`alpha9.actions.add${name === 'bindings' ? 'Binding' : name === 'catalogs' ? 'Catalog' : 'Dependency'}`)}</Button>} />}
+      {name !== 'sources' && <ReadOnlyNotice what={singular} />}
       {addError && <p role="alert" className="mb-3 text-sm text-bad">{addError}</p>}
       <MasterDetail
         title={singular}
         items={items}
         selected={current ? String(selected) : null}
         onSelect={(key) => setSelected(Number(key))}
-        onAdd={name === 'sources' ? undefined : () => void add()}
+        onAdd={undefined}
         addLabel={uiText("features.sources.SourcesPage.v0_hinzufugen_198d5a", { v0: (singular) })}
         empty={<Empty title={uiText("features.sources.SourcesPage.v0_wahlen_24a7a9", { v0: (singular) })}>{src.editable ? uiText("features.sources.SourcesPage.wahlen_sie_links_einen_eintrag_oder_legen_sie_mi_17add4") : uiText("features.sources.SourcesPage.wahlen_sie_links_einen_eintrag_zur_ansicht_257139")}</Empty>}
       >
         {current && selected !== null && (
           <div className="flex flex-col gap-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="font-mono text-sm font-semibold">{str(current[idKey]) || uiText("features.sources.SourcesPage.neu_391955")}</h2>
+              <h2 className="text-sm font-semibold">{str(current.display_name) || str(current[idKey]) || uiText("features.sources.SourcesPage.neu_391955")}</h2>
               {onMove && <Button size="sm" onClick={() => onMove(str(current[idKey]))}>{uiText('alpha7.move.action')}</Button>}
               {src.editable && (
                 <div className="flex gap-2">
@@ -109,9 +114,14 @@ function Collection({ name, idKey, singular, make, render, subtitle, usage, onMo
               )}
             </div>
             <div className="text-xs text-muted">{usage(current, config)}</div>
-            <fieldset disabled={!src.editable} className="min-w-0">
-              {render(current, `/${name}/${selected}`, (next) => doc.edit((c) => setAt(c, `/${name}/${selected}`, next)), config)}
-            </fieldset>
+            {name === 'sources' && current.origin === 'manual' && !src.editable ? <>
+              <ManualSourcePanel key={str(current.source_id)} sourceId={str(current.source_id)} />
+              <Collapsible title={uiText('alpha9.manual.configuration')}><fieldset disabled={!src.editable} className="min-w-0">
+              {render(current, `/${name}/${selected}`, (next) => doc.edit((c) => ({ ...setAt(c, `/${name}/${selected}`, next), ...(name === 'sources' && (next.sensor_profile || next.value_origin) ? { config_schema_version: 2 } : {}) })), config)}
+            </fieldset></Collapsible>
+            </> : <><fieldset disabled={!src.editable} className="min-w-0">
+              {render(current, `/${name}/${selected}`, (next) => doc.edit((c) => ({ ...setAt(c, `/${name}/${selected}`, next), ...(name === 'sources' && (next.sensor_profile || next.value_origin) ? { config_schema_version: 2 } : {}) })), config)}
+            </fieldset></>}
           </div>
         )}
       </MasterDetail>
@@ -151,9 +161,10 @@ function SourceSection({ items }: { items: { value: string; label: string; conte
 export default function SourcesPage() {
   const caps = useCapabilities();
   const location = useLocation();
-  const pageTitle = NAVIGATION.find(module => module.id === 'sources')?.children.find(item => item.to === location.pathname)?.label ?? uiText('alpha7.nav.devices');
   const [picker, setPicker] = useState<null | ((entityId: string, attributes: string[]) => void)>(null);
   const [addingDevice, setAddingDevice] = useState(false);
+  const [addingCalendar, setAddingCalendar] = useState(false);
+  const [addingManual, setAddingManual] = useState(false);
   const [deviceError, setDeviceError] = useState('');
   const [movingSource, setMovingSource] = useState<string | null>(null);
   const doc = useWorkingDocument();
@@ -178,11 +189,13 @@ export default function SourcesPage() {
   const registrySchema = caps.data?.schemas.registry;
   return (
     <>
-      <PageHeader title={pageTitle} actions={location.pathname === '/sources/devices' && <Button variant="primary" onClick={() => void addDevice()}>{uiText('alpha7.device.title')}</Button>} />
+      {location.pathname === '/sources/devices' && <PageHeader title={uiText('alpha7.nav.sources')} description={uiText('alpha9.pages.sources')} actions={<Button variant="primary" disabled={doc.starting || doc.saving} onClick={() => void addDevice()}>{uiText('alpha9.actions.addSource')}</Button>} />}
       {deviceError && <p role="alert" className="mb-3 text-sm text-bad">{deviceError}</p>}
-      <DeviceWizard open={addingDevice} onOpenChange={setAddingDevice} manualOption={<Button onClick={() => void addWithoutDevice()}>{uiText('alpha7.device.withoutDevice')}</Button>} onAdded={result => setParams({ tab: 'sources', item: String(result.sourceIndex) }, { replace: true })} />
+      <DeviceWizard open={addingDevice} onOpenChange={setAddingDevice} manualOption={<><Button onClick={() => { setAddingDevice(false); setAddingManual(true); }}>{uiText('alpha9.manual.title')}</Button><Button onClick={() => { setAddingDevice(false); setAddingCalendar(true); }}>{uiText('alpha9.calendar.add')}</Button><Button onClick={() => void addWithoutDevice()}>{uiText('alpha7.device.withoutDevice')}</Button></>} onAdded={result => setParams({ tab: 'sources', item: String(result.sourceIndex) }, { replace: true })} />
+      <ManualSourceDialog open={addingManual} onOpenChange={setAddingManual} onAdded={index => setParams({ tab: 'sources', item: String(index) }, { replace: true })} />
+      <CalendarSourceDialog open={addingCalendar} onOpenChange={setAddingCalendar} onAdded={index => setParams({ tab: 'sources', item: String(index) }, { replace: true })} />
       {movingSource && <SourceMigrationDialog key={movingSource} sourceId={movingSource} onClose={() => setMovingSource(null)} />}
-      <ReadOnlyNotice what={uiText("features.sources.SourcesPage.sources_bindings_613cff")} />
+      {location.pathname === '/sources/devices' && <ReadOnlyNotice what={uiText("features.sources.SourcesPage.sources_bindings_613cff")} />}
       <SourceSection
         items={[
           {
@@ -202,6 +215,7 @@ export default function SourcesPage() {
                 }}
                 render={(item, pointer, onChange, config) => (
                   <SourceEditor
+                    sources={asArray(config.sources).filter(isObject)}
                     value={item}
                     pointer={pointer}
                     onChange={onChange}
@@ -238,7 +252,17 @@ export default function SourcesPage() {
                   <BindingEditor
                     value={item}
                     pointer={pointer}
-                    onChange={onChange}
+                    onChange={next => {
+                      const adapter = asObject(next.adapter);
+                      if (adapter.kind !== 'ha_calendar') {
+                        if (next.refresh !== undefined) doc.edit(current => ({ ...setAt(current, pointer, next), config_schema_version: 2 }));
+                        else onChange(next);
+                        return;
+                      }
+                      doc.edit(current => ({ ...setAt(current, pointer, next), config_schema_version: 2,
+                        sources: asArray(current.sources).map(source => isObject(source) && source.source_id === next.source_id
+                          ? { ...source, freshness: { ...asObject(source.freshness), mode: 'periodic_ttl', interval_s: adapter.max_age_s ?? 3600 } } : source) }));
+                    }}
                     schema={registrySchema}
                     sourceIds={asArray(config.sources).filter(isObject).map((s) => str(s.source_id))}
                     catalogIds={asArray(config.catalogs).filter(isObject).map((c) => str(c.catalog_id))}

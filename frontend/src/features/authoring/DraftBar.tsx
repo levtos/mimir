@@ -140,7 +140,7 @@ export function ValidationChip() {
   </>;
 }
 
-export function ReviewDraftButton({ children, size = 'sm' }: { children?: React.ReactNode; size?: 'sm' | 'md' }) {
+export function ReviewDraftButton({ children, size = 'sm', variant = 'primary', checkFirst = false }: { children?: React.ReactNode; size?: 'sm' | 'md'; variant?: 'primary' | 'secondary' | 'ghost'; checkFirst?: boolean }) {
   const doc = useWorkingDocument();
   const [target, setTarget] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
@@ -152,7 +152,7 @@ export function ReviewDraftButton({ children, size = 'sm' }: { children?: React.
     finally { setBusy(false); }
   };
   return <>
-    <Button size={size} variant="primary" disabled={!doc.draft || busy || doc.saving} onClick={() => void review()}>{busy ? uiText('alpha7.draft.preparingReview') : children ?? uiText('alpha7.draft.apply')}</Button>
+    <Button size={size} variant={variant} disabled={!doc.draft || busy || doc.saving || checkFirst && doc.validation.state === 'checking'} disabledReason={uiText('alpha7.copy.validationRunning')} onClick={() => checkFirst ? void doc.validateNow() : void review()}>{busy ? uiText('alpha7.draft.preparingReview') : children ?? uiText(checkFirst ? 'features.authoring.DraftBar.prufen_a1ca13' : 'alpha7.draft.apply')}</Button>
     {!doc.draft && <span className="text-xs text-muted">{uiText('alpha7.draft.noDraft')}</span>}
     {error && <span role="alert" className="text-xs text-bad">{error}</span>}
     {target && <ActivateDialog draft={target} open onOpenChange={open => !open && setTarget(null)} />}
@@ -161,6 +161,7 @@ export function ReviewDraftButton({ children, size = 'sm' }: { children?: React.
 
 export function DraftBar() {
   const doc = useWorkingDocument();
+  const detailPage = useLocation().pathname.startsWith('/changes/drafts/');
   const saveStatusId = useId();
   const [picker, setPicker] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -195,8 +196,7 @@ export function DraftBar() {
           <span className="min-w-0 text-xs text-muted"><span title={draftLabel({ draft_id: doc.draft.draft_id, display_name: doc.displayName })} className="block max-w-40 truncate">{draftLabel({ draft_id: doc.draft.draft_id, display_name: doc.displayName })}</span><span id={saveStatusId} role="status" className="block">{uiText(doc.saving ? 'alpha7.draft.saving' : doc.dirty ? 'alpha7.draft.notSaved' : 'alpha7.draft.saved')}</span></span>
           <span aria-label={uiText('alpha7.draft.changeCount')} className="text-sm font-medium">{invalid ? <>–<span className="block text-xs font-normal text-muted">{uiText('post1.draft.countAfterErrors')}</span></> : changes === null ? '…' : uiText(changes === 1 ? 'alpha7.draft.oneChange' : 'alpha7.draft.changes', { count: changes })}</span>
           <ValidationChip />
-          <Button size="sm" onClick={() => void doc.validateNow()} disabled={doc.validation.state === 'checking'} disabledReason={uiText('alpha7.copy.validationRunning')}>{uiText("features.authoring.DraftBar.prufen_a1ca13")}</Button>
-          <ReviewDraftButton />
+          {!detailPage && <><Button size="sm" onClick={() => void doc.validateNow()} disabled={doc.validation.state === 'checking'} disabledReason={uiText('alpha7.copy.validationRunning')}>{uiText("features.authoring.DraftBar.prufen_a1ca13")}</Button><ReviewDraftButton variant="secondary" /></>}
           <details className="relative" onClick={event => { if ((event.target as HTMLElement).closest('button')) event.currentTarget.open = false; }}><summary aria-label={uiText('alpha7.draft.more')} className="grid size-8 cursor-pointer list-none place-items-center rounded-lg hover:bg-raised"><MoreHorizontal size={16} /></summary><div className="absolute right-0 top-9 z-30 flex min-w-48 flex-col items-start gap-1 rounded-lg border border-line bg-panel p-2 shadow-xl">
             <Button size="sm" variant="ghost" disabled={!doc.dirty || doc.saving} aria-describedby={saveStatusId} onClick={() => void doc.save()} title={uiText('features.authoring.DraftBar.strg_s_bda7e5')}><Save size={13} />{uiText('features.authoring.DraftBar.speichern_f6b2ff')}</Button>
             {doc.canUndo && <Button size="sm" variant="ghost" onClick={doc.undo}><Undo2 size={13} />{uiText('features.authoring.DraftBar.ruckgangig_dd7bd2')}</Button>}

@@ -24,6 +24,7 @@ export interface ServiceState {
   bridge: string;
   mqtt: string;
   reasons: string[];
+  conditions?: { code: string; satisfied: boolean | null }[];
   ha_disconnected_since?: string | null;
   ha_unbounded_values?: number;
 }
@@ -38,7 +39,14 @@ export interface Reason {
   detail?: string | null;
 }
 
+export interface ValueOrigin { kind: 'measured' | 'replacement' | 'model' | 'forecast'; provider?: string; issued_at?: string | null; valid_from?: string | null; valid_until?: string | null; based_on?: string[] }
 export interface FieldValue {
+  value_origin?: ValueOrigin;
+  input_origins?: ValueOrigin[];
+  valid_from?: string | null;
+  valid_until?: string | null;
+  plausibility?: 'unchecked' | 'plausible' | 'suspicious';
+  attribution?: { kind: 'known_automatic' | 'known_user' | 'unknown'; basis: string; matched_context_id?: string | null };
   configuration?: { complete: boolean; hints: { code: string; message: string }[] };
   status: FieldStatus;
   value: Json;
@@ -148,12 +156,15 @@ export interface HaEntity {
   current_value?: string | null;
   area_id?: string | null;
   area_name?: string | null;
+  area_icon?: string | null;
+  refresh_profiles?: string[];
 }
 
 export interface HaEntityPage {
   items: HaEntity[];
   next_cursor: string | null;
   read_only: boolean;
+  areas?: { area_id: string; area_name: string; area_icon?: string | null }[];
 }
 
 export interface TemporalState {

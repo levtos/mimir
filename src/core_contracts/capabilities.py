@@ -72,6 +72,9 @@ REASONS = {
     ReasonCode.INPUT_UNAVAILABLE: "The source reports unavailable.",
     ReasonCode.INPUT_UNKNOWN: "Decisive input has no usable value.",
     ReasonCode.INPUT_STALE: "The measurement exceeds its configured freshness interval.",
+    ReasonCode.INPUT_NOT_YET_VALID: "The manual input is not valid yet.",
+    ReasonCode.VALUE_VALIDITY_GAP: "No value is valid at the requested instant.",
+    ReasonCode.SENSOR_STUCK: "Explicit sensor profile suspects an unchanged numeric value.",
     ReasonCode.INPUT_RESTORED: "Restored source data is not new measurement evidence.",
     ReasonCode.INPUT_ABSENT: "No observation exists for the required input.",
     ReasonCode.UNMAPPED_VALUE: "The map has no entry for this input.",
@@ -112,6 +115,15 @@ def machine_description(machine: Machine) -> dict[str, Any]:
         "deadline_seconds": machine.definition.deadline_seconds,
         "sessions": machine.definition.sessions,
         "allow_manual_restart": machine.definition.allow_manual_restart,
+        **(
+            {
+                "deadline_by_state": machine.definition.deadline_by_state,
+                "absolute_transition": machine.definition.absolute_transition,
+                "unknown_deadline": "keep_and_block_transition",
+            }
+            if machine.definition.deadline_v2
+            else {}
+        ),
         "transitions": [
             {
                 "source": t.source,
@@ -282,9 +294,12 @@ def enrich_definition_schema(schema: dict[str, Any]) -> dict[str, Any]:
 def capabilities(config: RegistryConfig | None, base: TypeRegistry) -> dict[str, Any]:
     return {
         "capability_version": 1,
-        "language_versions": [1, 2],
+        "language_versions": [1, 2, 3],
+        "machine_deadline_v2": True,
         "api_protocol": 1,
         "config_schema_version": 1,
+        "config_schema_versions": [1, 2],
+        "bridge_protocol_versions": [1, 2],
         "fingerprint_versions": [1, 2],
         "evidence_reference_versions": [1, 2],
         "metadata_access": "authenticated_consumer_or_admin",
@@ -327,6 +342,7 @@ def capabilities(config: RegistryConfig | None, base: TypeRegistry) -> dict[str,
                 ("input", "InputRule"),
                 ("parameter", "ParameterRule"),
                 ("time_reached", "TimeReachedRule"),
+                ("known_automatic", "KnownAutomaticRule"),
                 ("configuration_hint", "ConfigurationHintRule"),
                 *(
                     (name, "TextRule")

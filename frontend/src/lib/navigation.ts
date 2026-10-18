@@ -26,6 +26,8 @@ export const NAVIGATION: NavigationModule[] = [
     { to: '/settings/system', label: t('alpha7.nav.system') },
     { to: '/settings/installation', label: t('alpha7.nav.installation') },
     { to: '/settings/connections', label: t('alpha7.nav.connections') },
+    { to: '/settings/notifications', label: t('alpha9.notifications.title') },
+    { to: '/settings/retention', label: t('alpha9.retention.title') },
     { to: '/settings/keys', label: t('alpha7.nav.keys') },
     { to: '/settings/log', label: t('alpha7.nav.log') },
     { to: '/settings/diagnostics', label: t('alpha7.nav.diagnostics') },

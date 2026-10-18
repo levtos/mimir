@@ -32,7 +32,7 @@ it('makes a successful explicit check visible', async () => {
 
 it('starts a named draft automatically from a creation action and stays on the source page', async () => {
   const user = userEvent.setup(); const fake = installFakeApi(); app();
-  await user.click(await screen.findByRole('button', { name: 'Gerät aus Home Assistant hinzufügen' }));
+  await user.click(await screen.findByRole('button', { name: 'Quelle hinzufügen' }));
   await user.click(await screen.findByRole('button', { name: 'Ohne Gerät anlegen' }));
   await screen.findByLabelText('Name');
   expect(fake.drafts.size).toBe(1);
@@ -44,11 +44,11 @@ it('starts a named draft automatically from a creation action and stays on the s
 
 it('switches to live and back while retaining unsaved edits and the current editor', async () => {
   const user = userEvent.setup(); const fake = installFakeApi(); app();
-  await user.click(await screen.findByRole('button', { name: 'Gerät aus Home Assistant hinzufügen' }));
+  await user.click(await screen.findByRole('button', { name: 'Quelle hinzufügen' }));
   await user.click(await screen.findByRole('button', { name: 'Ohne Gerät anlegen' }));
   const name = await screen.findByLabelText('Name');
   await user.type(name, 'Fenster im Zimmer');
-  await user.click(screen.getByRole('button', { name: 'Live ansehen' }));
+  await user.click(screen.getByRole('button', { name: "Ansehen" }));
   expect(screen.getByText('Deine Änderungen bleiben im Entwurf erhalten.')).toBeVisible();
   expect(screen.queryByLabelText('Name')).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Bearbeiten' }));
@@ -70,7 +70,7 @@ it('opens the error list in place and gives visible feedback after an explicit c
 
 it('saves the candidate and opens confirmation from the bar without activating or leaving the page', async () => {
   const user = userEvent.setup(); const fake = installFakeApi(); app();
-  await user.click(await screen.findByRole('button', { name: 'Gerät aus Home Assistant hinzufügen' }));
+  await user.click(await screen.findByRole('button', { name: 'Quelle hinzufügen' }));
   await user.click(await screen.findByRole('button', { name: 'Ohne Gerät anlegen' }));
   await screen.findByLabelText('Name');
   await user.click(screen.getByRole('button', { name: 'Übernehmen' }));
@@ -90,7 +90,7 @@ it('shows the committed activation acknowledgement while cache refreshes are sti
   let release: ((response: Response) => void) | undefined;
   fake.routes.push({ match: /^registry\/active$/, respond: () => new Promise(resolve => { release = resolve; }) });
   await user.click(within(dialog).getByRole('button', { name: 'Jetzt übernehmen' }));
-  expect(await within(dialog).findByText('Version 1 ist aktiv')).toBeVisible();
+  expect(await within(dialog).findByText("Konfiguration 1 ist aktiv")).toBeVisible();
   expect(fake.revisions).toHaveLength(1);
   release?.(reply(200, fake.revisions[0]));
 });

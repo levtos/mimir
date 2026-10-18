@@ -52,11 +52,11 @@ it('takes units from the supplied active configuration without mutating template
   expect(types[0]!.fields.value?.unit).toBeUndefined();
 });
 
-it('shows only four list columns, a single state chip and the HA name', async () => {
+it('shows category and room alongside the value, a single state chip and the HA name', async () => {
   fake(); app('#/contracts/list/all');
   const table = await screen.findByRole('table', { name: 'Verträge' });
   await within(table).findByText('21,5 °C');
-  expect(within(table).getAllByRole('columnheader').map(cell => cell.textContent)).toEqual(['Name', 'Wert', 'Zustand', 'Quelle']);
+  expect(within(table).getAllByRole('columnheader').map(cell => cell.textContent)).toEqual(['Name', 'Kategorie', 'Raum', 'Wert', 'Zustand', 'Quelle']);
   expect(await within(table).findByText('Zimmerthermometer')).toBeVisible();
   expect(within(table).getAllByText('Gesund')).toHaveLength(1);
   expect(within(table).getByRole('link', { name: 'Temperatur im Zimmer' })).toHaveAttribute('title', 'zimmer');
@@ -89,7 +89,7 @@ it('shows now, a sentence for why, named origin and history with gaps', async ()
   expect(await screen.findByRole('heading', { name: 'Wert jetzt' })).toBeVisible();
   expect(screen.getByTestId('value-value')).toHaveTextContent('21,5 °C');
   expect(screen.getByRole('heading', { name: 'Warum?' })).toBeVisible();
-  expect(screen.getByText('Die benötigten Angaben sind vorhanden und der Server meldet einen gesunden Wert.')).toBeVisible();
+  expect(screen.getByText("Alle benötigten Angaben sind vorhanden und verwendbar.")).toBeVisible();
   expect(await screen.findByRole('link', { name: 'Zimmerthermometer' })).toBeVisible();
   const chart = await screen.findByRole('img', { name: 'Verlauf: Wert' });
   expect(chart.querySelectorAll('polyline')).toHaveLength(2);
@@ -100,7 +100,7 @@ it('starts a draft-only contract with an explicit draft state and no invented li
   const user = userEvent.setup(); const api = installFakeApi(); app('#/contracts/list/all');
   await user.click(await screen.findByRole('button', { name: 'Neuer Vertrag' }));
   await user.click(await screen.findByRole('button', { name: 'Ohne Gerät anlegen' }));
-  await user.type(screen.getByLabelText('Vertrag-ID'), 'mein.neuer');
+  await user.type(screen.getByLabelText("Vertragskennung"), 'mein.neuer');
   await user.click(screen.getByRole('button', { name: 'Anlegen' }));
   expect(await screen.findByText('Dieser Vertrag gehört zum Entwurf. Prüfe ihn und wähle Übernehmen, damit er Werte liefern kann.')).toBeVisible();
   expect(screen.queryByTestId('value-value')).not.toBeInTheDocument();
@@ -123,7 +123,7 @@ it('offers declared flow commands on the detail page and requires confirmation b
   app('#/contracts/view/zimmer', { ...envelope, type: { type_id: 'test.state_machine', type_version: 2 } });
   expect(await screen.findByRole('button', { name: 'Zustand B anfordern' })).toBeVisible();
   expect(screen.queryByLabelText('Befehl')).not.toBeInTheDocument();
-  await user.click(screen.getByRole('button', { name: /Befehle senden/ }));
+  await user.click(screen.getByRole('button', { name: /Befehl senden/ }));
   expect(api.calls.some(call => call.method === 'POST' && call.path === 'commands')).toBe(false);
   await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Senden' }));
   expect(await screen.findByText('angenommen')).toBeVisible();

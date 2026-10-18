@@ -10,6 +10,7 @@ import type { FieldSchema } from '@/features/authoring/model';
 import { isObject, type Json } from '@/lib/json';
 import { cn } from '@/lib/utils';
 import { ValueEditor } from './ValueEditor';
+import { minuteHint } from '@/components/SecondsField';
 
 /** Label + control with the server findings for exactly this JSON Pointer shown at the input. */
 export function Fld({
@@ -220,12 +221,13 @@ export function TypedValueEditor({ schema, value, onChange, pointer, label = uiT
 /** Number input that tolerates intermediate states ("", "-", "1.") while typing. */
 export function NumberField({ label, pointer, value, onChange, hint, min, step }: { label: ReactNode; pointer: string; value: number; onChange: (next: number) => void; hint?: ReactNode; min?: number; step?: number }) {
   const [text, setText] = useState(String(value));
+  const minutes = /(?:_s|_seconds)$/.test(pointer) ? minuteHint(value) : undefined;
   useEffect(() => {
     if (Number(text) !== value) setText(String(value));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
   return (
-    <Fld label={label} pointer={pointer} hint={hint}>
+    <Fld label={label} pointer={pointer} hint={minutes && hint !== minutes ? <>{hint}{hint && ' · '}{minutes}</> : hint}>
       {(props) => (
         <Input
           {...props}

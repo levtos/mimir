@@ -42,15 +42,15 @@ describe('token rotation is explicit, one-shot and never persisted', () => {
     api.routes.push({ match: /^tokens\/rotate$/, method: 'POST', respond: () => reply(200, { role: 'consumer', token: 'NEW-SECRET-TOKEN', status: 'rotated', rotation_id: 'rot-1', audit_status: 'complete' }) });
     const local = vi.spyOn(Storage.prototype, 'setItem');
     mount();
-    const rotate = (await screen.findAllByRole('button', { name: /Zugangsschlüssel rotieren/ }))[0]!;
+    const rotate = (await screen.findAllByRole('button', { name: /Zugangsschlüssel erneuern/ }))[0]!;
     await user.click(rotate);
     const dialog = await screen.findByRole('alertdialog');
-    const go = within(dialog).getByRole('button', { name: 'Jetzt rotieren' });
+    const go = within(dialog).getByRole('button', { name: "Jetzt erneuern" });
     expect(go).toBeDisabled();
     expect(api.calls.some((c) => c.path === 'tokens/rotate')).toBe(false);
     await user.click(within(dialog).getByRole('checkbox'));
     await user.click(go);
-    await screen.findByText(/Zugangsschlüssel rotiert/);
+    await screen.findByText(/Zugangsschlüssel erneuert/);
     expect(api.calls.filter((c) => c.path === 'tokens/rotate')).toHaveLength(1);
     expect(api.calls.find((c) => c.path === 'tokens/rotate')!.body).toEqual({ role: 'consumer' });
     const field = screen.getByLabelText("Neuer Zugangsschlüssel") as HTMLInputElement;
@@ -67,9 +67,9 @@ describe('token rotation is explicit, one-shot and never persisted', () => {
     const api = adminApi();
     api.routes.push({ match: /^tokens\/rotate$/, method: 'POST', respond: () => reply(200, { role: 'admin', token: 'T', status: 'rotated', rotation_id: 'rot-2', audit_status: 'completion_unconfirmed' }) });
     mount();
-    await user.click((await screen.findAllByRole('button', { name: /Zugangsschlüssel rotieren/ }))[1]!);
+    await user.click((await screen.findAllByRole('button', { name: /Zugangsschlüssel erneuern/ }))[1]!);
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('checkbox'));
-    await user.click(screen.getByRole('button', { name: 'Jetzt rotieren' }));
+    await user.click(screen.getByRole('button', { name: "Jetzt erneuern" }));
     await screen.findByText(/Abschluss unbestätigt/);
     expect((screen.getByLabelText("Neuer Zugangsschlüssel") as HTMLInputElement).value).toBe('T');
   });
@@ -79,10 +79,10 @@ describe('token rotation is explicit, one-shot and never persisted', () => {
     let calls = 0;
     api.routes.push({ match: /^tokens\/rotate$/, method: 'POST', respond: () => { calls += 1; return reply(503, { error: 'persistence_unavailable' }); } });
     mount();
-    await user.click((await screen.findAllByRole('button', { name: /Zugangsschlüssel rotieren/ }))[0]!);
+    await user.click((await screen.findAllByRole('button', { name: /Zugangsschlüssel erneuern/ }))[0]!);
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('checkbox'));
-    await user.click(screen.getByRole('button', { name: 'Jetzt rotieren' }));
-    await screen.findByText('Rotation nicht bestätigt');
+    await user.click(screen.getByRole('button', { name: "Jetzt erneuern" }));
+    await screen.findByText("Erneuerung nicht bestätigt");
     expect(screen.getByText(/nicht automatisch wiederholen/)).toBeInTheDocument();
     await new Promise((r) => setTimeout(r, 300));
     expect(calls).toBe(1);
@@ -122,9 +122,9 @@ describe('T1B-07: the one-time credential is held nowhere but the visible compon
         </MemoryRouter>
       </QueryClientProvider>,
     );
-    await user.click((await screen.findAllByRole('button', { name: /Zugangsschlüssel rotieren/ }))[0]!);
+    await user.click((await screen.findAllByRole('button', { name: /Zugangsschlüssel erneuern/ }))[0]!);
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('checkbox'));
-    await user.click(screen.getByRole('button', { name: 'Jetzt rotieren' }));
+    await user.click(screen.getByRole('button', { name: "Jetzt erneuern" }));
     await screen.findByLabelText("Neuer Zugangsschlüssel");
     expect((screen.getByLabelText("Neuer Zugangsschlüssel") as HTMLInputElement).value).toBe('SYNTHETIC-TOKEN-123'); // still usable for the user
     expect(dump(client)).not.toContain('SYNTHETIC-TOKEN-123');

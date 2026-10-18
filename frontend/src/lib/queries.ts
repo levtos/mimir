@@ -168,17 +168,19 @@ export function useDraftMutations() {
     }),
     update: useMutation({
       retry: false,
-      mutationFn: (input: { draft: Draft; config: Registry; display_name?: string }) =>
+      mutationFn: (input: { draft: Draft; config: Registry; display_name?: string; editorial?: import('@/features/editorial/model').EditorialEntry[] }) =>
         api<Draft>(`registry/drafts/${encodeURIComponent(input.draft.draft_id)}`, {
           method: 'PUT',
           body: {
             config: input.config,
             draft_version: input.draft.draft_version,
             ...(input.display_name !== undefined ? { display_name: input.display_name } : {}),
+            ...(input.editorial ? { editorial: input.editorial } : {}),
           },
         }),
       onSuccess: (draft) => {
         client.setQueryData(keys.draft(draft.draft_id), draft);
+        void client.invalidateQueries({ queryKey: ['editorial'] });
         void refresh();
       },
     }),
@@ -202,7 +204,7 @@ export function useActivation() {
   const client = useQueryClient();
   const done = () =>
     Promise.all(
-      [keys.active, keys.export, keys.revisions, keys.drafts, keys.capabilities, keys.sources, keys.bindings, keys.diagnostics, ['history']].map(
+      [keys.active, keys.export, keys.revisions, keys.drafts, keys.capabilities, keys.sources, keys.bindings, keys.diagnostics, ['history'], ['editorial']].map(
         (key) => client.invalidateQueries({ queryKey: key }),
       ),
     );

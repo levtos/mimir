@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it } from 'vitest';
 import { Workbench } from '@/Workbench';
@@ -9,20 +9,37 @@ import type { Diff } from '@/lib/types';
 import { installFakeApi, makeDraft, sampleConfig } from '../../test/fakeApi';
 import { idleLive, wrap } from '../../test/harness';
 import valid from '../../test/fixtures/validate-ok.json';
+import { keys } from '@/lib/queries';
 
 beforeEach(() => { sessionStorage.clear(); localStorage.clear(); });
 function app(hash: string) {
   window.location.hash = hash;
-  return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><Workbench onSetup={() => {}} live={idleLive()} /></QueryClientProvider>);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return { ...render(<QueryClientProvider client={client}><Workbench onSetup={() => {}} live={idleLive()} /></QueryClientProvider>), client };
 }
 const revision = (n: number) => ({ revision: n, checksum: String(n).repeat(64), config: sampleConfig(), created_at: '2026-10-16T12:00:00Z' });
+
+it('keeps the page confirmation mounted when a background configuration update resets validation', async () => {
+  const fake = installFakeApi({ revisions: [revision(1)], drafts: [makeDraft('d1', sampleConfig())] });
+  const { client } = app('#/changes/drafts/d1');
+  await screen.findByRole('heading', { name: 'd1', level: 1 });
+  await userEvent.click(await screen.findByRole('button', { name: 'Prüfen' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Übernehmen' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Konfiguration übernehmen' });
+  await within(dialog).findByRole('checkbox', { name: /Auswirkungen geprüft/ });
+  fake.revisions.push(revision(2));
+  await act(async () => { client.setQueryData(keys.active, revision(2)); });
+  await waitFor(() => expect(document.querySelector('[data-page-header] button[data-variant="primary"]')).toHaveTextContent('Prüfen'));
+  await waitFor(() => expect(dialog).toBeVisible());
+  expect(fake.calls.some(call => call.path.endsWith('/activate'))).toBe(false);
+});
 
 it('shows one global save button on the open draft page', async () => {
   installFakeApi({ drafts: [makeDraft('d1', sampleConfig())] }); app('#/changes/drafts/d1');
   await screen.findByRole('heading', { name: 'd1', level: 1 }, { timeout: 5000 });
   expect(screen.getByRole('button', { name: 'Speichern' }).closest('details')).not.toHaveAttribute('open');
   expect(screen.getAllByText('im Entwurf gespeichert')).toHaveLength(1);
-  expect(screen.getAllByRole('button', { name: 'Übernehmen' })).toHaveLength(1);
+  expect(screen.getByRole('button', { name: 'Prüfen' })).toHaveAttribute('data-variant', 'primary');
   await userEvent.click(screen.getByLabelText('Weitere Entwurfsaktionen'));
   expect(screen.getAllByRole('button', { name: 'Speichern' })).toHaveLength(1);
   await userEvent.click(screen.getByLabelText('Weitere Entwurfsaktionen'));
@@ -52,13 +69,13 @@ it('shows time, recorded actor and note; exposes rollback only on an older versi
   await screen.findByText('Wohnzimmer ergänzt', {}, { timeout: 5000 });
   expect(screen.getByText('Wer: nicht bekannt', { exact: false })).toBeVisible();
   expect(screen.getByText('Administrator · App-Oberfläche', { exact: false })).toBeVisible();
-  const old = screen.getByText('Version 1', { exact: true }).closest('li')!;
+  const old = screen.getByText("Konfiguration 1", { exact: true }).closest('li')!;
   const current = screen.getByText('Wohnzimmer ergänzt').closest('li')!;
-  await waitFor(() => expect(within(old).getByRole('button', { name: 'Auf diese Version zurücksetzen' })).toBeEnabled());
+  await waitFor(() => expect(within(old).getByRole('button', { name: 'Auf diese Konfiguration zurücksetzen' })).toBeEnabled());
   expect(within(current).queryByRole('button', { name: /zurücksetzen/ })).toBeNull();
   expect(within(current).getByText('aktiv', { exact: true })).toHaveClass('text-info');
   expect(current.querySelector('details[open]')).toBeNull();
-  expect(screen.getByText('Wähle zwei Versionen über die Kästchen links aus.')).toBeVisible();
+  expect(screen.getByText('Wähle zwei Konfigurationen über die Kästchen links aus.')).toBeVisible();
 });
 
 it('invalidates the confirmation when the optional note changes and sends the note with both OCC tokens', async () => {
@@ -67,17 +84,17 @@ it('invalidates the confirmation when the optional note changes and sends the no
   wrap(<ActivateDialog draft={draft} open onOpenChange={() => {}} />, { live: idleLive() });
   const confirm = await screen.findByRole('checkbox', { name: /Ich habe die Auswirkungen geprüft/ });
   await user.click(confirm);
-  await user.type(screen.getByLabelText('Notiz zur neuen Version (freiwillig)'), 'Temperatursensor ergänzt');
+  await user.type(screen.getByLabelText('Notiz zur neuen Konfiguration (freiwillig)'), 'Temperatursensor ergänzt');
   expect(screen.getByRole('button', { name: 'Jetzt übernehmen' })).toBeDisabled();
   await user.click(confirm); await user.click(screen.getByRole('button', { name: 'Jetzt übernehmen' }));
-  await screen.findByText('Version 5 ist aktiv');
+  await screen.findByText("Konfiguration 5 ist aktiv");
   expect(api.calls.find(call => call.path.endsWith('/activate'))?.body).toEqual({ draft_version: 1, expected_active_revision: 4, note: 'Temperatursensor ergänzt' });
 });
 
 it('cannot confirm a rollback dialog opened for the current version', async () => {
   const api = installFakeApi({ revisions: [revision(4)] });
   wrap(<RollbackDialog revision={revision(4)} open onOpenChange={() => {}} />, { live: idleLive() });
-  await screen.findByText('Zurücksetzen ist nur auf eine ältere Version möglich.');
+  await screen.findByText('Zurücksetzen ist nur auf eine ältere Konfiguration möglich.');
   expect(screen.queryByRole('checkbox')).toBeNull();
   expect(screen.getByRole('button', { name: 'Zurücksetzen' })).toBeDisabled();
   expect(api.calls.some(call => call.path === 'registry/rollback')).toBe(false);
@@ -89,8 +106,8 @@ it('describes first activation without warning chips or invented loss of existin
   diff.fingerprint_version = { before: null, after: 2, context_migration: true };
   diff.possibly_invalidated_contexts = ['new.contract'];
   const view = wrap(<DiffView diff={diff} />);
-  expect(screen.getByText(/Sie beginnen nach dem Übernehmen zum ersten Mal/)).toBeVisible();
-  expect(screen.queryByText('Mögliche Neuinitialisierung')).toBeNull();
+  expect(screen.getByText(/Ihre Aufzeichnung beginnt nach dem Übernehmen/)).toBeVisible();
+  expect(screen.queryByText("Abläufe können neu beginnen")).toBeNull();
   expect(view.container.querySelector('[class*="text-warn"]')).toBeNull();
 });
 
@@ -98,7 +115,7 @@ it('keeps the warning for an existing context affected by changed semantics', ()
   const diff = structuredClone(valid.diff) as Diff;
   diff.added = ['new.contract']; diff.possibly_invalidated_contexts = ['new.contract', 'old.contract'];
   wrap(<DiffView diff={diff} />);
-  const row = screen.getByText('Mögliche Neuinitialisierung').closest('div')!;
+  const row = screen.getByText("Abläufe können neu beginnen").closest('div')!;
   expect(within(row).getByText('old.contract')).toBeVisible();
   expect(within(row).queryByText('new.contract')).toBeNull();
 });

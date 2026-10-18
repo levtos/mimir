@@ -7,13 +7,18 @@ from typing import Any, Literal, Self
 from pydantic import Field as PField
 from pydantic import field_validator, model_validator
 
+from .ha_context import Attribution
 from .model import Model, utc
+from .value_origin import ValueOrigin, contributions, interval_bounds
 
 
 class ReasonCode(StrEnum):
     INPUT_UNAVAILABLE = "input_unavailable"
     INPUT_UNKNOWN = "input_unknown"
     INPUT_STALE = "input_stale"
+    INPUT_NOT_YET_VALID = "input_not_yet_valid"
+    VALUE_VALIDITY_GAP = "value_validity_gap"
+    SENSOR_STUCK = "sensor_stuck_suspected"
     INPUT_RESTORED = "input_restored"
     INPUT_ABSENT = "input_absent"
     UNMAPPED_VALUE = "unmapped_value"
@@ -71,13 +76,23 @@ class FieldValue(Model):
     reasons: tuple[Reason, ...] = ()
     evidence: tuple[str, ...] = ()
     measured_at: datetime | None = None
+    attribution: Attribution | None = PField(default=None, exclude_if=lambda value: value is None)
+    value_origin: ValueOrigin | None = PField(default=None, exclude_if=lambda value: value is None)
+    input_origins: tuple[ValueOrigin, ...] = PField(
+        default=(), max_length=64, exclude_if=lambda value: not value
+    )
+    valid_from: datetime | None = PField(default=None, exclude_if=lambda value: value is None)
+    valid_until: datetime | None = PField(default=None, exclude_if=lambda value: value is None)
+    plausibility: Literal["unchecked", "plausible", "suspicious"] | None = PField(
+        default=None, exclude_if=lambda value: value is None
+    )
     grace_declared: bool = False
     positively_not_applicable: bool = False
     configuration: ConfigurationStatus = PField(
         default_factory=ConfigurationStatus, exclude_if=lambda value: value.complete
     )
 
-    @field_validator("held_until", "since_at", "measured_at")
+    @field_validator("held_until", "since_at", "measured_at", "valid_from", "valid_until")
     @classmethod
     def times(cls, value: datetime | None) -> datetime | None:
         return utc(value) if value else None
@@ -108,8 +123,13 @@ class FieldValue(Model):
         return self
 
     def usable(self, now: datetime) -> bool:
-        return self.status == "valid" or (
-            self.status == "held" and self.held_until is not None and self.held_until > now
+        return (
+            (self.valid_from is None or self.valid_from <= now)
+            and (self.valid_until is None or now < self.valid_until)
+            and (
+                self.status == "valid"
+                or (self.status == "held" and self.held_until is not None and self.held_until > now)
+            )
         )
 
 
@@ -135,6 +155,14 @@ def derive(value: Any, inputs: list[FieldValue], now: datetime) -> FieldValue:
         )
     ends = [i.held_until for i in inputs if i.status == "held" and i.held_until]
     times = [i.measured_at for i in inputs if i.measured_at]
+    origins = contributions(inputs)
+    begins = [item.valid_from for item in inputs if item.valid_from]
+    finishes = [item.valid_until for item in inputs if item.valid_until]
+    begin, finish = interval_bounds(origins)
+    if begin:
+        begins.append(begin)
+    if finish:
+        finishes.append(finish)
     return FieldValue(
         status="held" if ends else "valid",
         value=value,
@@ -144,5 +172,14 @@ def derive(value: Any, inputs: list[FieldValue], now: datetime) -> FieldValue:
         reasons=tuple(r for i in inputs for r in i.reasons),
         evidence=tuple(dict.fromkeys(e for i in inputs for e in i.evidence)),
         measured_at=min(times) if times else None,
+        attribution=inputs[0].attribution
+        if inputs and all(item.attribution == inputs[0].attribution for item in inputs)
+        else None,
         configuration=configuration,
+        input_origins=origins,
+        valid_from=max(begins, default=None),
+        valid_until=min(finishes, default=None),
+        plausibility="suspicious"
+        if any(item.plausibility == "suspicious" for item in inputs)
+        else None,
     )

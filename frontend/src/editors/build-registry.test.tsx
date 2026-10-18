@@ -24,7 +24,7 @@ function mount(initial: JsonObject, render: (value: JsonObject, set: (n: JsonObj
 describe('registry objects are fully editable without JSON', () => {
   it('dependency', async () => {
     const result = mount({ dependency_id: 'dep.neu', kind: 'ha', monitor: 'internal' }, (v, set) => <DependencyEditor value={v} onChange={set} pointer="/dependencies/0" sourceIds={[]} schema={schema} />);
-    await type(screen.getByLabelText("Abhängigkeit-ID"), 'dep.test');
+    await type(screen.getByLabelText("Kennung der Verbindung"), 'dep.test');
     expect(result()).toEqual(doc.dependencies![0]);
   });
 
@@ -33,9 +33,10 @@ describe('registry objects are fully editable without JSON', () => {
       { source_id: 'source.neu', source_type: 'boolean', source_origin: 'local', freshness: { mode: 'event_stateful', future_tolerance_s: 1 }, dependency_id: 'dep.test', physical_source_key: 'physical.neu' },
       (v, set) => <SourceEditor value={v} onChange={set} pointer="/sources/0" dependencyIds={['dep.test']} sourceIds={['source.a']} schema={schema} />,
     );
-    await user.click(screen.getByRole('button', { name: 'Erweitert' }));
-    await type(screen.getByLabelText("Quelle-ID"), 'source.a');
-    await type(screen.getByLabelText('Physischer Schlüssel'), 'physical.a');
+    const sourceEditor = screen.getByLabelText('Name').parentElement!.parentElement!;
+    await user.click(within(sourceEditor).getAllByRole('button', { name: 'Erweitert' })[0]!);
+    await type(screen.getByLabelText("Quellenkennung"), 'source.a');
+    await type(screen.getByLabelText("Kennung der Messquelle"), 'physical.a');
     expect(result()).toEqual(doc.sources![0]);
   });
 
@@ -47,20 +48,20 @@ describe('registry objects are fully editable without JSON', () => {
     expect(screen.queryByLabelText(/Intervall/)).toBeNull();
     await user.selectOptions(screen.getByLabelText('Modus'), 'liveness_source');
     expect(screen.getByLabelText(/Intervall/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Erreichbarkeitsquelle/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Quelle für das Lebenszeichen/)).toBeInTheDocument();
   });
 
   it('binding with HA entity and optional transform', async () => {
     const result = mount({ binding_id: 'binding.neu', source_id: 'source.a', adapter: { kind: 'ha_state' } }, (v, set) => (
       <BindingEditor value={v} onChange={set} pointer="/bindings/0" sourceIds={['source.a', 'source.b']} sources={doc.sources as JsonObject[]} catalogIds={[]} schema={schema} onPickEntity={() => {}} />
     ));
-    await type(screen.getByLabelText("Verknüpfung-ID"), 'binding.a');
-    await type(screen.getByLabelText(/^HA-Entität \*/), 'sensor.example_1');
+    await type(screen.getByLabelText("Kennung der Verknüpfung"), 'binding.a');
+    await type(screen.getByLabelText(/^Gerät oder Wert in Home Assistant \*/), 'sensor.example_1');
     await user.click(screen.getByRole('button', { name: 'Umwandlung ergänzen' }));
     expect(result()).toEqual(doc.bindings![0]);
-    await user.selectOptions(screen.getByLabelText('Transformation'), 'type_cast');
+    await user.selectOptions(screen.getByLabelText("Umwandlung"), 'type_cast');
     expect(result().transform).toEqual({ kind: 'type_cast', target: 'bool' });
-    await user.selectOptions(screen.getByLabelText('Transformation'), '');
+    await user.selectOptions(screen.getByLabelText("Umwandlung"), '');
     expect('transform' in result() && result().transform !== undefined).toBe(false);
   });
 
@@ -68,8 +69,8 @@ describe('registry objects are fully editable without JSON', () => {
     mount({ binding_id: 'b', source_id: 'source.a', adapter: { kind: 'mqtt' } }, (v, set) => (
       <BindingEditor value={v} onChange={set} pointer="/bindings/0" sourceIds={['source.a']} catalogIds={[]} schema={schema} onPickEntity={() => {}} />
     ));
-    expect(screen.getByLabelText(/Topic/)).toBeInTheDocument();
-    expect(screen.queryByLabelText(/^HA-Entität \*/)).toBeNull();
+    expect(screen.getByLabelText(/MQTT-Kanal/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Gerät oder Wert in Home Assistant \*/)).toBeNull();
   });
 
   it('contract instance: type, enabled and typed input references', async () => {
@@ -78,8 +79,8 @@ describe('registry objects are fully editable without JSON', () => {
     const result = mount({ contract_id: 'x', type_id: 'test.either', type_version: 1, enabled: true, inputs: [], parameters: {} }, (v, set) => (
       <ContractEditor value={v} onChange={set} pointer="/contracts/2" types={types} refs={refs} />
     ));
-    await type(screen.getByLabelText("Vertrag-ID"), 'fixture.either');
-    const refSelects = screen.getAllByLabelText('Referenz');
+    await type(screen.getByLabelText("Vertragskennung"), 'fixture.either');
+    const refSelects = screen.getAllByLabelText("Verknüpfter Wert");
     await user.selectOptions(refSelects[0]!, 'fixture.left');
     await user.selectOptions(refSelects[1]!, 'fixture.right');
     expect(result()).toEqual(doc.contracts![2]);

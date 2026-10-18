@@ -44,6 +44,11 @@ TABLES = (
     "command_log",
     "history_gap",
     "diagnostic_event",
+    "service_job",
+    "service_state",
+    "manual_request",
+    "editorial_current",
+    "editorial_draft",
 )
 IMMUTABLE = {
     "registry_revision",
@@ -53,6 +58,7 @@ IMMUTABLE = {
     "sm_transition",
     "history_gap",
     "diagnostic_event",
+    "manual_request",
 }
 LOCK_ID = 1128484913
 LOGGER = logging.getLogger(__name__)
@@ -172,6 +178,7 @@ class Store(Protocol):
     ) -> list[dict[str, Any]]: ...
     async def history(self, table: str, query: HistoryQuery) -> dict[str, Any]: ...
     async def definition(self, type_id: str, version: int) -> dict[str, Any] | None: ...
+    async def sensor_profile(self, profile_id: str, version: int) -> dict[str, Any] | None: ...
     async def source_history(
         self, source_id: str, *, include_revision: bool = False
     ) -> list[dict[str, Any]]: ...
@@ -179,6 +186,16 @@ class Store(Protocol):
 
 
 class PostgresStore:
+    async def sensor_profile(self, profile_id: str, version: int) -> dict[str, Any] | None:
+        if self.pool is None:
+            raise PersistenceUnavailable("persistence_unavailable")
+        value = await self.pool.fetchval(
+            "SELECT source->'sensor_profile' FROM registry_revision, LATERAL jsonb_array_elements(payload->'config'->'sources') AS entries(source) WHERE source->'sensor_profile'->>'id'=$1 AND source->'sensor_profile'->>'version'=$2 ORDER BY (payload->>'revision')::bigint DESC LIMIT 1",
+            profile_id,
+            str(version),
+        )
+        return json.loads(value) if value is not None else None
+
     async def observation_history(self, query: HistoryQuery) -> dict[str, Any]:
         if self.pool is None:
             raise PersistenceUnavailable("persistence_unavailable")
@@ -543,6 +560,19 @@ class PostgresStore:
 
 
 class MemoryStore:
+    async def sensor_profile(self, profile_id: str, version: int) -> dict[str, Any] | None:
+        await self.probe()
+        for _, revision in sorted(
+            self.state.tables["registry_revision"].items(),
+            key=lambda row: int(row[0]),
+            reverse=True,
+        ):
+            for source in revision["config"]["sources"]:
+                profile = source.get("sensor_profile")
+                if profile and (profile["id"], profile["version"]) == (profile_id, version):
+                    return dict(copy.deepcopy(profile))
+        return None
+
     """Transactional test double only; the application always constructs PostgresStore."""
 
     def __init__(self) -> None:

@@ -17,7 +17,7 @@ it('chooses an active source by name and renders saved clocks and values as a Ge
   api.routes.push({ match: /^evidence\//, respond: () => reply(200, [{ source_id: 'source.a', binding_id: 'binding.a', value_raw: '21.5', value_normalized: 21.5, normalized: true, observation_kind: 'report', device_time: null, received_at: '2026-10-16T12:00:00Z', availability: 'available' }]) });
   const view = wrap(<EvidenceTab />);
   const picker = await screen.findByLabelText('Quelle auswählen');
-  expect(screen.queryByLabelText('Nachweis-Referenz')).toBeNull();
+  expect(screen.queryByLabelText("Kennung des Nachweises")).toBeNull();
   expect(api.calls.some(call => call.path.startsWith('evidence/'))).toBe(false);
   await user.selectOptions(picker, 'source.a');
   const table = await screen.findByRole('table', { name: 'Gespeicherter Nachweis' });
@@ -52,8 +52,8 @@ it('clearly marks the graph as live, explains unavailable controls, and keeps na
   const user = userEvent.setup(); installFakeApi({ revisions: [revision] });
   window.location.hash = '#/contracts/relations/graph?node=contract%3Araum';
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><Workbench onSetup={() => {}} live={idleLive()} /></QueryClientProvider>);
-  await screen.findByText(/Laufende Konfiguration in Version 1/, {}, { timeout: 5000 });
-  expect(screen.getByText('Gib zuerst den Namen eines Objekts ein.')).toBeVisible();
+  await screen.findByText(/Verknüpfungen der Konfiguration 1/, {}, { timeout: 5000 });
+  expect(screen.getByText("Gib zuerst einen Namen in die Suche ein.")).toBeVisible();
   await user.click(await screen.findByRole('button', { name: 'Detailansicht' }));
   await waitFor(() => expect(window.location.hash).toBe('#/contracts/view/raum'));
 });

@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import signal
 from pathlib import Path
 from typing import Literal
@@ -254,6 +255,13 @@ async def run(options: Options | None, data: Path, migrations: Path, frontend: P
                 loaded.publication_seq = last["publication_seq"]
                 runtime._gap(loaded, "database_older_than_last_shutdown")
                 await store.commit(loaded)
+        runtime.installation_id = installation_id
+        hostname = os.environ.get("HOSTNAME", "")
+        runtime.ingress_slug = (
+            hostname.removeprefix("addon_")
+            if re.fullmatch(r"addon_[a-f0-9]{8}_mimir", hostname)
+            else None
+        )
         await runtime.start()
         setup.initialized()
         return installation_id
@@ -340,6 +348,7 @@ async def run(options: Options | None, data: Path, migrations: Path, frontend: P
                     tasks = [
                         group.create_task(bridge.run(), name="ha_adapter"),
                         group.create_task(bridge.refresh_worker(), name="ha_refresh"),
+                        group.create_task(bridge.service_worker(), name="ha_services"),
                         group.create_task(mqtt.run(), name="mqtt_adapter"),
                         group.create_task(clock.run(), name="clock"),
                         group.create_task(health(), name="health"),

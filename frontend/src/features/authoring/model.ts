@@ -127,6 +127,7 @@ export function newRule(op: string, ctx: RuleContext, defaults: OperatorDefaults
     case 'machine':
       return { op };
     case 'not_applicable':
+    case 'known_automatic':
       return { op, arg: inputRule() };
     default:
       return { op };
@@ -189,6 +190,17 @@ export function definitionRoots(definition: JsonObject): { path: (string | numbe
   add(['machine', 'reinitialize_when'], machine.reinitialize_when);
   asArray(machine.transitions).forEach((t, i) => add(['machine', 'transitions', i, 'guard'], asObject(t).guard));
   return roots;
+}
+
+/** An explicit edit opts into new capabilities; simply loading an old definition changes nothing. */
+export function withMinimumLanguage(definition: JsonObject): JsonObject {
+  let version = Number(definition.language_version ?? 1);
+  const machine = asObject(definition.machine);
+  if (Object.keys(asObject(definition.output_origins)).length || machine.unknown_deadline || machine.absolute_transition || Object.keys(asObject(machine.deadline_by_state)).length) version = Math.max(version, 3);
+  for (const { rule } of definitionRoots(definition)) walkRule(rule, node => {
+    if (node.op === 'known_automatic') version = Math.max(version, 3);
+  });
+  return version > Number(definition.language_version ?? 1) ? { ...definition, language_version: version } : definition;
 }
 
 export function collectStatefulIds(definition: JsonObject): Set<string> {

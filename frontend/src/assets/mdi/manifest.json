@@ -1,0 +1,9 @@
+{
+  "version": "7.4.47",
+  "license": "Apache-2.0",
+  "paths": 7447,
+  "shards": 64,
+  "total_bytes": 2741249,
+  "largest_shard_bytes": 54368,
+  "initial_paths_bytes": 991
+}

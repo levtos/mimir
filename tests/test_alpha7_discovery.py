@@ -60,7 +60,7 @@ async def test_preview_is_explicit_admin_only_bounded_and_separate_from_metadata
         assert preview["items"][0]["area_name"] == "Büro"  # entity assignment wins
         assert "hidden" not in str(preview)
         assert (await client.get("/api/v1/ha/entities?preview=1", headers=headers)).status == 200
-        assert len(fixture.requests) == 4
+        assert len(fixture.requests) == 5
         metadata = await (await client.get("/api/v1/ha/entities", headers=headers)).json()
         assert "current_value" not in metadata["items"][0]
         assert "21.5" not in str(metadata)
@@ -75,6 +75,7 @@ async def test_preview_is_explicit_admin_only_bounded_and_separate_from_metadata
             "config/area_registry/list",
             "config/device_registry/list",
             "config/entity_registry/list",
+            "bifrost/negotiate",
         }
         for request in fixture.requests
     )
@@ -86,7 +87,10 @@ async def test_preview_uses_device_area_without_entity_override_and_caps_state_l
     fixture = FakeHA(
         {"sensor.room": {"state": "x" * 1000, "attributes": {}}},
         registries={
-            "config/area_registry/list": [{"area_id": "living", "name": "Wohnzimmer"}],
+            "config/area_registry/list": [
+                {"area_id": "living", "name": "Wohnzimmer"},
+                {"area_id": "empty", "name": "Leerer Raum", "icon": "mdi:desk"},
+            ],
             "config/device_registry/list": [{"id": "device", "area_id": "living"}],
             "config/entity_registry/list": [
                 {"entity_id": "sensor.room", "device_id": "device", "area_id": None}
@@ -99,3 +103,7 @@ async def test_preview_uses_device_area_without_entity_override_and_caps_state_l
         item = (await adapter.discover(preview=True))[0]
     assert item["area_name"] == "Wohnzimmer"
     assert len(item["current_value"]) == 256
+    assert runtime.discovered_areas == [
+        {"area_id": "living", "area_name": "Wohnzimmer", "area_icon": None},
+        {"area_id": "empty", "area_name": "Leerer Raum", "area_icon": "mdi:desk"},
+    ]

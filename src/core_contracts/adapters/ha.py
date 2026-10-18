@@ -5,13 +5,16 @@ import logging
 from datetime import datetime
 from math import isfinite
 from typing import Any
+from uuid import uuid4
 
 import aiohttp
 
 from ..evidence import Observation
+from ..ha_context import ContextIndex, HAContext
 from ..model import utc
 from ..registry import Binding, RegistryConfig
 from ..runtime import Runtime
+from ..value_origin import normalize as normalize_origin
 
 LOGGER = logging.getLogger(__name__)
 
@@ -58,6 +61,12 @@ class BridgeAdapter:
         self.states: dict[str, dict[str, Any] | None] = {}
         self.sequence = 0
         self.bridge_version: str | None = None
+        self.protocol_selected = 1
+        self.socket: aiohttp.ClientWebSocketResponse | None = None
+        self.requests: dict[int, asyncio.Future[Any]] = {}
+        self.request_number = 1000
+        self.contexts = ContextIndex()
+        runtime.context_index = self.contexts
         self.subscription_count = 0
         self.retry_delay = 1.0
         self.discovery_cache: list[dict[str, Any]] = []
@@ -74,6 +83,8 @@ class BridgeAdapter:
             if self.runtime.clock.monotonic() - cached_at < 15:
                 return self.discovery_preview_cache if preview else self.discovery_cache
             areas, devices, entries = {}, {}, {}
+            area_metadata: list[dict[str, Any]] | None = None
+            enriched: dict[str, dict[str, Any]] = {}
             async with asyncio.timeout(10):
                 async with self.session.ws_connect(
                     self.url, heartbeat=20, max_msg_size=4_000_000
@@ -107,6 +118,18 @@ class BridgeAdapter:
                             if not isinstance(rows, list) or len(rows) > 10000:
                                 raise ValueError("discovery_resource_limit")
                             registries.append([row for row in rows if isinstance(row, dict)])
+                            if kind == "area":
+                                area_metadata = [
+                                    {
+                                        "area_id": row["area_id"][:256],
+                                        "area_name": row["name"][:128],
+                                        "area_icon": row.get("icon"),
+                                    }
+                                    for row in registries[-1]
+                                    if isinstance(row.get("area_id"), str)
+                                    and isinstance(row.get("name"), str)
+                                    and row["name"].strip()
+                                ]
                         areas = {
                             row.get("area_id"): row.get("name")
                             for row in registries[0]
@@ -122,6 +145,46 @@ class BridgeAdapter:
                             for row in registries[2]
                             if isinstance(row.get("entity_id"), str)
                         }
+                        await socket.send_json(
+                            {"id": 5, "type": "bifrost/negotiate", "supported_versions": [2, 1]}
+                        )
+                        negotiated = await socket.receive_json()
+                        if negotiated.get("id") != 5:
+                            raise ConnectionError("ha_discovery_protocol")
+                        if (
+                            negotiated.get("success")
+                            and negotiated.get("result", {}).get("protocol_selected") == 2
+                        ):
+                            selected_ids = [
+                                row["entity_id"]
+                                for row in states
+                                if isinstance(row, dict) and isinstance(row.get("entity_id"), str)
+                            ]
+                            for offset in range(0, len(selected_ids), 200):
+                                metadata_rows = await self._result(
+                                    socket,
+                                    {
+                                        "id": 6 + offset // 200,
+                                        "type": "bifrost/source_metadata",
+                                        "entity_ids": selected_ids[offset : offset + 200],
+                                    },
+                                )
+                                if not isinstance(metadata_rows, list) or len(metadata_rows) > 200:
+                                    raise ValueError("discovery_resource_limit")
+                                enriched.update(
+                                    {
+                                        row["entity_id"]: row
+                                        for row in metadata_rows
+                                        if isinstance(row, dict)
+                                        and row.get("entity_id")
+                                        in selected_ids[offset : offset + 200]
+                                    }
+                                )
+                        elif (
+                            not negotiated.get("success")
+                            and negotiated.get("error", {}).get("code") != "unknown_command"
+                        ):
+                            raise ConnectionError("ha_discovery_protocol")
             result: list[dict[str, Any]] = []
             for state in states:
                 if not isinstance(state, dict):
@@ -174,8 +237,18 @@ class BridgeAdapter:
                         area_id=area_id[:256] if isinstance(area_id, str) else None,
                         area_name=area_name[:256] if isinstance(area_name, str) else None,
                     )
+                    detail = enriched.get(entity, {})
+                    for field in ("area_id", "area_name", "area_icon"):
+                        if isinstance(detail.get(field), str):
+                            result[-1][field] = detail[field][:256]
+                    result[-1]["refresh_profiles"] = [
+                        profile
+                        for profile in detail.get("refresh_profiles", [])
+                        if profile in {"entity_poll", "companion_location"}
+                    ]
             result = sorted(result, key=lambda item: item["entity_id"])
             if preview:
+                self.runtime.discovered_areas = area_metadata
                 self.discovery_preview_cache = result
                 self.discovery_preview_at = self.runtime.clock.monotonic()
             else:
@@ -202,9 +275,15 @@ class BridgeAdapter:
             value = attributes.get(binding.adapter.ha_attribute)
         normalized = value
         transform_error = None
+        origin_fields: dict[str, Any] = {}
         if availability == "available":
             try:
-                normalized = transform(value, binding, config)
+                metadata = (
+                    attributes[binding.adapter.value_origin_path]
+                    if binding.adapter.value_origin_path
+                    else None
+                )
+                normalized, origin_fields = normalize_origin(value, metadata, binding, config)
             except KeyError:
                 transform_error = "unmapped_value"
                 availability = "unknown"
@@ -229,6 +308,14 @@ class BridgeAdapter:
             except ValueError, TypeError, OverflowError:
                 times[key] = None
                 invalid_timestamp = True
+        context = None
+        attribution = None
+        if self.protocol_selected == 2:
+            raw_context = (
+                (state or {}).get("context") if kind == "snapshot" else event.get("context")
+            )
+            context = HAContext.model_validate(raw_context or {"id": event.get("context_id")})
+            attribution = self.contexts.attribution(context, self.runtime.clock.now_utc())
         return Observation.model_validate(
             {
                 "source_id": binding.source_id,
@@ -238,10 +325,16 @@ class BridgeAdapter:
                 "value_raw": value,
                 "value_normalized": normalized,
                 "normalized": True,
+                **origin_fields,
                 **times,
                 "invalid_timestamp": invalid_timestamp,
                 "transform_error": transform_error,
-                "ha_context_id": event.get("context_id", event.get("context", {}).get("id")),
+                "ha_context_id": event.get("context_id", (event.get("context") or {}).get("id")),
+                **(
+                    {"ha_context": context, "attribution": attribution, "ha_context_id": context.id}
+                    if context
+                    else {}
+                ),
                 "received_at": self.runtime.clock.now_utc(),
                 "observation_kind": kind,
                 "ha_restored": bool(attributes.get("restored", False)),
@@ -260,6 +353,17 @@ class BridgeAdapter:
         self, event: dict[str, Any], config: RegistryConfig, revision: int | None = None
     ) -> None:
         kind = event["kind"]
+        if kind == "automatic_context":
+            if self.protocol_selected != 2 or event.get("ha_epoch_id") != self.contexts.epoch:
+                return
+            if str(event.get("producer_id", "")).partition(".")[0] not in {"automation", "script"}:
+                return
+            self.contexts.register(
+                HAContext.model_validate(event.get("context", {})),
+                self.runtime.clock.now_utc(),
+                basis="ha_run",
+            )
+            return
         if kind == "bridge_reloaded":
             raise ConnectionError("bridge_reloaded")
         if kind == "snapshot":
@@ -267,7 +371,7 @@ class BridgeAdapter:
             observations = []
             for binding in config.bindings:
                 entity = binding.adapter.ha_entity_id
-                if entity:
+                if entity and binding.adapter.kind in {"ha_state", "ha_attribute"}:
                     observations.append(
                         self.observation(
                             binding, self.states.get(entity), "snapshot", {}, config, revision
@@ -284,7 +388,10 @@ class BridgeAdapter:
                 "last_reported": event["last_reported"],
             }
         for binding in config.bindings:
-            if binding.adapter.ha_entity_id == entity:
+            if binding.adapter.ha_entity_id == entity and binding.adapter.kind in {
+                "ha_state",
+                "ha_attribute",
+            }:
                 self.runtime.ingest(
                     self.observation(
                         binding,
@@ -306,6 +413,58 @@ class BridgeAdapter:
         return response.get("result")
 
     async def connect(self, config: RegistryConfig) -> None:
+        try:
+            await self._connect(config)
+        finally:
+            self.socket = None
+            for future in self.requests.values():
+                if not future.done():
+                    future.set_result({"outcome": "indeterminate", "error_code": "ha_unavailable"})
+            self.requests.clear()
+
+    async def service_call(
+        self,
+        operation: str,
+        target_ids: list[str],
+        arguments: dict[str, Any],
+        *,
+        request_id: str | None = None,
+    ) -> dict[str, Any]:
+        """One attempt only. Callers persist intent before reaching this boundary."""
+        identifier = request_id or str(uuid4())
+        if self.protocol_selected != 2 or self.socket is None or self.socket.closed:
+            return {
+                "request_id": identifier,
+                "outcome": "rejected",
+                "error_code": "unsupported_protocol",
+            }
+        self.request_number += 1
+        number = self.request_number
+        future = asyncio.get_running_loop().create_future()
+        self.requests[number] = future
+        try:
+            async with asyncio.timeout(12):
+                await self.socket.send_json(
+                    {
+                        "id": number,
+                        "type": "bifrost/service_call",
+                        "protocol_version": 2,
+                        "request_id": identifier,
+                        "operation": operation,
+                        "target_ids": target_ids,
+                        "arguments": arguments,
+                    }
+                )
+                response = await future
+                if not isinstance(response, dict):
+                    raise ValueError("bridge_invalid_response")
+                return {"request_id": identifier, **response}
+        except TimeoutError, aiohttp.ClientError, ConnectionError:
+            return {"request_id": identifier, "outcome": "indeterminate", "error_code": "timeout"}
+        finally:
+            self.requests.pop(number, None)
+
+    async def _connect(self, config: RegistryConfig) -> None:
         revision = self.runtime.state.active_revision
         self.runtime.resubscribe.clear()
         self.runtime.revision_changed.clear()
@@ -322,6 +481,36 @@ class BridgeAdapter:
                 raise ConnectionError("bridge_incompatible")
             self.bridge_version = info["bridge_version"]
             self.runtime.bridge_version = self.bridge_version
+            await socket.send_json(
+                {
+                    "id": 6,
+                    "type": "bifrost/negotiate",
+                    "supported_versions": [2, 1],
+                    **(
+                        {"installation_id": self.runtime.installation_id}
+                        if self.runtime.installation_id
+                        else {}
+                    ),
+                }
+            )
+            negotiated = await socket.receive_json()
+            if negotiated.get("id") != 6:
+                raise ConnectionError("bridge_negotiation_protocol")
+            self.protocol_selected = 1
+            features: list[str] = []
+            if negotiated.get("success"):
+                selected = negotiated.get("result", {})
+                if selected.get("protocol_selected") not in (1, 2):
+                    raise ConnectionError("bridge_incompatible")
+                self.protocol_selected = selected["protocol_selected"]
+                self.contexts.set_epoch(selected.get("ha_epoch_id"))
+                features = list(selected.get("features", []))
+            elif negotiated.get("error", {}).get("code") != "unknown_command":
+                raise ConnectionError("bridge_negotiation_failed")
+            if self.protocol_selected == 1:
+                self.contexts.set_epoch(None)
+            self.runtime.bridge_protocol_selected = self.protocol_selected
+            self.runtime.bridge_features = features
             await self._result(socket, {"id": 2, "type": "get_config"})
             for number, event_type in enumerate(("homeassistant_started", "homeassistant_stop"), 3):
                 await self._result(
@@ -343,7 +532,7 @@ class BridgeAdapter:
                 {
                     "id": 5,
                     "type": "bifrost/subscribe",
-                    "protocol_version": 1,
+                    "protocol_version": self.protocol_selected,
                     "entity_ids": entities,
                     "report_entity_ids": sorted(
                         {
@@ -365,6 +554,7 @@ class BridgeAdapter:
             )
             self.retry_delay = 1.0
             LOGGER.info("bridge_connected")
+            self.socket = socket
             while True:
                 receive = asyncio.create_task(socket.receive_json())
                 change = asyncio.create_task(self.runtime.revision_changed.wait())
@@ -375,6 +565,15 @@ class BridgeAdapter:
                     if change in done or overflow in done:
                         return
                     message = receive.result()
+                    if message.get("type") == "result" and message.get("id") in self.requests:
+                        future = self.requests[message["id"]]
+                        if not future.done():
+                            future.set_result(
+                                message.get("result")
+                                if message.get("success")
+                                else {"outcome": "rejected", "error_code": "ha_unavailable"}
+                            )
+                        continue
                     if message.get("type") == "event":
                         if message["id"] == 5:
                             await self.event(message["event"], config, revision)
@@ -423,15 +622,18 @@ class BridgeAdapter:
         entity = binding.adapter.ha_entity_id
         if entity is None:
             raise ValueError("refresh_not_supported")
-        # This optional method is called only by a code-defined contract request.
-        async with self.session.post(
-            self.url.replace("ws://", "http://").replace(
-                "/websocket", "/api/services/homeassistant/update_entity"
-            ),
-            headers={"Authorization": f"Bearer {self.token}"},
-            json={"entity_id": entity},
-        ) as response:
-            response.raise_for_status()
+        job = await self.runtime.submit(
+            "legacy_refresh_prepare",
+            {"revision": self.runtime.state.active_revision, "source_id": source_id},
+        )
+        if job is None:
+            return
+        result = await self.service_call(
+            job["operation"], job["target_ids"], job["arguments"], request_id=job["request_id"]
+        )
+        await self.runtime.submit("service_complete", {"job_id": job["job_id"], "response": result})
+        if result.get("outcome") != "completed":
+            raise ValueError("refresh_not_supported")
 
     async def refresh_worker(self) -> None:
         while True:
@@ -447,3 +649,17 @@ class BridgeAdapter:
                 LOGGER.warning("refresh_failed", extra={"error_type": type(error).__name__})
             finally:
                 self.runtime.refresh_requests.task_done()
+
+    async def service_worker(self) -> None:
+        while True:
+            self.runtime.service_jobs_changed.clear()
+            job = await self.runtime.submit("service_claim")
+            if job is None:
+                await self.runtime.service_jobs_changed.wait()
+                continue
+            response = await self.service_call(
+                job["operation"], job["target_ids"], job["arguments"], request_id=job["request_id"]
+            )
+            await self.runtime.submit(
+                "service_complete", {"job_id": job["job_id"], "response": response}
+            )

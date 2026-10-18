@@ -13,7 +13,7 @@ describe('system conditions are named separately', () => {
   });
   it('empty configuration is informational, not a fault', () => {
     const result = classifySystem({ service: { ...healthy, ready: false, reasons: ['no_active_registry'] }, connection: 'open', hasActiveRegistry: false });
-    expect(result.map((c) => c.kind)).toEqual(['empty_configuration']);
+    expect(result.map((c) => c.kind)).toEqual(['empty_configuration', 'retention_missing']);
     expect(result[0]!.tone).toBe('info');
     expect(overallState(result, { ...healthy, ready: false }).label).toBe('Nicht bereit');
   });
@@ -31,8 +31,8 @@ describe('system conditions are named separately', () => {
   });
   it('explains missing retention as incomplete setup before production', () => {
     const result = classifySystem({ service: { ...healthy, ready: false, reasons: ['history_retention_required'] }, connection: 'open', hasActiveRegistry: true });
-    expect(result[0]?.title).toBe('Aufbewahrung der Messwerte fehlt');
-    expect(result[0]?.detail).toContain('Einzelmessungen und Stundenwerte');
+    expect(result[0]?.title).toBe('Aufbewahrung fehlt');
+    expect(result[0]?.detail).toContain('wie lange Mimir');
     expect(overallState(result, { ...healthy, ready: false }).label).toBe('Nicht bereit');
   });
 

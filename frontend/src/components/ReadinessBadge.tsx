@@ -7,7 +7,10 @@ import { Button } from '@/components/ui/button';
 import type { Condition, ConditionKind } from '@/lib/status';
 
 const ACTIONS: Record<ConditionKind, { to: string; message: string; label: string }> = {
-  empty_configuration: { to: '/contracts/list/all?new=1', message: t('alpha7.status.empty'), label: t('alpha7.status.create') },
+  empty_configuration: { to: '/changes/drafts', message: t('alpha7.status.empty'), label: t('alpha9.readiness.configurationLink') },
+  retention_missing: { to: '/settings/retention', message: t('alpha9.readiness.retentionMissing'), label: t('alpha9.readiness.retentionLink') },
+  condition_unchecked: { to: '/settings/system', message: t('alpha9.readiness.notCheckable'), label: t('alpha9.readiness.open') },
+  overload: { to: '/settings/diagnostics', message: t('alpha9.readiness.overload'), label: t('alpha7.status.diagnose') },
   setup_incomplete: { to: '/settings/installation', message: t('alpha7.status.setup'), label: t('alpha7.status.configure') },
   readiness_pending: { to: '/settings/connections', message: t('alpha7.status.snapshot'), label: t('alpha7.status.configure') },
   limited_source: { to: '/settings/connections', message: t('alpha7.status.ha'), label: t('alpha7.status.connection') },
@@ -18,9 +21,10 @@ const ACTIONS: Record<ConditionKind, { to: string; message: string; label: strin
 };
 
 export function ConditionRow({ condition }: { condition: Condition }) {
-  const action = ACTIONS[condition.kind];
+  const unknownTargets: Record<string, ConditionKind> = { supervisor_options: 'setup_incomplete', database: 'persistence_failure', active_configuration: 'empty_configuration', history_retention: 'retention_missing', first_ha_state: 'readiness_pending', ha_connection: 'limited_source', publication: 'publication_unconfirmed', input_capacity: 'overload' };
+  const action = ACTIONS[condition.kind === 'condition_unchecked' && condition.code ? unknownTargets[condition.code] ?? condition.kind : condition.kind];
   return <li className="flex items-start justify-between gap-4 border-b border-line py-3 last:border-0">
-    <span className="min-w-0 text-sm">{action.message}</span>
+    <span className="min-w-0 text-sm"><strong className="block font-medium">{condition.title}</strong><span className="mt-1 block text-muted">{condition.detail}</span></span>
     <Link to={action.to} className="shrink-0 text-sm font-medium text-fg underline underline-offset-4">{action.label}</Link>
   </li>;
 }
@@ -49,13 +53,13 @@ export function ReadinessBadge({ conditions, ready, revision, children }: { cond
         <Badge tone={complete ? 'ok' : waiting ? 'neutral' : conditions.some(condition => condition.tone === 'bad') ? 'bad' : 'warn'}>{label}</Badge>
       </button>
       {open && <div id={id} role="dialog" aria-label={t('alpha7.status.conditions')} className="absolute left-0 top-full z-40 w-[min(34rem,85vw)] pt-2" onFocus={() => setPinned(true)}>
-        <div className="rounded-xl border border-line-strong bg-panel p-4 shadow-2xl">
+        <div className="max-h-[70vh] overflow-y-auto rounded-xl border border-line-strong bg-panel p-4 shadow-2xl">
           <div className="flex items-center justify-between gap-3"><p className="font-semibold">{t('alpha7.status.conditions')}</p><Button variant="ghost" size="icon" aria-label={t('alpha7.status.close')} onClick={close}><X size={15} /></Button></div>
-          {conditions.length ? <ul>{conditions.map(condition => <ConditionRow key={condition.kind} condition={condition} />)}</ul> : waiting ? <p className="py-3 text-sm text-muted">{t('alpha7.status.waiting')} <Link to="/settings/connections" className="text-fg underline">{t('alpha7.status.connection')}</Link></p> : <p className="py-3 text-sm text-muted">{t('alpha7.status.allGood')}</p>}
+          {conditions.length ? <ul>{conditions.map(condition => <ConditionRow key={condition.code ?? condition.kind} condition={condition} />)}</ul> : waiting ? <p className="py-3 text-sm text-muted">{t('alpha7.status.waiting')} <Link to="/settings/connections" className="text-fg underline">{t('alpha7.status.connection')}</Link></p> : <p className="py-3 text-sm text-muted">{t('alpha7.status.allGood')}</p>}
         </div>
       </div>}
     </div>
-    <Badge tone="neutral">{t('alpha7.status.version', { count: revision ?? '–' })}</Badge>
+    <Badge tone="neutral">{revision ? t('alpha7.status.version', { count: revision }) : t('alpha9.header.noConfiguration')}</Badge>
     {children}
   </div>;
 }

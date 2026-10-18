@@ -4,22 +4,27 @@ import re
 from collections.abc import Iterator
 from functools import cache, lru_cache
 from itertools import islice
-from typing import Any, Literal, Self
+from typing import Annotated, Any, Literal, Self
 
 from pydantic import Field, model_validator
 
 from .adapters import AdapterConfig
 from .declarative_models import MAX_DEFINITIONS, DeclarativeDefinition
 from .evidence import Freshness
+from .ha_context import ContextProducer
 from .lifecycle import Lifecycle
 from .model import Model, canonical, semantic_fingerprint
+from .notifications import Notifications
+from .refresh_plan import RefreshCapability, RefreshPlan
 from .retention import RetentionPolicy
 from .schema import ContractType, FieldSchema, TypeRegistry
+from .sensor_profile import SensorProfile
+from .value_origin import OriginDeclaration
 
 
 class Dependency(Model):
     dependency_id: str
-    kind: Literal["ha", "mqtt", "other", "clock", "connectivity"]
+    kind: Literal["ha", "mqtt", "other", "clock", "connectivity", "manual"]
     monitor: Literal["internal", "source"]
     source_id: str | None = None
 
@@ -33,6 +38,59 @@ class Source(Model):
     physical_source_key: str = Field(min_length=1)
     display_name: str = ""
     value_schema: FieldSchema | None = None
+    value_origin: OriginDeclaration | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    sensor_profile: SensorProfile | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    sensor_parameters: dict[str, Annotated[float, Field(strict=True)]] = Field(
+        default_factory=dict, max_length=16, exclude_if=lambda value: not value
+    )
+    origin: Literal["manual"] | None = Field(default=None, exclude_if=lambda value: value is None)
+    manual_allow_future: bool = Field(
+        default=False, strict=True, exclude_if=lambda value: not value
+    )
+    manual_minimum: float | None = Field(default=None, exclude_if=lambda value: value is None)
+    manual_maximum: float | None = Field(default=None, exclude_if=lambda value: value is None)
+
+    @model_validator(mode="after")
+    def manual_declaration(self) -> Self:
+        if self.sensor_profile:
+            if (
+                self.origin == "manual"
+                or self.value_schema is None
+                or self.value_schema.type != "number"
+                or self.value_origin
+                and self.value_origin.kind != "measured"
+            ):
+                raise ValueError("numeric_measured_sensor_required")
+            self.sensor_profile.resolve(self.sensor_parameters)
+        elif self.sensor_parameters:
+            raise ValueError("sensor_profile_required")
+        if self.origin == "manual" and (
+            self.value_schema is None
+            or self.value_schema.type == "enum"
+            and not self.value_schema.value_catalog
+            or self.freshness.mode not in {"periodic_ttl", "event_stateful"}
+            or self.freshness.future_tolerance_s != 0
+            or self.freshness.interval_s is not None
+            and self.freshness.interval_s > 31_536_000
+        ):
+            raise ValueError("manual_schema_and_validity_required")
+        if self.manual_allow_future and self.origin != "manual":
+            raise ValueError("manual_source_required")
+        if self.manual_minimum is not None or self.manual_maximum is not None:
+            if (
+                self.origin != "manual"
+                or self.value_schema is None
+                or self.value_schema.type != "number"
+                or self.manual_minimum is not None
+                and self.manual_maximum is not None
+                and self.manual_minimum > self.manual_maximum
+            ):
+                raise ValueError("manual_numeric_bounds_required")
+        return self
 
 
 class Transform(Model):
@@ -59,6 +117,18 @@ class Binding(Model):
     adapter: AdapterConfig
     transform: Transform | None = None
     display_name: str = ""
+    refresh: RefreshCapability | None = Field(default=None, exclude_if=lambda value: value is None)
+
+    @model_validator(mode="after")
+    def refresh_target(self) -> Self:
+        if self.refresh and (
+            self.adapter.kind not in {"ha_state", "ha_attribute"}
+            or not self.adapter.ha_entity_id
+            or self.refresh.profile == "companion_location"
+            and not self.adapter.ha_entity_id.startswith("device_tracker.")
+        ):
+            raise ValueError("refresh_not_supported")
+        return self
 
 
 class Input(Model):
@@ -75,6 +145,7 @@ class Contract(Model):
     parameters: dict[str, Any]
     display_name: str = ""
     description: str = ""
+    refresh_plan: RefreshPlan | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class Catalog(Model):
@@ -89,7 +160,7 @@ class Catalog(Model):
 
 
 class RegistryConfig(Model):
-    config_schema_version: Literal[1]
+    config_schema_version: Literal[1, 2]
     fingerprint_version: Literal[1, 2] = 1
     history_retention: RetentionPolicy | None = Field(
         default=None, exclude_if=lambda value: value is None
@@ -100,6 +171,33 @@ class RegistryConfig(Model):
     contracts: tuple[Contract, ...]
     catalogs: tuple[Catalog, ...]
     definitions: tuple[DeclarativeDefinition, ...] = Field(default=(), max_length=MAX_DEFINITIONS)
+    notifications: Notifications | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+
+    @model_validator(mode="after")
+    def versioned_capabilities(self) -> Self:
+        if len({producer.producer_id for producer in self.context_producers}) != len(
+            self.context_producers
+        ):
+            raise ValueError("duplicate_context_producer")
+        if self.config_schema_version == 1 and (
+            self.notifications is not None
+            or any(source.origin == "manual" for source in self.sources)
+            or any(source.value_origin for source in self.sources)
+            or any(source.sensor_profile for source in self.sources)
+            or bool(self.context_producers)
+            or any(binding.refresh is not None for binding in self.bindings)
+            or any(contract.refresh_plan is not None for contract in self.contracts)
+            or any(definition.language_version == 3 for definition in self.definitions)
+            or any(b.adapter.kind in {"ha_calendar", "manual"} for b in self.bindings)
+        ):
+            raise ValueError("registry_schema_2_required")
+        return self
+
+    context_producers: tuple[ContextProducer, ...] = Field(
+        default=(), max_length=64, exclude_if=lambda value: not value
+    )
 
 
 def storage_document(config: RegistryConfig) -> dict[str, Any]:
@@ -199,7 +297,13 @@ def required_sources(config: RegistryConfig) -> set[str]:
     pending = list(needed)
     while pending:
         source = sources[pending.pop()]
-        for ref in (source.freshness.liveness_source, dependencies[source.dependency_id].source_id):
+        for ref in (
+            source.freshness.liveness_source,
+            dependencies[source.dependency_id].source_id,
+            source.sensor_profile.stuck.reference.ref
+            if source.sensor_profile and source.sensor_profile.stuck.reference
+            else None,
+        ):
             if ref and ref not in needed:
                 needed.add(ref)
                 pending.append(ref)
@@ -215,6 +319,9 @@ def affected_sources(config: RegistryConfig, changed: set[str]) -> set[str]:
             for s in config.sources
             if s.freshness.liveness_source in result
             or dependencies[s.dependency_id].source_id in result
+            or s.sensor_profile
+            and s.sensor_profile.stuck.reference
+            and s.sensor_profile.stuck.reference.ref in result
         }
         if expanded == result:
             return result
@@ -279,6 +386,8 @@ def fingerprints(config: RegistryConfig, types: TypeRegistry) -> dict[str, str]:
         dependency = dependencies[sources[key].dependency_id]
         if config.fingerprint_version == 2:
             liveness = sources[key].freshness.liveness_source
+            sensor_profile = sources[key].sensor_profile
+            sensor_reference = sensor_profile.stuck.reference if sensor_profile else None
             return semantic_fingerprint(
                 {
                     "fingerprint_version": 2,
@@ -288,6 +397,11 @@ def fingerprints(config: RegistryConfig, types: TypeRegistry) -> dict[str, str]:
                     if dependency.source_id
                     else None,
                     "liveness_source": monitored_fingerprint(liveness) if liveness else None,
+                    **(
+                        {"sensor_reference": monitored_fingerprint(sensor_reference.ref)}
+                        if sensor_reference
+                        else {}
+                    ),
                 }
             )
         if dependency.source_id:

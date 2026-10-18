@@ -32,6 +32,7 @@ const errors: Record<string, string> = {
   provision_request_mismatch: uiText("setup.setup.der_importcode_gehort_nicht_zu_diesem_einrichtun_ad0620"),
   invalid_setup_request: uiText("setup.setup.eingaben_oder_importcode_ungultig_bitte_prufen_4d9ba1"),
 };
+export class SetupError extends Error {}
 export async function setupRequest<T>(path: string, body?: unknown, csrf = ''): Promise<T> {
   await reserveRequest();
   const response = await fetch(`./api/v1/setup/${path}`, {
@@ -41,7 +42,7 @@ export async function setupRequest<T>(path: string, body?: unknown, csrf = ''): 
   });
   if (response.status === 429) await coolDownRequests(response.headers.get('Retry-After'));
   const value = await response.json().catch(() => ({ error: 'invalid_response' }));
-  if (!response.ok) throw new Error(errors[value.error] ?? uiText("setup.setup.einrichtung_nicht_verfugbar_ingress_sitzung_erne_14a439"));
+  if (!response.ok) throw new SetupError(errors[value.error] ?? uiText("setup.setup.einrichtung_nicht_verfugbar_ingress_sitzung_erne_14a439"));
   return value as T;
 }
 export function validConnection(value: Connection, existing: boolean): boolean {

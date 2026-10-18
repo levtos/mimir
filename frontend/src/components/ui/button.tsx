@@ -37,7 +37,7 @@ export function Button({ className, variant, size, type = 'button', ref, disable
   const reason = props.disabled ? disabledReason : undefined;
   return (
     <>
-      <button ref={ref} type={type} className={cn(buttonVariants({ variant, size }), className)} {...props} aria-describedby={[props['aria-describedby'], reason ? id : ''].filter(Boolean).join(' ') || undefined} />
+      <button ref={ref} type={type} data-variant={variant ?? 'secondary'} className={cn(buttonVariants({ variant, size }), className)} {...props} aria-describedby={[props['aria-describedby'], reason ? id : ''].filter(Boolean).join(' ') || undefined} />
       {reason && <span id={id} className="max-w-64 text-xs font-normal text-muted">{reason}</span>}
     </>
   );

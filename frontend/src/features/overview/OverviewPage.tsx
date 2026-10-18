@@ -33,20 +33,20 @@ export function OverviewPage() {
     else grouped.delete(envelope.contract_id);
   }
   const entries = [...grouped].filter(([id]) => enabledIds.has(id));
+  const incomplete = Object.values(current ?? {}).filter(envelope => enabledIds.has(envelope.contract_id)).flatMap(envelope => Object.entries(envelope.fields).filter(([, field]) => field.configuration?.complete === false).map(([name, field]) => ({ envelope, name, field })));
   const metrics = [
     { key: 'active', filter: 'active', color: 'text-fg' }, { key: 'healthy', filter: 'healthy', color: 'text-ok' },
     { key: 'degraded', filter: 'degraded', color: 'text-warn' }, { key: 'off', filter: 'off', color: 'text-muted' },
   ] as const;
   return <>
-    <PageHeader title={t('alpha7.nav.overview')} description={t('alpha7.overview.explanation')} />
-    {!live.stale && live.service?.ha_disconnected_since && <p role="status" className="mb-4 rounded-xl border border-warn/40 p-4 text-sm text-warn">{t('alpha8.ha.disconnected', { since: new Date(live.service.ha_disconnected_since).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' }), count: live.service.ha_unbounded_values ?? 0 })}</p>}
+    <PageHeader title={t('alpha7.nav.overview')} description={t('alpha9.pages.overview')} actions={<Button variant="primary" onClick={() => navigate('/contracts/list/all?new=1')}><Plus size={16} />{t('alpha7.overview.newContract')}</Button>} />
+    {!live.stale && live.service?.ha_disconnected_since && <p role="status" className="mb-4 rounded-xl border border-warn/40 p-4 text-sm text-warn">{t(live.service.ha_unbounded_values === 1 ? 'alpha9.ha.disconnectedOne' : 'alpha8.ha.disconnected', { since: new Date(live.service.ha_disconnected_since).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' }), count: live.service.ha_unbounded_values ?? 0 })}</p>}
     <PanelLayout view="overview.alpha7">
       <LayoutPanel id="actions" title={t('alpha7.overview.actions')}><Panel>
         <PanelHeader title={t('alpha7.overview.actions')} />
         <div className="flex flex-wrap gap-3 p-5">
-          <Button variant="primary" onClick={() => navigate('/contracts/list/all?new=1')}><Plus size={16} />{t('alpha7.overview.newContract')}</Button>
           <Button onClick={() => navigate('/contracts/import/json')}><Upload size={16} />{t('alpha7.nav.contractImport')}</Button>
-          {doc.draft && <ReviewDraftButton size="md">{t('alpha7.overview.apply')}</ReviewDraftButton>}
+          {doc.draft && <ReviewDraftButton size="md" variant="secondary">{t('alpha7.overview.apply')}</ReviewDraftButton>}
         </div>
       </Panel></LayoutPanel>
       <LayoutPanel id="contracts" title={t('alpha7.nav.contracts')}><Panel>
@@ -71,7 +71,7 @@ export function OverviewPage() {
           </ul>}
           {entries.length > 8 && <Link to="/contracts/list/all?filter=degraded" className="text-sm text-fg underline">{t('alpha7.overview.moreProblems', { count: entries.length - 8 })}</Link>}
           <h3 className="font-medium">{t('alpha8.configuration.title')}</h3>
-          {current === null ? <p className="text-sm text-muted">{t('alpha7.overview.waitingValues')}</p> : <ul className="space-y-3">{Object.values(current).filter(envelope => enabledIds.has(envelope.contract_id)).flatMap(envelope => Object.entries(envelope.fields).filter(([, field]) => field.configuration?.complete === false).map(([name, field]) => <li key={`${envelope.contract_id}:${name}`} className="rounded-xl border border-line p-3 text-sm"><Link to={`/contracts/view/${encodeURIComponent(envelope.contract_id)}`} className="font-medium underline">{contractName(config, envelope.contract_id)}</Link><p>{field.configuration?.hints.map(hint => hint.message || t('alpha8.configuration.unassigned')).join(' · ')}</p><p className="text-muted">{t('alpha8.configuration.validHint')}</p></li>))}</ul>}
+          {current === null ? <p className="text-sm text-muted">{t('alpha7.overview.waitingValues')}</p> : incomplete.length === 0 ? <p className="text-sm text-muted">{t('alpha9.configuration.emptySection')}</p> : <ul className="space-y-3">{incomplete.map(({ envelope, name, field }) => <li key={`${envelope.contract_id}:${name}`} className="rounded-xl border border-line p-3 text-sm"><Link to={`/contracts/view/${encodeURIComponent(envelope.contract_id)}`} className="font-medium underline">{contractName(config, envelope.contract_id)}</Link><p>{field.configuration?.hints.map(hint => hint.message || t('alpha8.configuration.unassigned')).join(' · ')}</p><p className="text-muted">{t('alpha8.configuration.validHint')}</p></li>)}</ul>}
         </div>
       </Panel></LayoutPanel>
       <LayoutPanel id="events" title={t('alpha7.overview.events')}><Panel>

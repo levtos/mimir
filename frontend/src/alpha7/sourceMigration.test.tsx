@@ -37,16 +37,16 @@ it('moves a whole physical path atomically, restores an attempted locked edit, v
 it('supports a selected-contract move to another device and rejects duplicate physical evidence, liveness and dependency uses', () => {
   const config = original(); const contract = clone(objects(config.contracts)[0]!); contract.contract_id = 'weiterer_vertrag'; config.contracts = [...objects(config.contracts), contract];
   const id = String(objects(config.sources)[0]!.source_id); const opts = options(config); opts.contracts = [String(objects(config.contracts)[0]!.contract_id)];
-  expect(() => planSourceMigration(config, [], id, opts)).toThrow(/Eine Messung darf nicht doppelt zählen/);
+  expect(() => planSourceMigration(config, [], id, opts)).toThrow(/Das bisherige Gerät wird noch gebraucht/);
   opts.adapter = { kind: 'ha_state', ha_entity_id: 'sensor.anderes_zimmer' };
   const moved = planSourceMigration(config, [], id, opts);
   expect(objects(moved.config.bindings)).toHaveLength(2);
   expect(objects(moved.config.contracts)[1]!.inputs).toEqual(contract.inputs);
   opts.adapter = { kind: 'ha_state', ha_entity_id: device.entity_id }; opts.contracts = options(config).contracts;
   config.dependencies = [{ dependency_id: 'dep.monitor', source_id: id, kind: 'other', monitor: 'source' }];
-  expect(() => planSourceMigration(config, [], id, opts)).toThrow(/Lebenszeichen oder Überwachung/);
+  expect(() => planSourceMigration(config, [], id, opts)).toThrow(/Das bisherige Gerät wird noch gebraucht/);
   config.dependencies = []; config.sources = [...objects(config.sources), { source_id: 'source.monitor', freshness: { liveness_source: id } }];
-  expect(() => planSourceMigration(config, [], id, opts)).toThrow(/Lebenszeichen oder Überwachung/);
+  expect(() => planSourceMigration(config, [], id, opts)).toThrow(/Das bisherige Gerät wird noch gebraucht/);
 });
 
 it('reserves all historical identities and never rewrites a calculation as a passthrough', () => {
@@ -70,12 +70,12 @@ it('opens from live, checks the exact migration and applies only to the draft; c
   expect(within(dialog).getByRole('checkbox', { name: 'Zimmer' })).toBeChecked();
   await user.click(within(dialog).getByRole('button', { name: 'Umzug prüfen' }));
   await within(dialog).findByText(/Direkt umgestellte Verträge: 1/);
-  expect(within(dialog).getByRole('button', { name: 'In Entwurf übernehmen' })).toBeEnabled();
+  expect(within(dialog).getByRole('button', { name: "Im Entwurf speichern" })).toBeEnabled();
   await user.type(within(dialog).getByLabelText('Name der neuen Quelle'), ' geändert');
-  expect(within(dialog).getByRole('button', { name: 'In Entwurf übernehmen' })).toBeDisabled();
+  expect(within(dialog).getByRole('button', { name: "Im Entwurf speichern" })).toBeDisabled();
   await user.click(within(dialog).getByRole('button', { name: 'Umzug prüfen' }));
-  await waitFor(() => expect(within(dialog).getByRole('button', { name: 'In Entwurf übernehmen' })).toBeEnabled());
-  await user.click(within(dialog).getByRole('button', { name: 'In Entwurf übernehmen' }));
+  await waitFor(() => expect(within(dialog).getByRole('button', { name: "Im Entwurf speichern" })).toBeEnabled());
+  await user.click(within(dialog).getByRole('button', { name: "Im Entwurf speichern" }));
   await user.click(screen.getByLabelText('Weitere Entwurfsaktionen'));
   await user.click(screen.getByRole('button', { name: 'Speichern' }));
   await waitFor(() => expect(objects([...api.drafts.values()][0]!.config.sources)).toHaveLength(2));
@@ -99,7 +99,7 @@ it('discards a delayed validation result after the working draft changes', async
   // Simulate another editor updating the shared document while the modal's request is pending.
   act(() => screen.getByText('Change').click()); release!();
   await within(dialog).findByText(/Der Entwurf oder die Auswahl hat sich geändert/);
-  expect(within(dialog).getByRole('button', { name: 'In Entwurf übernehmen' })).toBeDisabled();
+  expect(within(dialog).getByRole('button', { name: "Im Entwurf speichern" })).toBeDisabled();
 });
 
 it('follows the immutable-source error directly into a migration and shows server validation errors before any edit', async () => {
@@ -111,6 +111,6 @@ it('follows the immutable-source error directly into a migration and shows serve
   await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Umzug prüfen' })).toBeEnabled());
   await user.click(within(dialog).getByRole('button', { name: 'Umzug prüfen' }));
   await within(dialog).findByText(/Der Umzug passt noch nicht/);
-  expect(within(dialog).getByRole('button', { name: 'In Entwurf übernehmen' })).toBeDisabled();
+  expect(within(dialog).getByRole('button', { name: "Im Entwurf speichern" })).toBeDisabled();
   expect(objects([...api.drafts.values()][0]!.config.sources)).toHaveLength(1);
 });

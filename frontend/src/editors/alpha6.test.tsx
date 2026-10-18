@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { BindingEditor, sourceCast } from './RegistryObjects';
 import { MachineEditor } from './MachineEditor';
 import type { JsonObject } from '@/lib/json';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 describe('explicit source conversions', () => {
   it('writes the source type into a new binding', () => {
@@ -17,7 +18,7 @@ describe('explicit source conversions', () => {
       const [value, setValue] = useState<JsonObject>({ binding_id: 'binding.a', source_id: 'source.a', adapter: { kind: 'ha_state', ha_entity_id: 'binary_sensor.test' } });
       return <><BindingEditor value={value} onChange={setValue} pointer="/bindings/0" sourceIds={['source.a']} sources={[{ source_id: 'source.a', source_type: 'boolean' }]} catalogIds={[]} onPickEntity={() => {}} /><output data-testid="document">{JSON.stringify(value)}</output></>;
     }
-    render(<Harness />);
+    render(<QueryClientProvider client={new QueryClient()}><Harness /></QueryClientProvider>);
     await userEvent.click(screen.getByRole('button', { name: 'Umwandlung ergänzen' }));
     expect(JSON.parse(screen.getByTestId('document').textContent!).transform).toEqual({ kind: 'type_cast', target: 'bool' });
   });

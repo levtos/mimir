@@ -24,6 +24,8 @@ import { useHaCatalog } from '@/features/sources/useHaCatalog';
 import { CONTRACT_CATEGORIES, contractState, contractSources, contractValue, fieldsForContract, type ContractCategory } from './presentation';
 import { ContractStateChip } from './ContractStateChip';
 import { DeviceWizard } from '@/features/sources/DeviceWizard';
+import { CategoryBadge, CategorySelect, RoomBadge, useEditorial } from '@/features/editorial/Editorial';
+import { NO_ROOM, groupItems, roomKey, type Category, type Room } from '@/features/editorial/model';
 
 export function ContractsTabs() {
   return null;
@@ -40,13 +42,15 @@ interface Row {
   source: string;
   draftOnly: boolean;
   stale: boolean;
+  category: Category;
+  room: Room;
 }
 
 const col = createColumnHelper<Row>();
 
-export function NewContractDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (o: boolean) => void; onCreated: (id: string) => void }) {
-  const [manual, setManual] = useState(false);
-  const change = (next: boolean) => { if (!next) setManual(false); onOpenChange(next); };
+export function NewContractDialog({ open, onOpenChange, onCreated, initialManual = false }: { open: boolean; onOpenChange: (o: boolean) => void; onCreated: (id: string) => void; initialManual?: boolean }) {
+  const [manual, setManual] = useState(initialManual);
+  const change = (next: boolean) => { if (!next) setManual(initialManual); onOpenChange(next); };
   return <><DeviceWizard open={open && !manual} onOpenChange={change} title={uiText('alpha7.overview.newContract')} contract="new" onAdded={result => result.contractId && onCreated(result.contractId)} manualOption={<Button onClick={() => setManual(true)}>{uiText('alpha7.device.withoutDevice')}</Button>} /><ManualNewContractDialog open={open && manual} onOpenChange={change} onCreated={onCreated} /></>;
 }
 
@@ -56,8 +60,11 @@ function ManualNewContractDialog({ open, onOpenChange, onCreated }: { open: bool
   const ids = asArray(src.config?.contracts).filter(isObject).map((c) => str(c.contract_id));
   const [id, setId] = useState('');
   const [type, setType] = useState('');
+  const metadata = useEditorial(); const [category, setCategory] = useState<Category | null>(null);
+  const [busy, setBusy] = useState(false); const [error, setError] = useState('');
   const availableTypes = src.types.filter(entry => entry.lifecycle !== 'retired');
   const chosen = availableTypes.find((t) => t.key === type) ?? availableTypes[0];
+  const selectedCategory = category ?? metadata.item({ kind: 'template', id: chosen?.type_id ?? '' }).category;
   const taken = ids.includes(id.trim());
   const valid = validIdentifier(id.trim()) && !taken && !!chosen;
   return (
@@ -71,15 +78,17 @@ function ManualNewContractDialog({ open, onOpenChange, onCreated }: { open: bool
           <Button onClick={() => onOpenChange(false)}>{uiText("features.contracts.ContractsPage.abbrechen_f7ff11")}</Button>
           <Button
             variant="primary"
-            disabled={!valid}
+            disabled={!valid || busy || metadata.isPending || metadata.isError}
             disabledReason={taken ? uiText('features.contracts.ContractsPage.diese_id_ist_bereits_vergeben_20f34e') : uiText('alpha7.copy.checkIdentifier')}
-            onClick={() => {
+            onClick={async () => {
               if (!chosen) return;
-              const contractId = id.trim();
-              doc.edit((c) => setAt(c, '/contracts', [...asArray(c.contracts), { contract_id: contractId, type_id: chosen.type_id, type_version: chosen.type_version, enabled: true, inputs: [], parameters: {} }]));
-              onOpenChange(false);
-              setId('');
-              onCreated(contractId);
+              setBusy(true); setError('');
+              try {
+                const contractId = id.trim(); const object = { kind: 'contract' as const, id: contractId };
+                await doc.editAndSave((c) => setAt(c, '/contracts', [...asArray(c.contracts), { contract_id: contractId, type_id: chosen.type_id, type_version: chosen.type_version, enabled: true, inputs: [], parameters: {} }]), [{ object, category: selectedCategory, room: NO_ROOM, expected_editorial_version: metadata.item(object).editorial_version }]);
+                onOpenChange(false); setId(''); setCategory(null); onCreated(contractId);
+              } catch (failure) { setError(describeError(failure)); }
+              finally { setBusy(false); }
             }}
           >
             {uiText("features.contracts.ContractsPage.anlegen_d34c0e")}</Button>
@@ -92,13 +101,15 @@ function ManualNewContractDialog({ open, onOpenChange, onCreated }: { open: bool
         </Field>
         <Field label={uiText("features.contracts.ContractsPage.typ_version_1b7183")}>
           {(p) => (
-            <Select {...p} value={chosen?.key ?? ''} onChange={(e) => setType(e.target.value)}>
+            <Select {...p} value={chosen?.key ?? ''} onChange={(e) => { setType(e.target.value); setCategory(null); }}>
               {availableTypes.map((t) => (
                 <option key={t.key} value={t.key}>{t.type_id} {uiText("features.contracts.ContractsPage.v_0bb917")}{t.type_version} {t.declarative ? uiText("features.contracts.ContractsPage.definition_393327") : uiText("features.contracts.ContractsPage.paket_d2cfa9")}</option>
               ))}
             </Select>
           )}
         </Field>
+        <CategorySelect value={selectedCategory} onChange={value => setCategory(value || 'other')} />
+        {error && <p role="alert" className="text-sm text-bad">{error}</p>}
       </div>
     </Dialog>
   );
@@ -113,6 +124,9 @@ export default function ContractsPage() {
   const caps = useCapabilities();
   const ha = useHaCatalog(asArray(src.config?.bindings).filter(isObject).some(binding => isObject(binding.adapter) && String(binding.adapter.kind).startsWith('ha_')));
   const navigate = useNavigate();
+  const metadata = useEditorial();
+  const [categoryFilter, setCategoryFilter] = useState<Category | ''>('');
+  const [roomFilter, setRoomFilter] = useState(''); const [groupBy, setGroupBy] = useState<'none' | 'category' | 'room'>('none');
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const overviewFilter = params.get('filter');
@@ -150,6 +164,8 @@ export default function ContractsPage() {
     const envelope = activeContract && candidate && candidate.registry_revision === active.data?.revision ? candidate : null;
     return {
       id,
+      category: metadata.item({ kind: 'contract', id }).category,
+      room: metadata.item({ kind: 'contract', id }).room,
       name: str(c.display_name),
       type: str(c.type_id),
       version: Number(c.type_version),
@@ -164,13 +180,19 @@ export default function ContractsPage() {
   const typeOptions = [...new Set(rows.map((r) => r.type))].sort();
   const filtered = rows.filter(
     (r) =>
+      (!categoryFilter || r.category === categoryFilter) && (!roomFilter || roomKey(r.room) === roomFilter) &&
+      (!search || `${r.name} ${r.id} ${r.type} ${r.source} ${r.room.name}`.toLocaleLowerCase('de').includes(search.toLocaleLowerCase('de'))) &&
       (!typeFilter || r.type === typeFilter) &&
       (enabledFilter === 'all' || (enabledFilter === 'on') === r.enabled) &&
       (healthFilter === 'all' || contractState(r.envelope, r.enabled, r.draftOnly).category === healthFilter),
   );
 
+  const roomOptions = [...new Map(rows.map(row => [roomKey(row.room), row.room])).entries()];
+  const groups = groupItems(filtered, row => groupBy === 'category' ? row.category : groupBy === 'room' ? roomKey(row.room) : 'all');
   const columns = [
-    col.accessor(row => row.name || row.id, { id: 'name', header: uiText('alpha7.contract.name'), cell: cell => <div className="min-w-0"><Link to={`/contracts/view/${encodeURIComponent(cell.row.original.id)}`} title={cell.row.original.id} className="block truncate font-medium hover:text-fg" onClick={event => event.stopPropagation()}>{cell.getValue()}</Link>{cell.row.original.name && <span title={cell.row.original.id} className="block truncate text-xs text-muted">{cell.row.original.id}</span>}</div> }),
+    col.accessor(row => row.name || row.id, { id: 'name', header: uiText('alpha7.contract.name'), cell: cell => <div className="min-w-0"><Link to={`/contracts/view/${encodeURIComponent(cell.row.original.id)}`} title={cell.row.original.id} className="block truncate font-medium hover:text-fg" onClick={event => event.stopPropagation()}>{cell.getValue()}</Link></div> }),
+    col.accessor('category', { header: uiText('alpha9.category.label'), cell: cell => <CategoryBadge category={cell.getValue()} /> }),
+    col.accessor('room', { header: uiText('alpha9.room.label'), cell: cell => <RoomBadge room={cell.getValue()} /> }),
     col.accessor('value', { header: uiText('alpha7.contract.value'), cell: cell => <span className="tabular-nums">{cell.getValue()}</span> }),
     col.accessor(row => row.envelope?.contract_health ?? '', { id: 'state', header: uiText('alpha7.contract.state'), cell: cell => <ContractStateChip envelope={cell.row.original.envelope} enabled={cell.row.original.enabled} draftOnly={cell.row.original.draftOnly} stale={cell.row.original.stale} /> }),
     col.accessor('source', { header: uiText('alpha7.contract.source'), cell: cell => <span className="block truncate" title={cell.getValue()}>{cell.getValue()}</span> }),
@@ -180,7 +202,7 @@ export default function ContractsPage() {
     <>
       <PageHeader
         title={uiText("features.contracts.ContractsPage.contracts_definitionen_499616")}
-        description={uiText("features.contracts.ContractsPage.instanzen_binden_einen_typ_an_quellen_definition_c07fc7")}
+        description={uiText('alpha9.pages.contracts')}
         actions={
           <Button variant="primary" disabled={doc.starting} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => void start()}>
             <Plus size={15} /> {uiText("features.contracts.ContractsPage.neue_instanz_e3e518")}</Button>
@@ -196,6 +218,9 @@ export default function ContractsPage() {
             <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-faint" />
             <Input aria-label={uiText("features.contracts.ContractsPage.contracts_suchen_453163")} className="pl-8" placeholder={uiText("features.contracts.ContractsPage.suchen_nach_id_name_typ_43b8d8")} value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
+          <div className="w-48"><CategorySelect value={categoryFilter} onChange={setCategoryFilter} all /></div>
+          <Field label={uiText('alpha9.room.label')}>{props => <Select {...props} className="w-48" value={roomFilter} onChange={event => setRoomFilter(event.target.value)}><option value="">{uiText('alpha9.room.all')}</option>{roomOptions.map(([key, room]) => <option key={key} value={key}>{room.mode === 'none' ? uiText('alpha9.room.none') : room.name}</option>)}</Select>}</Field>
+          <Field label={uiText('alpha9.editorial.group')}>{props => <Select {...props} className="w-52" value={groupBy} onChange={event => setGroupBy(event.target.value as typeof groupBy)}><option value="none">{uiText('alpha9.editorial.noGrouping')}</option><option value="category">{uiText('alpha9.category.group')}</option><option value="room">{uiText('alpha9.room.group')}</option></Select>}</Field>
           <details className="relative"><summary className="cursor-pointer py-2 text-sm text-muted">{uiText('alpha7.contract.advanced')}</summary><Select aria-label={uiText("features.contracts.ContractsPage.typ_1b0241")} className="w-52" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
             <option value="">{uiText("features.contracts.ContractsPage.alle_typen_83162a")}</option>
             {typeOptions.map((t) => (
@@ -216,11 +241,12 @@ export default function ContractsPage() {
         {src.loading && configured.length === 0 ? (
           <Spinner />
         ) : (
+          <div>{(groups.length ? groups : [['empty', []] as [string, Row[]]]).map(([key, members]) => <section key={key}>
+            {groupBy !== 'none' && members[0] && <h2 className="border-b border-line bg-raised px-4 py-3">{groupBy === 'category' ? <CategoryBadge category={members[0].category} /> : <RoomBadge room={members[0].room} />}</h2>}
           <DataTable
             caption={uiText("features.contracts.ContractsPage.contract_instanzen_1a0c12")}
-            data={filtered}
+            data={members}
             columns={columns}
-            globalFilter={search}
             getRowId={(r) => r.id}
             onRowClick={(r) => navigate(`/contracts/view/${encodeURIComponent(r.id)}`)}
             empty={
@@ -228,7 +254,7 @@ export default function ContractsPage() {
                 {rows.length === 0 ? uiText("features.contracts.ContractsPage.legen_sie_in_einem_draft_die_erste_instanz_an_od_1842ad") : uiText("features.contracts.ContractsPage.filter_oder_suche_anpassen_3493b0")}
               </Empty>
             }
-          />
+          /></section>)}</div>
         )}
       </Panel>
       </LayoutPanel></PanelLayout>

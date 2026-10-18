@@ -46,11 +46,11 @@ describe('definition versions are immutable once activated', () => {
     const api = installFakeApi({ revisions: [{ revision: 3, config: registry(), checksum: 'c'.repeat(64), created_at: 'x' }], drafts: [makeDraft('d1', registry())] });
     render(<Harness draft={api.drafts.get('d1') as unknown as Draft} path="/templates/details/test.truth/1" />);
     await user.click(screen.getByText('open-draft'));
-    await screen.findByText(/Aktivierte Version – semantisch unveränderlich/);
+    await screen.findByText(/Übernommene Vorlagenversion/);
 
     // Logic is locked ...
     await user.click(screen.getByRole('tab', { name: /Ausgaben/ }));
-    const operator = (await screen.findAllByRole('combobox', { name: /^Operator/ }))[0]!;
+    const operator = (await screen.findAllByRole('combobox', { name: /^Rechenschritt/ }))[0]!;
     expect(operator).toBeDisabled();
     // ... editorial text is not.
     await user.click(screen.getByRole('tab', { name: 'Allgemein' }));
@@ -63,7 +63,7 @@ describe('definition versions are immutable once activated', () => {
     await user.click(screen.getByRole('button', { name: /Neue Version/ }));
     const dialog = await screen.findByRole('dialog');
     await user.click(within(dialog).getByRole('checkbox', { name: 'fixture.right' })); // keep fixture.right on v1
-    await user.click(within(dialog).getByRole('button', { name: 'Version anlegen' }));
+    await user.click(within(dialog).getByRole('button', { name: "Version anlegen" }));
     await waitFor(() => expect(screen.getByTestId('loc').textContent).toBe('/templates/details/test.truth/2'));
     const next = config();
     const versions = next.definitions.filter((d) => d.type_id === 'test.truth').map((d) => d.type_version);
@@ -84,7 +84,7 @@ describe('definition versions are immutable once activated', () => {
     render(<Harness draft={api.drafts.get('d2') as unknown as Draft} path="/templates/details/test.truth/2" />);
     await user.click(screen.getByText('open-draft'));
     await user.click(await screen.findByRole('tab', { name: /Ausgaben/ }));
-    expect((await screen.findAllByRole('combobox', { name: /^Operator/ }))[0]).toBeEnabled();
+    expect((await screen.findAllByRole('combobox', { name: /^Rechenschritt/ }))[0]).toBeEnabled();
     expect(screen.queryByText(/Aktivierte Version/)).toBeNull();
   });
 });

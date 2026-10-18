@@ -58,7 +58,7 @@ describe('operators that only exist in the metadata', () => {
   it('lets a string-or-number union, an open object, a variant union and a list be set graphically', async () => {
     const result = mount({ ...newDefinition('test.s', 1), outputs: { value: { op: 'x_scale', arg: { op: 'input', name: 'a' }, factor: 2 } } }, synthetic);
     await user.click(screen.getByRole('tab', { name: /Ausgaben/ }));
-    expect(within(node(root)).getAllByRole('combobox', { name: /^Operator/ })[0]).toHaveValue('x_scale');
+    expect(within(node(root)).getAllByRole('combobox', { name: /^Rechenschritt/ })[0]).toHaveValue('x_scale');
     // no raw-JSON detour for any of these
     expect(within(node(root)).queryAllByRole('textbox', { name: /JSON/ })).toHaveLength(0);
 
@@ -118,7 +118,7 @@ describe('new schema properties on known operators and types are not lost or hid
   it('shows members the schema does not know (kept, editable, removable) instead of hiding them', async () => {
     const def = { ...newDefinition('test.u', 1), x_note: 'wichtig', outputs: { value: { op: 'input', name: 'a', x_hint: [1, 2] } } };
     const result = mount(def, caps);
-    expect(screen.getAllByText(/dem Schema unbekannt, erhalten/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/zusätzliche Angabe, bleibt erhalten/).length).toBeGreaterThan(0);
     await user.click(screen.getByRole('tab', { name: /Ausgaben/ }));
     expect(within(node(root)).getAllByText(/x_hint/).length).toBeGreaterThan(0);
     await user.click(screen.getByRole('tab', { name: 'Allgemein' }));

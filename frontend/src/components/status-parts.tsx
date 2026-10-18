@@ -27,7 +27,7 @@ export function ConditionList({ conditions }: { conditions: Condition[] }) {
   }
   return (
     <ul className="space-y-2">
-      {conditions.map(condition => <ConditionRow key={condition.kind} condition={condition} />)}
+      {conditions.map(condition => <ConditionRow key={condition.code ?? condition.kind} condition={condition} />)}
     </ul>
   );
 }

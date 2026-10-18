@@ -145,7 +145,7 @@ export function ActivateDialog({ draft, open, onOpenChange }: { draft: Draft; op
         ) : (
           <>
             <div className="w-full space-y-2">
-              {ready && <Checkbox checked={confirmed} onCheckedChange={(on) => setConfirmedFor(on ? key : null)} label={<>{uiText("features.registry.ActivationDialogs.ich_habe_die_auswirkungen_gepruft_und_aktiviere__007da8")}{expected + 1}.</>} />}
+              {ready && <Checkbox checked={confirmed} onCheckedChange={(on) => setConfirmedFor(on ? key : null)} label={uiText('alpha9.configuration.confirm', { revision: expected + 1 })} />}
               {!confirmed && <p className="text-xs text-muted">{uiText("features.registry.ActivationDialogs.zum_ubernehmen_zuerst_die_auswirkungen_prufen_un_5ce543")}</p>}
             </div>
             <Button onClick={() => onOpenChange(false)}>{uiText("features.registry.ActivationDialogs.abbrechen_f7ff11")}</Button>
@@ -167,7 +167,7 @@ export function ActivateDialog({ draft, open, onOpenChange }: { draft: Draft; op
       ) : (
         <div className="flex flex-col gap-4">
           <Notice tone="warn" title={uiText("features.registry.ActivationDialogs.aktivierung_andert_den_aktiven_zustand_5e5312")}>
-            {uiText("features.registry.ActivationDialogs.drafts_sind_bis_zu_diesem_schritt_wirkungslos_di_60155e")}{currentRevision || '–'}{uiText("features.registry.ActivationDialogs.atomar_und_mit_versionsprufung_rucknahme_geht_nu_906a06")}</Notice>
+            {uiText(currentRevision ? 'alpha9.configuration.activateFrom' : 'alpha9.configuration.activateFirst', { revision: currentRevision })}</Notice>
           {check.state === 'checking' && <Spinner label={uiText("features.registry.ActivationDialogs.server_pruft_den_gespeicherten_draft_afe932")} />}
           {check.state === 'error' && <Notice tone="bad" title={uiText("features.registry.ActivationDialogs.prufung_nicht_moglich_9c9bd1")}>{check.message}</Notice>}
           {check.state === 'stale' && <StaleNotice message={check.message} onRecheck={() => { setConfirmedFor(null); void restart(); }} />}
@@ -178,6 +178,7 @@ export function ActivateDialog({ draft, open, onOpenChange }: { draft: Draft; op
             </>
           )}
           {check.state === 'ok' && check.result.diff && <DiffView diff={check.result.diff} against={uiText("features.registry.ActivationDialogs.aktive_revision_v0_d363db", { v0: (expected || '–') })} />}
+          {draft.config.history_retention !== undefined && <Notice tone="warn">{uiText('alpha9.retention.deleteEffect')}</Notice>}
           <Field label={uiText('alpha7.versions.note')} hint={uiText('alpha7.versions.noteHelp')}>{(props) => <Input {...props} maxLength={256} value={note} disabled={activate.isPending} onChange={(e) => { setNote(e.target.value); setConfirmedFor(null); }} />}</Field>
           {check.state === 'ok' && check.result.warnings?.map((warning) => <Notice key={warning.path} tone="warn" title={validationLabel(warning)}>{warning.object_id}</Notice>)}
           <Outcome error={activate.error} onRecheck={() => { activate.reset(); setConfirmedFor(null); void restart(); }} />
@@ -218,7 +219,7 @@ export function RollbackDialog({ revision, open, onOpenChange }: { revision: Rev
         ) : (
           <>
             <div className="w-full space-y-2">
-              {ready && <Checkbox checked={confirmed} onCheckedChange={(on) => setConfirmedFor(on ? key : null)} label={<>{uiText("features.registry.ActivationDialogs.ich_mochte_revision_5d682d")}{revision.revision} {uiText("features.registry.ActivationDialogs.als_neue_revision_9a365f")}{expected + 1} {uiText("features.registry.ActivationDialogs.aktivieren_fdb22a")}</>} />}
+              {ready && <Checkbox checked={confirmed} onCheckedChange={(on) => setConfirmedFor(on ? key : null)} label={uiText('alpha9.configuration.rollbackConfirm', { before: revision.revision, after: expected + 1 })} />}
               {!confirmed && <p className="text-xs text-muted">{uiText("features.registry.ActivationDialogs.zum_zurucksetzen_zuerst_die_auswirkungen_prufen__6e723c")}</p>}
             </div>
             <Button onClick={() => onOpenChange(false)}>{uiText("features.registry.ActivationDialogs.abbrechen_f7ff11")}</Button>
@@ -233,11 +234,11 @@ export function RollbackDialog({ revision, open, onOpenChange }: { revision: Rev
       }
     >
       {result ? (
-        <Notice tone="ok" title={<span className="flex items-center gap-2"><CheckCircle2 size={15} /> {uiText("features.registry.ActivationDialogs.neue_revision_1e5cad")}{result.revision} {uiText("features.registry.ActivationDialogs.aktiv_3139fc")}</span>}>
-          {uiText("features.registry.ActivationDialogs.inhalt_entspricht_revision_3fded2")}{revision.revision}{uiText("features.registry.ActivationDialogs.gehaltene_zeitkontexte_konnen_bei_geanderten_fin_7ae16f")}</Notice>
+        <Notice tone="ok" title={<span className="flex items-center gap-2"><CheckCircle2 size={15} /> {uiText('alpha9.configuration.rollbackDone', { revision: result.revision })}</span>}>
+          {uiText('alpha9.configuration.rollbackContent', { before: revision.revision })}</Notice>
       ) : (
         <div className="flex flex-col gap-4">
-          <Notice tone="warn" title={uiText("features.registry.ActivationDialogs.rollback_andert_den_aktiven_zustand_975420")}>{uiText("features.registry.ActivationDialogs.auswirkungen_gegenuber_der_aktuell_aktiven_revis_056129")}{currentRevision || '–'}:</Notice>
+          <Notice tone="warn" title={uiText("features.registry.ActivationDialogs.rollback_andert_den_aktiven_zustand_975420")}>{uiText('alpha9.configuration.rollbackFrom', { revision: currentRevision })}</Notice>
           {check.state === 'checking' && <Spinner label={uiText("features.registry.ActivationDialogs.server_analysiert_den_historischen_stand_7fcf03")} />}
           {check.state === 'error' && <Notice tone="bad" title={uiText("features.registry.ActivationDialogs.analyse_nicht_moglich_e876eb")}>{check.message}</Notice>}
           {check.state === 'stale' && <StaleNotice message={check.message} onRecheck={() => { setConfirmedFor(null); void restart(); }} />}

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useLocation } from 'react-router';
 import { t } from '@/i18n';
 import { Button } from '@/components/ui/button';
-import { Field, FileInput, Input, Textarea } from '@/components/ui/form';
+import { Field, FileInput, Input, Select, Textarea } from '@/components/ui/form';
+import { Dialog } from '@/components/ui/dialog';
 import { Notice, PageHeader, Panel, PanelHeader } from '@/components/ui/layout';
 import { downloadText, exportRegistry, parseRegistryJson } from '@/features/authoring/importExport';
 import { useWorkingDocument } from '@/features/authoring/WorkingDocument';
@@ -25,6 +26,8 @@ export default function ImportExportPage() {
   const [checked, setChecked] = useState(false);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [busy, setBusy] = useState(false);
+  const [backingUp, setBackingUp] = useState(false);
+  const [exportScope, setExportScope] = useState<'active' | 'draft'>('active');
   const atLimit = (drafts.data?.length ?? 0) >= 100;
   const changeText = (next: string) => { setText(next); setError(''); setImported(null); setChecked(false); setIssues([]); };
   const submit = async () => {
@@ -48,26 +51,29 @@ export default function ImportExportPage() {
   };
   const disabledReason = busy ? t('alpha7.import.checking') : atLimit ? t('alpha7.import.limit') : !text.trim() ? t('alpha7.import.empty') : '';
   return <>
-    <PageHeader title={t(contractImport ? 'alpha7.nav.contractImport' : 'alpha7.nav.transfer')} description={t('alpha7.import.explanation')} />
+    <PageHeader title={t(contractImport ? 'alpha7.nav.contractImport' : 'alpha7.nav.transfer')} description={t(contractImport ? 'alpha9.pages.contractImport' : 'alpha9.pages.transfer')} actions={contractImport ? <Button variant="primary" disabled={busy || atLimit} disabledReason={disabledReason} onClick={() => text.trim() ? void submit() : document.querySelector<HTMLInputElement>('input[data-import-file]')?.click()}>{t('alpha9.actions.readFile')}</Button> : <Button variant="primary" disabled={!active.data && !doc.config} disabledReason={t('alpha9.export.noConfiguration')} onClick={() => { setExportScope(active.data ? 'active' : 'draft'); setBackingUp(true); }}>{t('alpha9.actions.backup')}</Button>} />
     <Panel><PanelHeader title={t('alpha7.import.title')} /><div className="flex flex-col gap-4 p-5">
-      <Field label={t('alpha7.import.file')}>{props => <FileInput {...props} accept="application/json,.json" disabled={busy} onChange={async event => { const file = event.target.files?.[0]; if (file) changeText(await file.text()); }} />}</Field>
+      <Field label={t('alpha7.import.file')}>{props => <FileInput {...props} data-import-file accept="application/json,.json" disabled={busy} onChange={async event => { const file = event.target.files?.[0]; if (file) changeText(await file.text()); }} />}</Field>
       <Field label={t('alpha7.import.text')}>{props => <Textarea {...props} rows={9} spellCheck={false} disabled={busy} value={text} onChange={event => changeText(event.target.value)} />}</Field>
       <Field label={t('alpha7.import.name')}>{props => <Input {...props} maxLength={256} value={name} onChange={event => setName(event.target.value)} />}</Field>
       <p className="text-sm text-muted">{t('alpha7.draft.explanation')}</p>
-      <div><Button variant="primary" disabled={!!disabledReason} onClick={() => void submit()}>{t('alpha7.import.start')}</Button>{disabledReason && <p className="mt-2 text-sm text-muted">{disabledReason}</p>}</div>
+      <div><Button disabled={!!disabledReason} onClick={() => void submit()}>{t('alpha7.import.start')}</Button>{disabledReason && <p className="mt-2 text-sm text-muted">{disabledReason}</p>}</div>
       {error && <Notice tone="bad">{error}</Notice>}
       {checked && imported && <section aria-live="polite" className="space-y-4">
         <p role="status" className="text-sm">{issues.length ? t('alpha7.import.errors', { count: issues.length }) : t('alpha7.import.valid')}</p>
         <IssueList issues={issues} config={imported.config} />
-        {issues.length === 0 && doc.draft?.draft_id === imported.draft_id ? <ReviewDraftButton>{t('alpha7.import.review')}</ReviewDraftButton> : <Button disabled>{t('alpha7.import.review')}</Button>}
+        {issues.length === 0 && doc.draft?.draft_id === imported.draft_id ? <ReviewDraftButton variant="secondary">{t('alpha7.import.review')}</ReviewDraftButton> : <Button disabled>{t('alpha7.import.review')}</Button>}
         {issues.length > 0 && <p className="text-sm text-muted">{t('alpha7.import.fix')}</p>}
         {doc.draft?.draft_id !== imported.draft_id && <p className="text-sm text-muted">{t('alpha7.import.openFirst')}</p>}
       </section>}
     </div></Panel>
     {!contractImport && <Panel className="mt-5"><PanelHeader title={t('alpha7.export.title')} /><div className="flex flex-col items-start gap-3 p-5">
-      <Button disabled={!active.data} onClick={() => active.data && downloadText(`terra-${new Date().toISOString().slice(0, 10)}.json`, exportRegistry(active.data))}>{t('alpha7.export.active')}</Button>
+      <Button disabled={!active.data} onClick={() => active.data && downloadText(`mimir-${new Date().toISOString().slice(0, 10)}.json`, exportRegistry(active.data))}>{t('alpha7.export.active')}</Button>
       {!active.data && <p className="text-sm text-muted">{t('alpha7.export.noActive')}</p>}
-      {doc.config && <Button onClick={() => downloadText(`terra-entwurf-${new Date().toISOString().slice(0, 10)}.json`, exportRegistry(doc.config!))}>{t('alpha7.export.draft')}</Button>}
+      {doc.config && <Button onClick={() => downloadText(`mimir-entwurf-${new Date().toISOString().slice(0, 10)}.json`, exportRegistry(doc.config!))}>{t('alpha7.export.draft')}</Button>}
     </div></Panel>}
+    <Dialog open={backingUp} onOpenChange={setBackingUp} title={t('alpha9.actions.backup')} footer={<Button variant="primary" disabled={exportScope === 'active' ? !active.data : !doc.config} onClick={() => { const config = exportScope === 'active' ? active.data : doc.config; if (config) { downloadText(`mimir-${exportScope === 'draft' ? 'entwurf-' : ''}${new Date().toISOString().slice(0, 10)}.json`, exportRegistry(config)); setBackingUp(false); } }}>{t('alpha9.export.saveFile')}</Button>}>
+      <Field label={t('alpha9.export.scope')}>{props => <Select {...props} value={exportScope} onChange={event => setExportScope(event.target.value as typeof exportScope)}><option value="active" disabled={!active.data}>{t('alpha7.export.active')}</option><option value="draft" disabled={!doc.config}>{t('alpha7.export.draft')}</option></Select>}</Field>
+    </Dialog>
   </>;
 }

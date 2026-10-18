@@ -56,7 +56,7 @@ def pinned_references(state: Any) -> set[str]:
             for child in value:
                 visit(child)
 
-    for table in ("contract_state_current", "node_state", "sm_instance"):
+    for table in ("contract_state_current", "node_state", "sm_instance", "service_state"):
         visit(state.tables[table])
     references.update(
         Observation.model_validate(row).reference

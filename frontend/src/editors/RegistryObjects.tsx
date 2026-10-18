@@ -1,4 +1,5 @@
-import { codeLabel } from '@/i18n/codes';
+import { SourceQualityEditor } from './SourceQualityEditor';
+import { codeLabel, fieldLabel } from '@/i18n/codes';
 import { t as uiText } from '@/i18n';
 import { Search, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -16,6 +17,9 @@ import { useHaEntities } from '@/lib/queries';
 import { sourceCast } from '@/lib/sourceCast';
 import { formatNumber } from '@/lib/format';
 import { DEVICE_PRESETS, freshnessPreset, type DevicePreset } from '@/features/sources/devicePlan';
+import { CalendarFields } from '@/features/sources/CalendarSourceDialog';
+import { BindingRefreshEditor } from '@/features/sources/BindingRefreshEditor';
+import { RefreshPlanEditor, type RefreshSource } from './RefreshPlanEditor';
 import { AddButton, Fld, IconButton, IssuesAt, NumberField, SectionTitle } from './common';
 import { FieldSchemaEditor } from './FieldSchemaEditor';
 import { ValueEditor } from './ValueEditor';
@@ -80,7 +84,7 @@ export function DependencyEditor({ value, onChange, pointer, sourceIds, schema }
 
 /* ─────────────────────────────── Source ─────────────────────────────── */
 
-export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceIds, livenessSourceIds = sourceIds, schema }: { value: JsonObject; onChange: (n: JsonObject) => void; pointer: string; dependencyIds: string[]; sourceIds: string[]; livenessSourceIds?: string[]; schema?: JsonSchema }) {
+export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceIds, livenessSourceIds = sourceIds, sources = [], schema }: { value: JsonObject; onChange: (n: JsonObject) => void; pointer: string; dependencyIds: string[]; sourceIds: string[]; livenessSourceIds?: string[]; sources?: JsonObject[]; schema?: JsonSchema }) {
   const set = patcher(value, onChange);
   const freshness = asObject(value.freshness);
   const mode = str(freshness.mode);
@@ -93,6 +97,7 @@ export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceId
     onChange({ ...value, freshness: next });
   };
   const hasSchema = value.value_schema !== undefined && value.value_schema !== null;
+  const manual = value.origin === 'manual';
   const userType = asObject(value.value_schema).type === 'enum' ? 'selection' : str(value.source_type);
   const fp = join(pointer, 'freshness');
   return (
@@ -144,9 +149,9 @@ export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceId
 
       <section className="flex flex-col gap-3">
         <SectionTitle>{uiText("editors.RegistryObjects.frische_freshness_be29ab")}</SectionTitle>
-        <Fld label={uiText('alpha7.device.applyPreset')} pointer={fp}>
+        {!manual && <Fld label={uiText('alpha7.device.applyPreset')} pointer={fp}>
           {props => <Select {...props} value="" onChange={event => { if (!event.target.value) return; const next = { ...freshness, ...freshnessPreset(event.target.value as DevicePreset) }; if (next.mode === 'event_stateful') delete next.interval_s; delete next.liveness_source; onChange({ ...value, freshness: next }); }}><option value="">{uiText('alpha7.device.keepSettings')}</option>{DEVICE_PRESETS.map(preset => <option key={preset} value={preset}>{uiText(`alpha7.device.preset.${preset}`)}</option>)}</Select>}
-        </Fld>
+        </Fld>}
         <p className="text-xs text-muted">{uiText(`alpha7.freshness.${mode}Help`)}</p>
         <IssuesAt pointer={fp} />
         <div className="grid gap-3 sm:grid-cols-4">
@@ -157,13 +162,13 @@ export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceId
                  const needs = requiredWhen(schema, 'Freshness', 'mode', nextMode);
                   setFreshness({ mode: nextMode, ...(needs.includes('interval_s') && freshness.interval_s == null ? { interval_s: 60 } : {}) });
                }}>
-                {enumAt(schema, 'Freshness', 'mode', ['report_heartbeat', 'liveness_source', 'periodic_ttl', 'event_stateful']).map((k) => (
+                {enumAt(schema, 'Freshness', 'mode', ['report_heartbeat', 'liveness_source', 'periodic_ttl', 'event_stateful']).filter(k => !manual || k === 'periodic_ttl' || k === 'event_stateful').map((k) => (
                   <option key={k} value={k}>{codeLabel(k)}</option>
                 ))}
               </Select>
             )}
           </Fld>
-          <NumberField label={uiText("editors.RegistryObjects.zukunftstoleranz_s_a11f48")} pointer={join(fp, 'future_tolerance_s')} min={0} value={Number(freshness.future_tolerance_s ?? 0)} onChange={(n) => setFreshness({ future_tolerance_s: n })} />
+          {!manual && <NumberField label={uiText("editors.RegistryObjects.zukunftstoleranz_s_a11f48")} pointer={join(fp, 'future_tolerance_s')} min={0} value={Number(freshness.future_tolerance_s ?? 0)} onChange={(n) => setFreshness({ future_tolerance_s: n })} />}
           {mode !== 'event_stateful' && (
             <NumberField label={uiText("editors.RegistryObjects.intervall_s_v0_3a6c0e", { v0: ' *' })} hint={uiText(Number(freshness.interval_s ?? 60) === 60 ? 'alpha7.freshness.oneMinute' : 'alpha7.freshness.minutes', { minutes: formatNumber(Number(freshness.interval_s ?? 60) / 60, 1) })} pointer={join(fp, 'interval_s')} min={1} value={Number(freshness.interval_s ?? 60)} onChange={(n) => setFreshness({ interval_s: n })} />
           )}
@@ -189,6 +194,12 @@ export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceId
         <p className="text-xs text-muted">{uiText("editors.RegistryObjects.quellen_der_typen_boolean_numeric_text_haben_ihr_e970bc")}</p>
         {hasSchema && <FieldSchemaEditor pointer={join(pointer, 'value_schema')} value={asObject(value.value_schema) as FieldSchema} onChange={(next) => set({ value_schema: next })} />}
       </Collapsible>
+      {manual && <section className="space-y-3">
+        <p className="text-sm text-muted">{uiText('alpha9.manual.origin')}</p>
+        <Switch label={uiText('alpha9.manual.future')} checked={value.manual_allow_future === true} onCheckedChange={on => set({ manual_allow_future: on || undefined })} />
+        {asObject(value.value_schema).type === 'number' && <div className="grid gap-3 sm:grid-cols-2">{(['manual_minimum', 'manual_maximum'] as const).map(key => <Fld key={key} label={uiText(`alpha9.manual.${key}`)} pointer={join(pointer, key)}>{props => <Input {...props} type="number" step="any" value={typeof value[key] === 'number' ? Number(value[key]) : ''} onChange={event => set({ [key]: event.target.value === '' ? undefined : event.target.valueAsNumber })} />}</Fld>)}</div>}
+      </section>}
+      <SourceQualityEditor value={value} onChange={onChange} sources={sources} />
       <Extras def="Source" value={value} pointer={pointer} onChange={onChange} />
     </div>
   );
@@ -208,11 +219,17 @@ export function BindingEditor({ value, onChange, pointer, sourceIds, sources = [
   const ap = join(pointer, 'adapter');
   const setAdapter = (patch: Record<string, Json | undefined>) => {
     const next: JsonObject = { ...adapter };
+    const copy = { ...value };
+    if (patch.kind && patch.kind !== kind) {
+      for (const key of ['window', 'refresh_s', 'max_age_s', 'ha_entity_id', 'ha_attribute', 'ha_time_attribute', 'mqtt_topic', 'mqtt_value_path']) delete next[key];
+      delete copy.refresh;
+      if (patch.kind === 'ha_calendar') { next.window = { timezone: 'Europe/Berlin', past_days: 1, future_days: 14 }; next.refresh_s = 900; next.max_age_s = 3600; delete copy.transform; }
+    }
     for (const [k, v] of Object.entries(patch)) {
       if (v === undefined || v === '') delete next[k];
       else next[k] = v;
     }
-    onChange({ ...value, adapter: next });
+    onChange({ ...copy, adapter: next });
   };
   const transform = value.transform === null || value.transform === undefined ? null : asObject(value.transform);
   const tp = join(pointer, 'transform');
@@ -247,7 +264,7 @@ export function BindingEditor({ value, onChange, pointer, sourceIds, sources = [
         <Fld label={uiText("editors.RegistryObjects.art_75df35")} pointer={join(ap, 'kind')} className="max-w-xs">
           {(p) => (
             <Select {...p} value={kind} onChange={(e) => setAdapter({ kind: e.target.value })}>
-              {enumAt(schema, 'AdapterConfig', 'kind', ['ha_state', 'ha_attribute', 'mqtt']).filter((k) => k !== 'scheduler').map((k) => (
+              {enumAt(schema, 'AdapterConfig', 'kind', ['ha_state', 'ha_attribute', 'ha_calendar', 'mqtt']).filter((k) => k !== 'scheduler').map((k) => (
                 <option key={k} value={k}>{codeLabel(k)}</option>
               ))}
             </Select>
@@ -274,6 +291,7 @@ export function BindingEditor({ value, onChange, pointer, sourceIds, sources = [
             </Fld>
           </div>
         )}
+        {kind === 'ha_calendar' && <CalendarFields value={{ past: Number(asObject(adapter.window).past_days ?? 1), future: Number(asObject(adapter.window).future_days ?? 14), refreshMinutes: Number(adapter.refresh_s ?? 900)/60, validMinutes: Number(adapter.max_age_s ?? 3600)/60 }} onChange={next => setAdapter({ window: { timezone: 'Europe/Berlin', past_days: next.past, future_days: next.future }, refresh_s: next.refreshMinutes*60, max_age_s: next.validMinutes*60 })} />}
         {kind === 'mqtt' && (
           <div className="grid gap-3 sm:grid-cols-3">
             <Fld label={uiText("editors.RegistryObjects.topic_7b08c3")} pointer={join(ap, 'mqtt_topic')}>
@@ -288,6 +306,7 @@ export function BindingEditor({ value, onChange, pointer, sourceIds, sources = [
           </div>
         )}
         <Extras def="AdapterConfig" value={adapter} pointer={ap} onChange={(next) => onChange({ ...value, adapter: next })} />
+        {ha && kind !== 'ha_calendar' && <BindingRefreshEditor value={value} onChange={onChange} />}
         {kind === 'scheduler' && <p className="text-xs text-muted">{uiText("editors.RegistryObjects.der_scheduler_ist_kein_quellen_adapter_und_wird__39b766")}</p>}
       </section>
 
@@ -469,7 +488,7 @@ export function CatalogEditor({ value, onChange, pointer }: { value: JsonObject;
 
 /* ────────────────────────── Contract instance ───────────────────────── */
 
-export function ContractEditor({ value, onChange, pointer, types, refs, onAddDevice }: { value: JsonObject; onChange: (n: JsonObject) => void; pointer: string; types: TypeEntry[]; refs: RefOption[]; onAddDevice?: (input: string) => void }) {
+export function ContractEditor({ value, onChange, pointer, types, refs, onAddDevice, refreshSources = [] }: { value: JsonObject; onChange: (n: JsonObject) => void; pointer: string; types: TypeEntry[]; refs: RefOption[]; onAddDevice?: (input: string) => void; refreshSources?: RefreshSource[] }) {
   const set = patcher(value, onChange);
   const key = typeKey(str(value.type_id), Number(value.type_version));
   const entry = types.find((t) => t.key === key);
@@ -571,6 +590,7 @@ export function ContractEditor({ value, onChange, pointer, types, refs, onAddDev
         )}
         <IssuesAt pointer={join(pointer, 'parameters')} />
       </section>
+      <RefreshPlanEditor value={value.refresh_plan && typeof value.refresh_plan === 'object' ? asObject(value.refresh_plan) : null} onChange={refresh_plan => set({ refresh_plan })} sources={refreshSources} references={[...refs, ...Object.entries(entry?.fields ?? {}).map(([name, schema]) => ({ value: `${str(value.contract_id)}.${name}`, label: uiText('alpha9.refresh.reference', { name: str(value.display_name) || str(value.contract_id), field: fieldLabel(name) }), kind: 'contract' as const, schema }))]} />
       <Extras def="Contract" value={value} pointer={pointer} onChange={onChange} />
     </div>
   );

@@ -215,14 +215,34 @@ def state_machine(
             }
         )
     if ctx.override is None:
-        event = "deadline" if current.deadline and current.deadline.due(now) else "input"
-        if ctx.origin == "input" or event == "deadline":
+        current = machine.prepare(
+            current, ctx.inputs, now, baseline=ctx.origin in {"restore", "snapshot", "revision"}
+        )
+        if machine.definition.deadline_v2 and ctx.origin == "input":
+            current, _ = machine.step(current, "input", ctx.inputs, now, ctx.state.active_revision)
+            current = machine.prepare(current, ctx.inputs, now)
+        event = machine.due_event(current, now) or "input"
+        if (ctx.origin == "input" and not machine.definition.deadline_v2) or event in {
+            "deadline",
+            "absolute",
+        }:
             current, outcome = machine.step(
                 current, event, ctx.inputs, now, ctx.state.active_revision
             )
-            if event == "deadline" and outcome == "guard_unknown":
+            if event in {"deadline", "absolute"} and outcome == "guard_unknown":
                 node["machine"] = current.model_dump(mode="json")
                 return unknown(ReasonCode.DEADLINE_OVERDUE, ctx.contract.contract_id, now)
+            if machine.definition.deadline_v2 and outcome != "accepted":
+                # A rejected duration guard may leave an absolute transition due at
+                # the same instant; process that candidate within this transaction.
+                remaining = machine.due_event(current, now)
+                if remaining and remaining != event:
+                    current, outcome = machine.step(
+                        current, remaining, ctx.inputs, now, ctx.state.active_revision
+                    )
+                    if outcome == "guard_unknown":
+                        node["machine"] = current.model_dump(mode="json")
+                        return unknown(ReasonCode.DEADLINE_OVERDUE, ctx.contract.contract_id, now)
         if ctx.origin == "restore":
             current = current.model_copy(update={"origin": "restore"})
     node["machine"] = current.model_dump(mode="json")
@@ -261,5 +281,9 @@ def next_temporal_due(
 def next_machine_due(
     parameters: dict[str, Any], node: dict[str, Any], now: datetime
 ) -> datetime | None:
-    deadline = node.get("machine", {}).get("deadline")
-    return datetime.fromisoformat(deadline["at"]) if deadline and not deadline["fired"] else None
+    state = node.get("machine", {})
+    deadline = state.get("deadline")
+    due = [datetime.fromisoformat(deadline["at"])] if deadline and not deadline["fired"] else []
+    if state.get("absolute_at"):
+        due.append(datetime.fromisoformat(state["absolute_at"]))
+    return min(due, default=None)

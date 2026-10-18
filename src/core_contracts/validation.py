@@ -8,7 +8,7 @@ from pydantic import ValidationError
 from .declarative import DefinitionValidationErrors, RuleValidationError, all_rules, compatible
 from .declarative_models import DeclarativeDefinition
 from .instance_parameters import validate_slots
-from .model import Model, canonical
+from .model import Model, canonical, semantic_fingerprint
 from .registry import (
     Binding,
     Catalog,
@@ -239,6 +239,9 @@ def validate_document(
             references = (
                 source.freshness.liveness_source,
                 dependency.source_id if dependency else None,
+                source.sensor_profile.stuck.reference.ref
+                if source.sensor_profile and source.sensor_profile.stuck.reference
+                else None,
             )
             for reference in references:
                 if reference:
@@ -264,6 +267,42 @@ def validate_document(
                 active_sources.clear()
     for index, source in enumerate(config.sources):
         path, key = f"/sources/{index}", source.source_id
+        profile = source.sensor_profile
+        if profile:
+            peer_source = (
+                sources.get(profile.stuck.reference.ref) if profile.stuck.reference else None
+            )
+            if profile.stuck.reference and (
+                peer_source is None
+                or peer_source.physical_source_key == source.physical_source_key
+                or peer_source.value_schema is None
+                or peer_source.value_schema.type != "number"
+                or peer_source.origin == "manual"
+                or peer_source.value_origin is not None
+                and peer_source.value_origin.kind != "measured"
+                or source.value_schema is None
+                or peer_source.value_schema.unit != source.value_schema.unit
+            ):
+                add(
+                    "sensor_reference",
+                    path + "/sensor_profile/stuck/reference",
+                    "independent numeric reference with same unit required",
+                    key,
+                )
+            if any(
+                other.sensor_profile
+                and (other.sensor_profile.id, other.sensor_profile.version)
+                == (profile.id, profile.version)
+                and semantic_fingerprint(other.sensor_profile.model_dump(mode="json"))
+                != semantic_fingerprint(profile.model_dump(mode="json"))
+                for other in config.sources
+            ):
+                add(
+                    "sensor_profile_conflict",
+                    path + "/sensor_profile",
+                    "conflicting profile version",
+                    key,
+                )
         if key in contracts:
             add("ambiguous_identity", path + "/source_id", "ambiguous identity", key)
         if source.dependency_id not in dependencies or source.source_origin != "local":
@@ -313,6 +352,37 @@ def validate_document(
     addresses: set[tuple[str | None, ...]] = set()
     for index, binding in enumerate(config.bindings):
         path, key, adapter = f"/bindings/{index}", binding.binding_id, binding.adapter
+        manual_source = sources.get(binding.source_id)
+        if manual_source and (
+            (manual_source.origin == "manual") != (adapter.kind == "manual")
+            or adapter.kind == "manual"
+            and (
+                binding.transform is not None
+                or dependencies.get(manual_source.dependency_id) is None
+                or dependencies[manual_source.dependency_id].kind != "manual"
+                or dependencies[manual_source.dependency_id].monitor != "internal"
+            )
+        ):
+            add(
+                "manual_binding_required",
+                path,
+                "manual source requires its own manual binding and dependency",
+                key,
+            )
+        if adapter.kind == "ha_calendar" and (calendar_source := sources.get(binding.source_id)):
+            if (
+                calendar_source.value_schema is None
+                or calendar_source.value_schema.type != "object"
+                or calendar_source.freshness.mode != "periodic_ttl"
+                or calendar_source.freshness.interval_s != adapter.max_age_s
+                or binding.transform is not None
+            ):
+                add(
+                    "calendar_source_schema",
+                    path,
+                    "calendar requires object value and matching finite freshness",
+                    key,
+                )
         if adapter.kind == "scheduler" and (
             declared_source_clock := sources.get(binding.source_id)
         ):
@@ -325,14 +395,18 @@ def validate_document(
                     key,
                 )
         address = (
-            (adapter.kind, adapter.ha_entity_id, adapter.ha_attribute)
-            if adapter.kind.startswith("ha_")
+            ("manual", binding.source_id)
+            if adapter.kind == "manual"
             else (
-                adapter.kind,
-                canonical(adapter.calendar.model_dump())
-                if adapter.calendar
-                else adapter.mqtt_topic,
-                adapter.mqtt_value_path,
+                (adapter.kind, adapter.ha_entity_id, adapter.ha_attribute)
+                if adapter.kind.startswith("ha_")
+                else (
+                    adapter.kind,
+                    canonical(adapter.calendar.model_dump())
+                    if adapter.calendar
+                    else adapter.mqtt_topic,
+                    adapter.mqtt_value_path,
+                )
             )
         )
         if address in addresses:
@@ -422,6 +496,56 @@ def validate_document(
     evaluation_cost = 0
     for index, contract in enumerate(config.contracts):
         path, key = f"/contracts/{index}", contract.contract_id
+        if contract.refresh_plan:
+            plan = contract.refresh_plan
+            references = [plan.trigger_ref] + (
+                [plan.stop_when.reference()] if plan.stop_when else []
+            )
+            for reference in references:
+                try:
+                    refresh_parent, refresh_field = resolve_ref(reference, config)
+                    refresh_contract = next(
+                        item for item in config.contracts if item.contract_id == refresh_parent
+                    )
+                    refresh_field_schema = types.get(
+                        refresh_contract.type_id, refresh_contract.type_version
+                    ).schema.fields[refresh_field or "value"]
+                    if refresh_field is None or refresh_field_schema.type != "bool":
+                        raise ValueError("canonical_bool_required")
+                except ValueError, KeyError, StopIteration:
+                    add(
+                        "refresh_reference",
+                        path + "/refresh_plan",
+                        "refresh requires canonical bool contracts",
+                        key,
+                    )
+            for target_source_id in plan.targets:
+                refresh_binding = next(
+                    (item for item in config.bindings if item.source_id == target_source_id), None
+                )
+                if (
+                    refresh_binding is None
+                    or refresh_binding.refresh is None
+                    or refresh_binding.adapter.kind not in {"ha_state", "ha_attribute"}
+                ):
+                    add(
+                        "refresh_capability",
+                        path + "/refresh_plan/targets",
+                        "source cannot be refreshed",
+                        key,
+                    )
+                    continue
+                minimum = 60 if refresh_binding.refresh.profile == "companion_location" else 10
+                if any(
+                    right - left < minimum
+                    for left, right in zip(plan.attempt_offsets_s, plan.attempt_offsets_s[1:])
+                ):
+                    add(
+                        "refresh_interval",
+                        path + "/refresh_plan/attempt_offsets_s",
+                        "refresh profile minimum interval",
+                        key,
+                    )
         try:
             declaration = types.get(contract.type_id, contract.type_version)
         except KeyError:

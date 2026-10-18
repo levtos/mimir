@@ -19,7 +19,7 @@ describe('P1: separate module routes and retained links', () => {
   it('assigns every sidebar subpage an explicit route rather than the fallback', () => {
     const routes = workbenchRoutes(() => {});
     const pages = NAVIGATION.flatMap(module => module.children);
-    expect(new Set(pages.map(page => page.to)).size).toBe(18);
+    expect(new Set(pages.map(page => page.to)).size).toBe(pages.length);
     for (const page of pages) {
       expect(legacyTarget(page.to), page.to).toBe(page.to);
       const matched = matchRoutes(routes, page.to);
@@ -77,10 +77,10 @@ describe('P1: separate module routes and retained links', () => {
       expect(screen.getByText('Keine Datei ausgewählt')).toBeVisible();
       const file = new File([JSON.stringify(emptyRegistry())], 'vertraege.json', { type: 'application/json' });
       Object.defineProperty(file, 'text', { value: async () => JSON.stringify(emptyRegistry()) });
-      await user.upload(screen.getByLabelText('Datei auswählen (JSON)'), file);
+      await user.upload(screen.getByLabelText("Datei auswählen"), file);
       expect(screen.getByText('vertraege.json')).toBeVisible();
     } else {
-      await user.click(screen.getByLabelText('Oder Import-Text einfügen (JSON)'));
+      await user.click(screen.getByLabelText("Oder gespeicherten Text einfügen"));
       await user.paste(JSON.stringify(emptyRegistry()));
     }
     await user.click(screen.getByRole('button', { name: 'Als Entwurf einlesen und prüfen' }));

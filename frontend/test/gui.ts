@@ -14,7 +14,7 @@ export const node = (pointer: string): HTMLElement => {
 
 export function gui(user: UserEvent) {
   const setOp = async (pointer: string, op: string) => {
-    await user.selectOptions(within(node(pointer)).getAllByRole('combobox', { name: /^Operator/ })[0]!, op);
+    await user.selectOptions(within(node(pointer)).getAllByRole('combobox', { name: /^Rechenschritt/ })[0]!, op);
   };
   const first = (pointer: string, label: string | RegExp) => within(node(pointer)).getAllByLabelText(label)[0]!;
   const type = async (el: HTMLElement, text: string) => {
@@ -28,7 +28,7 @@ export function gui(user: UserEvent) {
     await tab(/Ausgaben/);
     const root = `${base}/outputs/value`;
     await setOp(root, 'and');
-    await user.click(within(node(root)).getAllByRole('button', { name: 'Operand' })[0]!);
+    await user.click(within(node(root)).getAllByRole('button', { name: "Eingangswert" })[0]!);
     await setOp(`${root}/args/1`, 'not');
     await setOp(`${root}/args/1/args/0`, 'literal');
     await setOp(`${root}/args/2`, 'compare');
@@ -68,20 +68,20 @@ export function gui(user: UserEvent) {
     await user.tab();
     const grace = `${base}/rules/grace`;
     await setOp(grace, 'temporal');
-    await type(first(grace, 'ID (eindeutig)'), 'grace');
+    await type(first(grace, "Eindeutige Kennung"), 'grace');
     await user.selectOptions(first(grace, 'Operation'), 'grace');
     await type(first(grace, 'Dauer (s)'), '10');
     const stable = `${base}/rules/stable`;
     await setOp(stable, 'temporal');
-    await type(first(stable, 'ID (eindeutig)'), 'stable');
+    await type(first(stable, "Eindeutige Kennung"), 'stable');
     await type(first(stable, 'Dauer (s)'), '2');
-    await user.click(within(node(stable)).getByRole('checkbox', { name: /Gehaltene Werte/ }));
+    await user.click(within(node(stable)).getByRole('checkbox', { name: /Werte innerhalb ihrer Haltefrist/ }));
     await setOp(`${stable}/args/0`, 'ref');
-    await user.selectOptions(within(node(`${stable}/args/0`)).getByLabelText('Interne Regel'), 'grace');
+    await user.selectOptions(within(node(`${stable}/args/0`)).getByLabelText("Benannter Rechenschritt"), 'grace');
     await tab(/Ausgaben/);
     const root = `${base}/outputs/value`;
     await setOp(root, 'ref');
-    await user.selectOptions(within(node(root)).getByLabelText('Interne Regel'), 'stable');
+    await user.selectOptions(within(node(root)).getByLabelText("Benannter Rechenschritt"), 'stable');
   };
 
   /** test.flow: six typed output fields (object value built graphically) and a state machine. */
@@ -128,7 +128,7 @@ export function gui(user: UserEvent) {
     await tab(/Ablauf/);
     await user.click(screen.getByRole('button', { name: "Ablauf hinzufügen" }));
     const m = `${base}/machine`;
-    await type(screen.getByLabelText('Maschinen-ID'), 'lifecycle');
+    await type(screen.getByLabelText("Kennung des Ablaufs"), 'lifecycle');
     await user.click(screen.getByRole('button', { name: 'Zustand' }));
     await type(screen.getByLabelText('Zustand zustand'), 'done');
     await user.tab();
@@ -153,7 +153,7 @@ export function gui(user: UserEvent) {
     await user.selectOptions(screen.getAllByLabelText('Nach')[1]!, 'done');
     await user.selectOptions(screen.getAllByLabelText('Ereignis')[1]!, 'deadline');
     await type(screen.getAllByLabelText('Grund')[1]!, 'elapsed');
-    await user.click(screen.getAllByRole('checkbox', { name: /Beendet Episode/ })[1]!);
+    await user.click(screen.getAllByRole('checkbox', { name: /Durchlauf beenden/ })[1]!);
   };
 
   return { setOp, first, type, tab, buildCondition, buildEither, buildTimed, buildFlow };

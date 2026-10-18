@@ -1,4 +1,4 @@
-import { t as uiText } from '@/i18n';
+import { hasTranslation, t as uiText } from '@/i18n';
 import type { Json } from './json';
 import { coolDownRequests, reserveRequest } from './request-budget';
 
@@ -126,7 +126,7 @@ export function describeError(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.kind === 'auth') return uiText("lib.api.keine_berechtigung_fur_diese_aktion_a1a527");
     if (error.kind === 'rate_limited') return MESSAGES.rate_limited!;
-    return MESSAGES[error.code] ?? uiText('common.requestFailed');
+    return MESSAGES[error.code] ?? (hasTranslation(`codes.${error.code}`) ? uiText(`codes.${error.code}`) : uiText('alpha9.form.unavailable'));
   }
-  return uiText('common.requestFailed');
+  return uiText('alpha9.form.unavailable');
 }

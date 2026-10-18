@@ -1,0 +1,78 @@
+{
+  "capturedAt": "2026-10-18T09:38:55.257Z",
+  "engine": "isolated real API, memory store, synthetic data",
+  "errors": [],
+  "external": [],
+  "shots": [
+    {
+      "file": "01-vertraege-kategorie-raum.png",
+      "description": "Kategorien, Raum, Filter und Gruppierung der Verträge",
+      "viewport": "1568×710",
+      "browser": "Firefox",
+      "version": "157.0"
+    },
+    {
+      "file": "02-vertrag-kategorie-raum.png",
+      "description": "Kategorie und Raum am Vertrag; gespeicherter Wert",
+      "viewport": "1568×710",
+      "browser": "Firefox",
+      "version": "157.0"
+    },
+    {
+      "file": "03-vertrag-ordnung-aendern.png",
+      "description": "Redaktionelles Ändern ohne Konfigurationswechsel",
+      "viewport": "1568×710",
+      "browser": "Firefox",
+      "version": "157.0"
+    },
+    {
+      "file": "04-manuelle-quelle.png",
+      "description": "Manuelle Eingabe, Herkunft und Gültigkeit",
+      "viewport": "1568×710",
+      "browser": "Firefox",
+      "version": "157.0"
+    },
+    {
+      "file": "05-benachrichtigungen.png",
+      "description": "Getrennte Signal- und Konfigurationshinweise mit Minutenhilfe",
+      "viewport": "1568×710",
+      "browser": "Firefox",
+      "version": "157.0"
+    },
+    {
+      "file": "06-aufbewahrung.png",
+      "description": "Aufbewahrung als Vorschlag 7 / 730 über Entwurf",
+      "viewport": "1568×710",
+      "browser": "Firefox",
+      "version": "157.0"
+    },
+    {
+      "file": "07-systemstatus.png",
+      "description": "Alle offenen Voraussetzungen und dynamische Programmversion",
+      "viewport": "1568×710",
+      "browser": "Firefox",
+      "version": "157.0"
+    },
+    {
+      "file": "08-kopfleiste-bereitschaft.png",
+      "description": "Konfiguration im Kopf und vollständige Bereitschaftsliste",
+      "viewport": "1568×710",
+      "browser": "Firefox",
+      "version": "157.0"
+    },
+    {
+      "file": "09-uebersicht.png",
+      "description": "Signal gestört und Konfiguration unvollständig als eigene Bereiche",
+      "viewport": "1568×710",
+      "browser": "Firefox",
+      "version": "157.0"
+    },
+    {
+      "file": "10-vollstaendigkeit.png",
+      "description": "Eigener Bereich für verwendbare Werte mit fehlenden Angaben",
+      "viewport": "1568×710",
+      "browser": "Firefox",
+      "version": "157.0"
+    }
+  ]
+}

@@ -80,7 +80,7 @@ def rule_children(rule: dm.Rule) -> list[tuple[str, dm.Rule]]:
         return [("at", rule.at)]
     if isinstance(rule, dm.CompareRule):
         return [("left", rule.left), ("right", rule.right)]
-    if isinstance(rule, (dm.MapRule, dm.BucketRule, dm.NotApplicableRule)):
+    if isinstance(rule, (dm.MapRule, dm.BucketRule, dm.NotApplicableRule, dm.KnownAutomaticRule)):
         return [("arg", rule.arg)]
     if isinstance(rule, dm.FirstMatchRule):
         return [
@@ -155,6 +155,8 @@ def check_definition(definition: dm.DeclarativeDefinition) -> None:
     slots = [r.duration_s for r in rules if isinstance(r, dm.TemporalRule)]
     if definition.machine and definition.machine.deadline_s is not None:
         slots.append(definition.machine.deadline_s)
+    if definition.machine:
+        slots.extend(item.duration for item in definition.machine.deadline_by_state.values())
     for slot in slots:
         if isinstance(slot, dm.ParameterRule):
             declaration = definition.parameter_schema.get(slot.name)
@@ -229,7 +231,7 @@ def check_definition(definition: dm.DeclarativeDefinition) -> None:
         if isinstance(rule, dm.ParameterRule):
             parameter_declaration = definition.parameter_schema.get(rule.name)
             if (
-                definition.language_version != 2
+                definition.language_version < 2
                 or not parameter_declaration
                 or not parameter_declaration.field_schema.required
             ):
@@ -251,19 +253,23 @@ def check_definition(definition: dm.DeclarativeDefinition) -> None:
         if isinstance(rule, dm.LiteralRule):
             return rule.field_schema
         args = [infer(child, guard=guard, depth=depth + 1) for child in children(rule)]
+        if isinstance(rule, dm.KnownAutomaticRule):
+            if definition.language_version < 3:
+                raise ValueError("language_version_3_required")
+            return scalar("bool")
         if isinstance(rule, dm.ConfigurationHintRule):
-            if definition.language_version != 2:
+            if definition.language_version < 2:
                 raise ValueError("language_version_2_required")
             require(args[1], scalar("bool"))
             return args[0]
         if isinstance(rule, dm.TextRule):
-            if definition.language_version != 2:
+            if definition.language_version < 2:
                 raise ValueError("language_version_2_required")
             for arg in args:
                 require(arg, scalar("text"))
             return scalar("bool" if rule.op in {"contains", "matches"} else "text")
         if isinstance(rule, dm.TimeReachedRule):
-            if definition.language_version != 2:
+            if definition.language_version < 2:
                 raise ValueError("language_version_2_required")
             require(args[0], FieldSchema(type="timestamp", required=True, physical_state=False))
             return scalar("bool")
@@ -305,7 +311,7 @@ def check_definition(definition: dm.DeclarativeDefinition) -> None:
         if isinstance(rule, dm.BucketRule):
             require(args[0], scalar("number"))
             if rule.classes:
-                if definition.language_version != 2:
+                if definition.language_version < 2:
                     raise ValueError("language_version_2_required")
                 for arg in args[1:]:
                     require(arg, args[0])
@@ -319,7 +325,7 @@ def check_definition(definition: dm.DeclarativeDefinition) -> None:
                 raise ValueError("unknown_formula_version")
             declaration = FORMULA_SCHEMAS[rule.name, rule.version]
             if declaration.inputs:
-                if definition.language_version != 2 or not isinstance(rule.args, dict):
+                if definition.language_version < 2 or not isinstance(rule.args, dict):
                     raise ValueError("named_formula_arguments_required")
                 specifications = {item.name: item for item in declaration.inputs}
                 if set(rule.args) - specifications.keys() or any(
@@ -555,6 +561,12 @@ class Evaluation:
                 )
             return self.memo["$machine"]
         args = [self.evaluate(child) for child in children(rule)]
+        if isinstance(rule, dm.KnownAutomaticRule):
+            return derive(
+                bool(args[0].attribution and args[0].attribution.kind == "known_automatic"),
+                args,
+                now,
+            )
         if isinstance(rule, dm.ConfigurationHintRule):
             result = args[0]
             if not args[1].usable(now) or args[1].value is True:
@@ -756,6 +768,19 @@ def compile_machine(
             else None,
             sessions=machine.sessions,
             allow_manual_restart=machine.allow_manual_restart,
+            deadline_by_state={
+                name: number_slot(
+                    item.duration, evaluation.parameters if evaluation else parameters or {}
+                )
+                for name, item in machine.deadline_by_state.items()
+            },
+            absolute_transition=machine.absolute_transition.model_dump()
+            if machine.absolute_transition
+            else None,
+            deadline_v2=machine.unknown_deadline is not None,
+            required_inputs=tuple(
+                item.name for item in definition.inputs if item.field_schema.required
+            ),
             transitions=tuple(
                 Transition(
                     source=t.source,
@@ -767,6 +792,7 @@ def compile_machine(
                     ends_episode=t.ends_episode,
                     argument_guard=argument_guard(t.argument_equals) if t.argument_equals else None,
                     data_confirmation=data_confirmation(t.guard),
+                    deadline_action=t.deadline_action,
                 )
                 for t in machine.transitions
             ),
@@ -822,6 +848,22 @@ def compile_definition(definition: dm.DeclarativeDefinition) -> ContractType:
                 requested[name] = True
         evaluation = Evaluation(definition, ctx.inputs, ctx.now, ctx)
         values = {name: evaluation.evaluate(rule) for name, rule in definition.outputs.items()}
+        from .value_origin import ValueOrigin, contributions
+
+        for name, origin in definition.output_origins.items():
+            field = values[name]
+            if field.usable(ctx.now):
+                values[name] = field.model_copy(
+                    update={
+                        "value_origin": ValueOrigin(
+                            **origin.model_dump(),
+                            valid_from=field.valid_from,
+                            valid_until=field.valid_until,
+                            based_on=field.evidence[:64],
+                        ),
+                        "input_origins": contributions([field]),
+                    }
+                )
         if any(
             value.usable(ctx.now) and not definition.output_schema.fields[name].accepts(value.value)
             for name, value in values.items()

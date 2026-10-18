@@ -7,7 +7,7 @@ import { classifySystem, type Condition } from '@/lib/status';
 import type { ServiceState } from '@/lib/types';
 
 const service: ServiceState = { ready: true, publication_confirmed: true, persistence: 'available', ha: 'not_needed', bridge: 'not_needed', mqtt: 'disabled', reasons: [] };
-const condition: Condition = { kind: 'limited_source', tone: 'warn', title: 'technical title', detail: 'raw code' };
+const condition: Condition = { kind: 'limited_source', tone: 'warn', title: 'HA-Anbindung fehlt', detail: 'Mimir erreicht Home Assistant nicht.' };
 const mount = (conditions: Condition[], ready = false) => render(<MemoryRouter><ReadinessBadge conditions={conditions} ready={ready} revision={4} /><button>Außerhalb</button></MemoryRouter>);
 
 it('shows ready without a false HA warning and keeps the configuration version visible', async () => {
@@ -15,14 +15,14 @@ it('shows ready without a false HA warning and keeps the configuration version v
   expect(conditions).toEqual([]);
   mount(conditions, true);
   expect(screen.getByRole('button', { name: 'Bereit' })).toHaveAttribute('aria-expanded', 'false');
-  expect(screen.getByText('Version 4')).toBeVisible();
+  expect(screen.getByText('Konfiguration 4')).toBeVisible();
   await userEvent.click(screen.getByRole('button', { name: 'Bereit' }));
   expect(within(screen.getByRole('dialog')).getByText('Alle Bedingungen sind erfüllt.')).toBeVisible();
 });
 
 it('counts each condition and exposes an actionable sentence and direct route on click', async () => {
   const user = userEvent.setup();
-  mount([condition, { ...condition, kind: 'persistence_failure' }]);
+  mount([condition, { ...condition, kind: 'persistence_failure', title: 'Datenbank nicht erreichbar', detail: 'Mimir erreicht die Datenbank nicht.' }]);
   const trigger = screen.getByRole('button', { name: 'Nicht bereit · 2' });
   await user.click(trigger);
   const window = screen.getByRole('dialog', { name: 'Offene Bedingungen' });

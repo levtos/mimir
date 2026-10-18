@@ -261,6 +261,7 @@ async def test_unauthenticated_reachability_uses_ssl_request_only(reply, tls):
     "info,handlers,expected",
     [
         ({"protocol_version": 1, "bridge_version": "1.0.0a1"}, [], "active"),
+        ({"protocol_version": 1, "bridge_version": "1.0.0a9", "negotiated": 2}, [], "active"),
         ({"protocol_version": 2}, [], "incompatible"),
         (None, ["bifrost"], "installed_not_configured"),
         (None, [], "missing_or_restart_pending"),
@@ -274,6 +275,11 @@ async def test_bridge_detection_readonly_and_no_false_filesystem_claim(
         {"type": "auth_required"},
         {"type": "auth_ok"},
         {"success": bool(info), "result": info, "error": {"code": "unknown_command"}},
+        {
+            "success": bool(info and info.get("negotiated")),
+            "result": {"protocol_selected": 2, "features": ["calendar_events"]},
+            "error": {"code": "unknown_command"},
+        },
     ]
 
     class Socket:
@@ -323,7 +329,11 @@ async def test_bridge_detection_readonly_and_no_false_filesystem_claim(
     result = await setup_control.bridge_status("ephemeral-supervisor-token")
     assert result["state"] == expected
     assert result["release_blocker"] == (expected != "active")
-    assert [command["type"] for command in commands] == ["auth", "bifrost/info"]
+    assert [command["type"] for command in commands] == ["auth", "bifrost/info"] + (
+        ["bifrost/negotiate"] if expected == "active" else []
+    )
+    if expected == "active":
+        assert result["protocol_selected"] == info.get("negotiated", 1)
 
 
 @pytest.mark.parametrize(

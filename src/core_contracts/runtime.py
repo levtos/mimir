@@ -18,8 +18,9 @@ from .declarative import GuardEvaluationError, all_rules
 from .declarative_models import FormulaRule
 from .engines import FORMULA_SCHEMAS
 from .evidence import Observation, assess, is_new, is_older
+from .ha_context import ContextIndex
 from .lifecycle import EDITORIAL, transition_allowed
-from .model import Model, canonical, checksum, utc
+from .model import Model, canonical, checksum, semantic_fingerprint, utc
 from .persistence import State, Store
 from .producer import Context, Producer
 from .quality import FieldValue, ReasonCode, unknown
@@ -88,6 +89,9 @@ class Runtime:
     ) -> None:
         self.store, self.clock, self.types = store, clock, types
         self.require_history_retention = require_history_retention
+        self.installation_id: str | None = None
+        self.ingress_slug: str | None = None
+        self.context_index: ContextIndex | None = None
         self.state = State()
         self._config_cache: tuple[int, str, RegistryConfig | None] | None = None
         self._plans: dict[tuple[Any, ...], tuple[dict[str, str], TypeRegistry, list[Contract]]] = {}
@@ -101,6 +105,8 @@ class Runtime:
         self.first_snapshot = False
         self.bridge = "not_needed"
         self.bridge_version: str | None = None
+        self.bridge_protocol_selected: int | None = None
+        self.bridge_features: list[str] = []
         self.bridge_subscriptions = 0
         self.dependency_connections: dict[str, bool] = {}
         self.ha = "not_needed"
@@ -130,6 +136,8 @@ class Runtime:
         self.pending_refresh: set[str] = set()
         self.refresh_overflow = 0
         self.entity_discovery: Callable[..., Awaitable[list[dict[str, Any]]]] | None = None
+        self.discovered_areas: list[dict[str, Any]] | None = None
+        self.service_jobs_changed = asyncio.Event()
 
     @property
     def config(self) -> RegistryConfig | None:
@@ -173,6 +181,7 @@ class Runtime:
             "bridge": self.bridge if self.requires_ha_snapshot else "not_needed",
             "mqtt": self.mqtt,
             "reasons": self.readiness_reasons,
+            "conditions": self.readiness_conditions,
             "ha_disconnected_since": self.ha_changed_at.isoformat()
             if self.bridge == "unavailable"
             else None,
@@ -213,13 +222,50 @@ class Runtime:
             reasons.append("persistence_unavailable")
         if self.state.active_revision == 0:
             reasons.append("no_active_registry")
-        elif (
-            self.require_history_retention and self.config and self.config.history_retention is None
+        if self.require_history_retention and (
+            self.config is None or self.config.history_retention is None
         ):
             reasons.append("history_retention_required")
         if self.requires_ha_snapshot and not self.first_snapshot:
             reasons.append("first_bridge_snapshot_pending")
         return reasons
+
+    @property
+    def readiness_conditions(self) -> list[dict[str, Any]]:
+        config = self.config
+        known = self.persistence
+        return [
+            {"code": "supervisor_options", "satisfied": not bool(self.configuration_error)},
+            {"code": "database", "satisfied": known},
+            {
+                "code": "active_configuration",
+                "satisfied": self.state.active_revision > 0 if known else None,
+            },
+            {
+                "code": "history_retention",
+                "satisfied": (
+                    not self.require_history_retention or bool(config and config.history_retention)
+                )
+                if known
+                else None,
+            },
+            {
+                "code": "first_ha_state",
+                "satisfied": (not self.requires_ha_snapshot or self.first_snapshot)
+                if known and config
+                else None,
+            },
+            {
+                "code": "ha_connection",
+                "satisfied": (
+                    not self.requires_ha_snapshot or self.ha == self.bridge == "connected"
+                )
+                if known and config
+                else None,
+            },
+            {"code": "publication", "satisfied": self.confirmed if known and config else None},
+            {"code": "input_capacity", "satisfied": not self.queue.full()},
+        ]
 
     def _audit(self, state: State, operation: str, payload: dict[str, Any], **details: Any) -> None:
         state.tables["diagnostic_event"][str(uuid4())] = {
@@ -236,6 +282,21 @@ class Runtime:
         from .validation import RegistryValidationError, ValidationIssue
 
         issues = []
+        for index, source in enumerate(config.sources):
+            profile = source.sensor_profile
+            if profile:
+                previous = await self.store.sensor_profile(profile.id, profile.version)
+                if previous and semantic_fingerprint(previous) != semantic_fingerprint(
+                    profile.model_dump(mode="json")
+                ):
+                    issues.append(
+                        ValidationIssue(
+                            code="immutable_definition_version",
+                            path=f"/sources/{index}/sensor_profile/version",
+                            object_id=profile.id,
+                            message="immutable sensor profile version",
+                        )
+                    )
         for kind, objects, identity_key, version_key, getter in (
             ("definitions", config.definitions, "type_id", "type_version", self.store.definition),
             ("catalogs", config.catalogs, "catalog_id", "version", self.store.catalog),
@@ -435,8 +496,22 @@ class Runtime:
         if config is None:
             return False
         needed = required_sources(config)
+        if any(contract.enabled and contract.refresh_plan for contract in config.contracts):
+            return True
+        if any(
+            key.startswith("notice:") and (row.get("acknowledged") or row.get("desired"))
+            for key, row in self.state.tables["service_state"].items()
+        ) or any(
+            job.get("kind") == "notice" and job["status"] in {"planned", "sent"}
+            for job in self.state.tables["service_job"].values()
+        ):
+            return True
+        if config.notifications and (
+            config.notifications.signal.enabled or config.notifications.configuration.enabled
+        ):
+            return True
         return any(
-            b.source_id in needed
+            (b.source_id in needed or b.adapter.kind == "ha_calendar")
             and (b.adapter.kind.startswith("ha_") or b.adapter.kind == "connectivity")
             for b in config.bindings
         )
@@ -449,6 +524,9 @@ class Runtime:
             self.task = asyncio.create_task(self.run(), name="processor")
 
     def _gap(self, state: State, reason: str) -> None:
+        for sensor_key in list(state.tables["service_state"]):
+            if sensor_key.startswith("sensor:"):
+                del state.tables["service_state"][sensor_key]
         key = str(uuid4())
         state.tables["history_gap"][key] = {
             "reason": reason,
@@ -458,6 +536,9 @@ class Runtime:
         LOGGER.warning("history_gap", extra={"reason": reason})
 
     async def _restore(self, reason: str) -> None:
+        self.first_snapshot = False
+        if self.context_index:
+            self.context_index.clear_registered()
         state = self.state.clone()
         old_epoch = state.epoch_id
         state.epoch_id = str(uuid4())
@@ -469,9 +550,13 @@ class Runtime:
         }
         for observation_data in state.tables["source_observation_current"].values():
             await self._record_observation(state, Observation.model_validate(observation_data))
+        from .service_jobs import restore_jobs
+
+        restore_jobs(state, self.clock.now_utc())
         if reason == "process_restart":
             for observation in state.tables["source_observation_current"].values():
-                observation["observation_kind"] = "restore"
+                if observation["adapter"] not in {"ha_calendar", "manual"}:
+                    observation["observation_kind"] = "restore"
         for node in state.tables["node_state"].values():
             for context in self._temporal_contexts(node):
                 if "temporal" in context:
@@ -588,14 +673,19 @@ class Runtime:
         }:
             return None
         if operation == "recover":
+            from .editorial import keep_newer
+
+            current_editorial = copy.deepcopy(self.state.tables["editorial_current"])
             last_sequence = self.state.publication_seq
             self.state = await self.store.load()
+            keep_newer(current_editorial, self.state.tables["editorial_current"])
             rollback = self.state.publication_seq < last_sequence
             self.state.publication_seq = max(last_sequence, self.state.publication_seq)
             self.persistence = True
             self.first_snapshot = False
             for observation in self.state.tables["source_observation_current"].values():
-                observation["observation_kind"] = "restore"
+                if observation["adapter"] not in {"ha_calendar", "manual"}:
+                    observation["observation_kind"] = "restore"
             # Coalesced outage input is snapshot evidence, never replayed as events.
             buffered = dict(self.latest)
             for obs in buffered.values():
@@ -624,6 +714,10 @@ class Runtime:
             self._broadcast(self.service_state())
             if previous_state != payload and self.persistence and self.config:
                 staged = self.state.clone()
+                if self.bridge == "connected":
+                    for key, calendar_cache in staged.tables["service_state"].items():
+                        if key.startswith("calendar:"):
+                            calendar_cache["next_at"] = self.clock.now_utc().isoformat()
                 bindings = {
                     b.binding_id for b in self.config.bindings if b.adapter.kind.startswith("ha_")
                 }
@@ -722,6 +816,119 @@ class Runtime:
         state = self.state.clone()
         now = self.clock.now_utc()
         config = self._config(state)
+        if operation == "editorial_put":
+            from .editorial import EditorialWrite, put
+
+            result = put(
+                self, state, EditorialWrite.model_validate(payload["request"]), payload["_actor"]
+            )
+            await self._commit(state)
+            return result
+        if operation == "editorial_area_refresh":
+            from .editorial import refresh_areas
+
+            if refresh_areas(self, state, payload):
+                await self._commit(state)
+            return None
+        if operation == "context_register":
+            from .ha_context import ContextRegistration
+
+            registration = ContextRegistration.model_validate(payload["request"])
+            index = self.context_index
+            if (
+                config is None
+                or index is None
+                or self.bridge_protocol_selected != 2
+                or self.bridge != "connected"
+            ):
+                raise ValueError("ha_context_unavailable")
+            if registration.producer_id not in {
+                producer.producer_id for producer in config.context_producers
+            }:
+                raise ValueError("context_producer_not_allowed")
+            if registration.ha_epoch_id != index.epoch or registration.context.id is None:
+                raise ValueError("ha_context_epoch_conflict")
+            self._audit(
+                state,
+                "context_register_attempt",
+                {"_actor": payload.get("_actor")},
+                producer_id=registration.producer_id,
+                context_digest=checksum(registration.context.id),
+            )
+            await self._commit(state)
+            index.register(registration.context, now, lifetime_s=registration.lifetime_s)
+            return {
+                "registered": True,
+                "expires_at": index.proofs[registration.context.id][1].isoformat(),
+            }
+        if operation == "legacy_refresh_prepare":
+            from .refresh_plan import prepare_legacy_refresh
+
+            if config is None or payload["revision"] != state.active_revision:
+                return None
+            job = prepare_legacy_refresh(state, config, payload["source_id"], now)
+            if job:
+                await self._commit(state)
+            return copy.deepcopy(job)
+        if operation == "service_claim":
+            if self.bridge != "connected" or self.bridge_protocol_selected != 2:
+                return None
+            job = next(
+                (
+                    job
+                    for job in state.tables["service_job"].values()
+                    if job["status"] == "planned"
+                    and (
+                        job["kind"] != "notice"
+                        or state.tables["service_state"]
+                        .get(job["state_key"], {})
+                        .get("eligible_epoch")
+                        == state.epoch_id
+                    )
+                ),
+                None,
+            )
+            if job is None:
+                return None
+            job["status"] = "sent"
+            job["sent_at"] = now.isoformat()
+            await self._commit(state)
+            return copy.deepcopy(job)
+        if operation == "service_complete":
+            from .service_jobs import complete_calendar
+
+            job = state.tables["service_job"].get(payload["job_id"])
+            if job is None or job["status"] != "sent":
+                return None
+            job["status"] = "finished"
+            job["completed_at"] = now.isoformat()
+            if job["kind"] == "notice":
+                from .notifications import complete_notice
+
+                complete_notice(state, job, payload["response"], now)
+            if job["kind"] == "refresh":
+                from .refresh_plan import complete_refresh
+
+                complete_refresh(state, job, payload["response"])
+            service_observation = (
+                complete_calendar(state, config, job, payload["response"], now)
+                if config and job["kind"] == "calendar"
+                else None
+            )
+            if service_observation is not None:
+                state.tables["source_observation_current"][service_observation.binding_id] = (
+                    service_observation.storage_document()
+                )
+                await self._record_observation(state, service_observation)
+            if config:
+                self._evaluate(
+                    state,
+                    config,
+                    origin="input" if service_observation else "timer",
+                    trigger_source=service_observation.source_id if service_observation else None,
+                )
+            await self._commit(state, publication=True)
+            return None
         if operation in {"draft_create", "draft_update"}:
             document = payload["config"]
             # Drafts can be incomplete, but cannot carry credentials or invalid JSON.
@@ -766,6 +973,21 @@ class Runtime:
             if not isinstance(result["display_name"], str) or len(result["display_name"]) > 256:
                 raise ValueError("invalid_draft_display_name")
             state.tables["registry_draft"][key] = result
+            from .editorial import EditorialWrite, carry_draft, put
+
+            carry_draft(state, result, self)
+            editorial_entries = payload.get("editorial", [])
+            if not isinstance(editorial_entries, list) or len(editorial_entries) > 128:
+                raise ValueError("invalid_editorial_batch")
+            for item in editorial_entries:
+                put(
+                    self,
+                    state,
+                    EditorialWrite.model_validate(
+                        {**item, "draft_id": key, "draft_version": result["draft_version"]}
+                    ),
+                    payload.get("_actor", {"kind": "internal", "role": "system"}),
+                )
             self._audit(
                 state, operation, payload, draft_id=key, draft_version=result["draft_version"]
             )
@@ -779,6 +1001,9 @@ class Runtime:
             if old is None or payload["draft_version"] != old["draft_version"]:
                 raise ValueError("draft_version_conflict")
             del state.tables["registry_draft"][key]
+            for editorial_key, row in list(state.tables["editorial_draft"].items()):
+                if row["draft_id"] == key:
+                    del state.tables["editorial_draft"][editorial_key]
             self._audit(state, operation, payload, draft_id=key, draft_version=old["draft_version"])
             await self._commit(state)
             return {"deleted": True, "draft_id": key}
@@ -840,6 +1065,10 @@ class Runtime:
             new_config = validate(document, self.types)
             await self._definition_versions(new_config)
             await self._source_types(new_config)
+            if operation == "activate":
+                from .editorial import apply_draft
+
+                apply_draft(state, draft, self)
             revision = max((int(r) for r in state.tables["registry_revision"]), default=0) + 1
             state.active_revision = revision
             state.tables["registry_revision"][str(revision)] = {
@@ -916,6 +1145,10 @@ class Runtime:
             from .manual_restart import execute
 
             return await execute(self, state, payload)
+        if operation == "manual_source_enter":
+            from .manual_source import enter
+
+            return await enter(self, state, payload)
         if operation == "snapshot":
             for obs in payload:
                 if (
@@ -976,7 +1209,7 @@ class Runtime:
         elif operation != "tick":
             raise ValueError("unknown runtime operation")
         if config:
-            origin = "timer"
+            origin = "snapshot" if operation == "snapshot" else "timer"
             if operation == "observation":
                 origin = (
                     "input" if payload.observation_kind in {"live_change", "report"} else "revision"
@@ -1001,6 +1234,8 @@ class Runtime:
             await self._commit(state)
         if operation == "snapshot":
             self.first_snapshot = True
+            if self.installation_id and config and config.notifications:
+                await self._commit(self.state.clone())
             self._broadcast(self.service_state())
         return None
 
@@ -1088,7 +1323,12 @@ class Runtime:
             self._broadcast(self.service_state())
 
     def _inputs(
-        self, contract: Contract, config: RegistryConfig, state: State
+        self,
+        contract: Contract,
+        config: RegistryConfig,
+        state: State,
+        *,
+        trigger_source: str | None = None,
     ) -> dict[str, FieldValue]:
         now = self.clock.now_utc()
         by_source = {b.source_id: b.binding_id for b in config.bindings}
@@ -1103,6 +1343,42 @@ class Runtime:
             if ref in visited:
                 return unknown(ReasonCode.DEPENDENCY_UNAVAILABLE, ref, now)
             source = sources[ref]
+            manual_observation = observations.get(by_source.get(ref, ""))
+            if source.value_origin and manual_observation:
+                recorded_origins = tuple(
+                    point.value_origin for point in manual_observation.forecast
+                ) or ((manual_observation.value_origin,) if manual_observation.value_origin else ())
+                if not recorded_origins or any(
+                    (item.kind, item.provider)
+                    != (source.value_origin.kind, source.value_origin.provider)
+                    for item in recorded_origins
+                ):
+                    return unknown(ReasonCode.RESTORE_INCOMPATIBLE, ref, now)
+            if (
+                source.origin == "manual"
+                and manual_observation
+                and manual_observation.manual
+                and manual_observation.manual.source_fingerprint
+                != self._evaluation_plan(state, config)[0][ref]
+            ):
+                return unknown(ReasonCode.RESTORE_INCOMPATIBLE, ref, now)
+            calendar_binding = next(
+                (
+                    binding
+                    for binding in config.bindings
+                    if binding.source_id == ref and binding.adapter.kind == "ha_calendar"
+                ),
+                None,
+            )
+            if calendar_binding:
+                cache = state.tables["service_state"].get(
+                    f"calendar:{calendar_binding.binding_id}", {}
+                )
+                if (
+                    not cache.get("expires_at")
+                    or datetime.fromisoformat(cache["expires_at"]) <= now
+                ):
+                    return unknown(ReasonCode.INPUT_STALE, ref, now)
             dependency = dependencies[source.dependency_id]
             available = self.dependency_connections.get(dependency.kind, True)
             if dependency.kind == "ha" and dependency.monitor == "internal":
@@ -1115,9 +1391,37 @@ class Runtime:
             if not available:
                 return unknown(ReasonCode.DEPENDENCY_UNAVAILABLE, source.dependency_id, now)
             liveness = observations.get(by_source.get(source.freshness.liveness_source or "", ""))
-            return assess(
+            value = assess(
                 observations.get(by_source.get(ref, "")), source.freshness, now, ref, liveness
             )
+            if source.sensor_profile:
+                from .sensor_profile import assess_sensor
+
+                reference_spec = source.sensor_profile.stuck.reference
+                reference_value = (
+                    source_value(reference_spec.ref, visited | {ref}) if reference_spec else None
+                )
+                peer_observation = (
+                    observations.get(by_source.get(reference_spec.ref, ""))
+                    if reference_spec
+                    else None
+                )
+                if peer_observation and peer_observation.observation_kind not in {
+                    "report",
+                    "live_change",
+                }:
+                    reference_value = None
+                value = assess_sensor(
+                    value,
+                    observations.get(by_source.get(ref, "")),
+                    source,
+                    reference_value,
+                    state.tables["service_state"],
+                    self._evaluation_plan(state, config)[0][ref],
+                    now,
+                    new_report=trigger_source == ref,
+                )
+            return value
 
         result: dict[str, FieldValue] = {}
         for item in contract.inputs:
@@ -1145,12 +1449,21 @@ class Runtime:
     ) -> set[str]:
         """Return transaction-local failures after discarding their staged producer effects."""
         evaluation_errors: set[str] = set()
+        from .service_jobs import plan_calendars
+
+        plan_calendars(state, config, self.clock.now_utc())
         calendar_changed = self._calendar_observations(state, config, origin)
         now, seq = self.clock.now_utc(), state.publication_seq + 1
         self.pending_latches = copy.deepcopy(
             self.latches if initial_latches is None else initial_latches
         )
         fps, types, order = self._evaluation_plan(state, config)
+        profiled_sources = {
+            f"sensor:{source.source_id}" for source in config.sources if source.sensor_profile
+        }
+        for sensor_key in list(state.tables["service_state"]):
+            if sensor_key.startswith("sensor:") and sensor_key not in profiled_sources:
+                del state.tables["service_state"][sensor_key]
         self.evaluation_stats = {"evaluated": 0, "reused": 0}
         can_reuse = (
             self.reuse_unaffected
@@ -1189,7 +1502,12 @@ class Runtime:
                     "enabled": False,
                 }
                 continue
-            inputs = self._inputs(contract, config, state)
+            inputs = self._inputs(
+                contract,
+                config,
+                state,
+                trigger_source=trigger_source if origin == "input" else None,
+            )
             triggered = any(
                 resolve_ref(item.ref, config)[0] in affected for item in contract.inputs
             )
@@ -1349,6 +1667,20 @@ class Runtime:
                 "epoch_id": state.epoch_id,
                 "registry_revision": state.active_revision,
             }
+        if self.installation_id and self.first_snapshot and origin not in {"restore", "revision"}:
+            from .notifications import plan_notices
+
+            plan_notices(state, config, now, self.installation_id, self.ingress_slug)
+        from .refresh_plan import plan_refreshes
+
+        plan_refreshes(
+            state,
+            config,
+            now,
+            origin,
+            self.bridge == "connected" and self.bridge_protocol_selected == 2,
+            fps,
+        )
         return evaluation_errors
 
     def _dispose(self, contract: Contract, node: dict[str, Any], state: State) -> None:
@@ -1478,6 +1810,14 @@ class Runtime:
         self, state: State, *, publication: bool = False, resync: bool = False
     ) -> None:
         started = self.clock.monotonic()
+        config = self._config(state)
+        if config and self.installation_id:
+            from .notifications import plan_notices
+
+            if self.first_snapshot or not self.requires_ha_snapshot:
+                plan_notices(
+                    state, config, self.clock.now_utc(), self.installation_id, self.ingress_slug
+                )
         try:
             await self.store.commit(state)
         except Exception:
@@ -1486,6 +1826,11 @@ class Runtime:
             self._unavailable()
             raise
         previous_seq = self.state.publication_seq
+        previous_producers = self.config.context_producers if self.config else ()
+        if self.context_index and previous_producers != (
+            config.context_producers if config else ()
+        ):
+            self.context_index.clear_registered()
         previous_contracts = self.state.tables["contract_state_current"]
         previously_needed_ha = self.requires_ha_snapshot
         self.state = state
@@ -1511,6 +1856,7 @@ class Runtime:
         self.pending_refresh.clear()
         self.commit_duration = self.clock.monotonic() - started
         self._plan_evaluation()
+        self.service_jobs_changed.set()
         for key, envelope in state.tables["contract_state_current"].items():
             previous_fields = previous_contracts.get(key, {}).get("fields", {})
             for name, field in envelope["fields"].items():
@@ -1587,6 +1933,9 @@ class Runtime:
     def _plan_evaluation(self) -> None:
         now = self.clock.now_utc()
         due: list[datetime] = []
+        from .service_jobs import due_dates
+
+        due.extend(due_dates(self.state))
         config = self.config
         if config:
             if config.history_retention:
@@ -1606,15 +1955,34 @@ class Runtime:
                 }:
                     raw = observations.get(bindings.get(measured_source, ""))
                     if raw:
-                        stamp = Observation.model_validate(raw).measurement
+                        item = Observation.model_validate(raw)
+                        for metadata in ((item.value_origin,) if item.value_origin else ()) + tuple(
+                            point.value_origin for point in item.forecast
+                        ):
+                            due.extend(
+                                at for at in (metadata.valid_from, metadata.valid_until) if at
+                            )
+                            if metadata.issued_at and source.freshness.interval_s:
+                                due.append(
+                                    metadata.issued_at
+                                    + timedelta(seconds=source.freshness.interval_s, microseconds=1)
+                                )
+                        stamp = item.measurement
                         if stamp:
                             due.append(
                                 stamp - timedelta(seconds=source.freshness.future_tolerance_s)
                             )
+                            if manual := Observation.model_validate(raw).manual:
+                                due.append(manual.valid_from)
+                                if manual.valid_until:
+                                    due.append(manual.valid_until)
                             if source.freshness.interval_s is not None:
                                 due.append(
                                     stamp
-                                    + timedelta(seconds=source.freshness.interval_s, microseconds=1)
+                                    + timedelta(
+                                        seconds=source.freshness.interval_s,
+                                        microseconds=0 if raw.get("adapter") == "manual" else 1,
+                                    )
                                 )
             for contract in config.contracts:
                 callback = types.get(contract.type_id, contract.type_version).next_due
@@ -1638,7 +2006,10 @@ class Runtime:
             self.next_evaluation
             and config
             and (
-                any(b.adapter.calendar for b in config.bindings)
+                any(b.adapter.calendar or b.adapter.kind == "manual" for b in config.bindings)
+                or any(d.machine and d.machine.unknown_deadline for d in config.definitions)
+                or any(source.value_origin for source in config.sources)
+                or bool(self.state.tables["service_state"])
                 or any(node.get("clock_due") for node in self.state.tables["node_state"].values())
             )
         ):

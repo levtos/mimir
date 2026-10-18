@@ -7,6 +7,7 @@ import { IssuesProvider } from './issues';
 import type { Draft, Registry, ValidationResult } from '@/lib/types';
 import { emptyRegistry } from './model';
 import { defaultDraftName } from './draftName';
+import type { EditorialEntry } from '@/features/editorial/model';
 
 /**
  * The single editable registry document ("Arbeits-Draft").
@@ -60,6 +61,7 @@ export interface WorkingDocument {
   cancelSwitch: () => void;
   close: () => void;
   edit: (updater: (config: Registry) => Registry) => void;
+  editAndSave: (updater: (config: Registry) => Registry, editorial?: EditorialEntry[]) => Promise<Draft>;
   setAt: (pointer: string, value: Json | undefined) => void;
   replaceAll: (config: Registry) => void;
   undo: () => void;
@@ -138,7 +140,9 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
     setSaveError(null);
     setConflict(null);
     setEditing(true);
-    setSnap({ draft, config: clone(draft.config), name: draft.display_name ?? '', past: [], future: [] });
+    const opened = { draft, config: clone(draft.config), name: draft.display_name ?? '', past: [], future: [] };
+    latest.current = opened;
+    setSnap(opened);
   }, []);
 
   /** Creating a draft is shared by all pages and never navigates or activates. */
@@ -334,6 +338,29 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
     }
   }, [update]);
 
+  /** Save a local edit atomically, with pending metadata when creating objects. */
+  const editAndSave = useCallback(async (updater: (config: Registry) => Registry, editorial: EditorialEntry[] = []) => {
+    const current = latest.current;
+    if (!current.draft || !current.config || savingRef.current) throw new Error(uiText('alpha7.draft.saveBeforeReview'));
+    const owner = documentId.current;
+    const next = updater(current.config);
+    savingRef.current = true; setSaving(true); setSaveError(null);
+    try {
+      const saved = await update.mutateAsync({ draft: current.draft, config: next, display_name: current.name, editorial });
+      if (owner !== documentId.current) throw new Error(uiText('alpha7.draft.changedDuringAction'));
+      // Preserve concurrent typing: the committed candidate never overwrites newer local edits.
+      setSnap(c => c.config === current.config && c.name === current.name
+        ? { ...c, draft: saved, config: next, past: [...c.past, current.config!].slice(-HISTORY_LIMIT), future: [] }
+        : { ...c, draft: saved });
+      if (latest.current.config !== current.config || latest.current.name !== current.name) throw new Error(uiText('alpha7.draft.changedDuringAction'));
+      latest.current = { ...current, draft: saved, config: next, past: [...current.past, current.config].slice(-HISTORY_LIMIT), future: [] };
+      return saved;
+    } catch (failure) {
+      if (owner === documentId.current) setSaveError(describeError(failure));
+      throw failure;
+    } finally { savingRef.current = false; setSaving(false); }
+  }, [update]);
+
   /** Confirmation always receives the exact saved candidate, even after an async save. */
   const prepareActivation = useCallback(async (): Promise<Draft> => {
     const current = latest.current;
@@ -408,6 +435,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
       cancelSwitch,
       close,
       edit,
+      editAndSave,
       setAt: setAtPointer,
       replaceAll,
       undo,
@@ -417,7 +445,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
       validateNow,
       resolveConflict,
     }),
-    [snap, dirty, saving, editing, starting, ensureDraft, prepareActivation, conflict, validation, activeRevision, autoValidate, open, requestOpen, switchRequest, confirmSwitch, cancelSwitch, close, edit, setAtPointer, setDisplayName, replaceAll, undo, redo, save, saveError, validateNow, resolveConflict],
+    [snap, dirty, saving, editing, starting, ensureDraft, prepareActivation, conflict, validation, activeRevision, autoValidate, open, requestOpen, switchRequest, confirmSwitch, cancelSwitch, close, edit, editAndSave, setAtPointer, setDisplayName, replaceAll, undo, redo, save, saveError, validateNow, resolveConflict],
   );
 
   return (

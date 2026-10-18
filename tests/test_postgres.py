@@ -1,5 +1,7 @@
+import copy
 import os
 import shutil
+from datetime import timedelta
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
@@ -20,6 +22,69 @@ from .test_runtime import obs
 
 pytestmark = pytest.mark.postgres
 MIGRATIONS = Path(__file__).resolve().parents[1] / "migrations"
+
+
+async def test_alpha9_editorial_reopen_and_rollback_keep_current_room(database, config):
+    from .test_alpha9_editorial import request, save
+
+    store = PostgresStore(database, MIGRATIONS, tls=False)
+    await store.open()
+    runtime = Runtime(store, FakeClock(NOW), type_registry())
+    await runtime.start()
+    try:
+        first = await activate(runtime, config)
+        saved = await save(runtime, request())
+        changed = copy.deepcopy(config)
+        changed["contracts"][0]["display_name"] = "Neuer Name"
+        await activate(runtime, changed)
+    finally:
+        await runtime.stop()
+        await store.close()
+    reopened = PostgresStore(database, MIGRATIONS, tls=False)
+    await reopened.open()
+    restarted = Runtime(reopened, FakeClock(NOW), type_registry())
+    await restarted.start()
+    try:
+        await restarted.submit(
+            "rollback",
+            {
+                "revision": first["revision"],
+                "expected_active_revision": restarted.state.active_revision,
+            },
+        )
+        assert restarted.state.tables["editorial_current"]["contract:fixture.echo"] == saved
+        assert await reopened.get("editorial_current", "contract:fixture.echo") == saved
+    finally:
+        await restarted.stop()
+        await reopened.close()
+
+
+async def test_alpha9_manual_result_survives_reopen_without_renewing_validity(database, config):
+    from .test_alpha9_manual_source import body, enter, manual_config, value
+
+    store = PostgresStore(database, MIGRATIONS, tls=False)
+    await store.open()
+    runtime = Runtime(store, FakeClock(NOW), type_registry())
+    await runtime.start()
+    try:
+        await activate(runtime, manual_config(config, ttl=60))
+        request = body(runtime)
+        result = await enter(runtime, request)
+        observation = copy.deepcopy(runtime.state.tables["source_observation_current"]["binding.a"])
+    finally:
+        await runtime.stop()
+        await store.close()
+    reopened = PostgresStore(database, MIGRATIONS, tls=False)
+    await reopened.open()
+    restarted = Runtime(reopened, FakeClock(NOW + timedelta(seconds=30)), type_registry())
+    await restarted.start()
+    try:
+        assert await enter(restarted, request) == result
+        assert restarted.state.tables["source_observation_current"]["binding.a"] == observation
+        assert value(restarted)["status"] == "valid"
+    finally:
+        await restarted.stop()
+        await reopened.close()
 
 
 async def test_alpha7_manual_restart_survives_process_restart_without_replay(database, config):

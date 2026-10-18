@@ -11,6 +11,7 @@ from pydantic import ConfigDict, Field, model_validator
 from .lifecycle import Lifecycle
 from .model import Model
 from .schema import FieldSchema, Schema
+from .value_origin import OriginDeclaration
 
 MAX_NODES = 256
 MAX_DEPTH = 16
@@ -266,6 +267,11 @@ class TimeReachedRule(Model):
     at: Rule
 
 
+class KnownAutomaticRule(Model):
+    op: Literal["known_automatic"]
+    arg: Rule
+
+
 class ConfigurationHintRule(Model):
     op: Literal["configuration_hint"]
     arg: Rule
@@ -306,6 +312,7 @@ Rule = Annotated[
     | MachineRule
     | NotApplicableRule
     | TimeReachedRule
+    | KnownAutomaticRule
     | TextRule
     | ConfigurationHintRule,
     Field(discriminator="op"),
@@ -332,6 +339,22 @@ class TransitionDefinition(Model):
     ends_episode: bool = False
     # Equality requirements on typed command arguments; no expression language.
     argument_equals: dict[str, Any] = Field(default_factory=dict, max_length=MAX_INPUTS)
+    deadline_action: Literal["keep", "reset", "clear"] = Field(
+        default="keep", exclude_if=lambda value: value == "keep"
+    )
+
+
+class StateDeadline(Model):
+    duration: Duration
+
+
+class AbsoluteTransition(Model):
+    states: tuple[Identifier, ...] = Field(min_length=1, max_length=64)
+    target: Identifier
+    at_input: Identifier
+    priority: Literal["absolute", "duration"] | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
 
 
 class MachineDefinition(Model):
@@ -341,6 +364,15 @@ class MachineDefinition(Model):
     transitions: tuple[TransitionDefinition, ...] = Field(max_length=128)
     commands: dict[Identifier, CommandDefinition] = Field(default_factory=dict, max_length=32)
     deadline_s: Duration | None = None
+    deadline_by_state: dict[Identifier, StateDeadline] = Field(
+        default_factory=dict, max_length=64, exclude_if=lambda value: not value
+    )
+    absolute_transition: AbsoluteTransition | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+    unknown_deadline: Literal["keep_and_block_transition"] | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
     sessions: bool = False
     reinitialize_when: Rule
     # Omit the additive false default so released definition fingerprints stay stable.
@@ -354,6 +386,27 @@ class MachineDefinition(Model):
             raise ValueError("invalid_machine_states")
         if {"input", "deadline"} & self.commands.keys():
             raise ValueError("reserved_machine_event")
+        extended = bool(self.deadline_by_state or self.absolute_transition or self.unknown_deadline)
+        if extended and (self.deadline_s is not None or self.unknown_deadline is None):
+            raise ValueError("explicit_deadline_v2_required")
+        if self.deadline_by_state.keys() - set(self.states):
+            raise ValueError("unknown_deadline_state")
+        absolute = self.absolute_transition
+        if absolute:
+            if (
+                set(absolute.states) - set(self.states)
+                or absolute.target not in self.states
+                or absolute.target in absolute.states
+                or len(set(absolute.states)) != len(absolute.states)
+            ):
+                raise ValueError("invalid_absolute_transition")
+            if absolute.priority is None and any(
+                t.source in absolute.states
+                and t.event == "deadline"
+                and t.target != absolute.target
+                for t in self.transitions
+            ):
+                raise ValueError("deadline_priority_required")
         for declared_command in self.commands.values():
             if any(
                 name.startswith("model_") or hasattr(Model, name)
@@ -365,8 +418,20 @@ class MachineDefinition(Model):
                 raise ValueError("invalid_transition_state")
             if transition.event not in {"input", "deadline", *self.commands}:
                 raise ValueError("unknown_transition_event")
-            if transition.event == "deadline" and self.deadline_s is None:
+            if (
+                transition.event == "deadline"
+                and self.deadline_s is None
+                and transition.source not in self.deadline_by_state
+            ):
                 raise ValueError("transition_deadline_required")
+            if transition.deadline_action != "keep" and (
+                not extended or transition.new_episode or transition.ends_episode
+            ):
+                raise ValueError("ambiguous_deadline_action")
+            if transition.deadline_action == "reset" and (
+                transition.event != "input" or transition.target not in self.deadline_by_state
+            ):
+                raise ValueError("reset_duration_required")
             command = self.commands.get(transition.event)
             for name, value in transition.argument_equals.items():
                 if not command or name not in command.arguments:
@@ -379,7 +444,7 @@ class MachineDefinition(Model):
 class DeclarativeDefinition(DeclarativeModel):
     type_id: str = Field(pattern=r"^[a-zA-Z][a-zA-Z0-9_-]*\.[a-zA-Z0-9_.-]+$", max_length=128)
     type_version: int = Field(ge=1)
-    language_version: Literal[1, 2] = 1
+    language_version: Literal[1, 2, 3] = 1
     display_name: str = ""
     description: str = ""
     inputs: tuple[TypedInput, ...] = Field(default=(), max_length=MAX_INPUTS)
@@ -391,6 +456,9 @@ class DeclarativeDefinition(DeclarativeModel):
     output_schema: Schema = Field(alias="schema")
     rules: dict[Identifier, Rule] = Field(default_factory=dict, max_length=MAX_NODES)
     outputs: dict[Identifier, Rule] = Field(min_length=1, max_length=MAX_FIELDS)
+    output_origins: dict[Identifier, OriginDeclaration] = Field(
+        default_factory=dict, max_length=MAX_FIELDS, exclude_if=lambda value: not value
+    )
     machine: MachineDefinition | None = None
     parameter_schema: dict[Identifier, ParameterDefinition] = Field(
         default_factory=dict, max_length=MAX_INPUTS, exclude_if=lambda value: not value
@@ -401,6 +469,15 @@ class DeclarativeDefinition(DeclarativeModel):
 
     @model_validator(mode="after")
     def coherent(self) -> Self:
+        if self.output_origins and (
+            self.language_version < 3
+            or self.output_origins.keys() - self.outputs.keys()
+            or any(
+                origin.kind not in {"model", "replacement"}
+                for origin in self.output_origins.values()
+            )
+        ):
+            raise ValueError("explicit_computed_origin_required")
         if len({item.name for item in self.inputs}) != len(self.inputs):
             raise ValueError("duplicate_input")
         if set(self.refresh_inputs) - {item.name for item in self.inputs}:
@@ -409,8 +486,29 @@ class DeclarativeDefinition(DeclarativeModel):
             raise ValueError("output_schema_mismatch")
         if self.output_schema.grace_capable:
             raise ValueError("declarative_grace_uses_rule_duration")
-        if self.parameter_schema and self.language_version != 2:
+        if self.parameter_schema and self.language_version < 2:
             raise ValueError("language_version_2_required")
+        if (
+            self.machine
+            and (
+                self.machine.deadline_by_state
+                or self.machine.absolute_transition
+                or self.machine.unknown_deadline
+            )
+            and self.language_version < 3
+        ):
+            raise ValueError("language_version_3_required")
+        if self.machine and self.machine.absolute_transition:
+            declared = next(
+                (
+                    item
+                    for item in self.inputs
+                    if item.name == self.machine.absolute_transition.at_input
+                ),
+                None,
+            )
+            if declared is None or declared.field_schema.type != "timestamp":
+                raise ValueError("absolute_timestamp_input_required")
         for name in self.parameter_schema:
             if name.startswith("model_") or hasattr(Model, name):
                 raise ValueError("reserved_parameter_name")
@@ -449,6 +547,7 @@ for _model in (
     MachineDefinition,
     NotApplicableRule,
     TimeReachedRule,
+    KnownAutomaticRule,
     TextRule,
     ConfigurationHintRule,
     DeclarativeDefinition,

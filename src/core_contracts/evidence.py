@@ -5,8 +5,11 @@ from typing import Any, Literal, Self
 
 from pydantic import Field, field_validator, model_validator
 
+from .ha_context import Attribution, HAContext
+from .manual_source import ManualEvidence
 from .model import Model, utc
 from .quality import FieldValue, ReasonCode, unknown
+from .value_origin import ForecastPoint, ValueOrigin, forecast_points, interval_bounds
 
 
 class Freshness(Model):
@@ -27,8 +30,23 @@ class Freshness(Model):
 class Observation(Model):
     source_id: str
     binding_id: str
-    adapter: Literal["ha_state", "ha_attribute", "mqtt", "scheduler", "connectivity", "command"]
+    adapter: Literal[
+        "ha_state",
+        "ha_attribute",
+        "ha_calendar",
+        "mqtt",
+        "scheduler",
+        "connectivity",
+        "command",
+        "manual",
+    ]
     source_origin: str = "local"
+    origin: Literal["manual"] | None = Field(default=None, exclude_if=lambda value: value is None)
+    manual: ManualEvidence | None = Field(default=None, exclude_if=lambda value: value is None)
+    value_origin: ValueOrigin | None = Field(default=None, exclude_if=lambda value: value is None)
+    forecast: tuple[ForecastPoint, ...] = Field(
+        default=(), max_length=512, exclude_if=lambda value: not value
+    )
     value_raw: Any = None
     value_normalized: Any = None
     normalized: bool = False
@@ -38,6 +56,8 @@ class Observation(Model):
     ha_last_reported: datetime | None = None
     ha_time_fired: datetime | None = None
     ha_context_id: str | None = None
+    ha_context: HAContext | None = Field(default=None, exclude_if=lambda value: value is None)
+    attribution: Attribution | None = Field(default=None, exclude_if=lambda value: value is None)
     mqtt_retained: bool = False
     mqtt_qos: int | None = Field(default=None, ge=0, le=2)
     received_at: datetime
@@ -56,6 +76,8 @@ class Observation(Model):
     def reference_complete(self) -> Self:
         if self.reference_version == 2 and self.registry_revision is None:
             raise ValueError("versioned_evidence_requires_revision")
+        if self.forecast:
+            forecast_points(self.forecast)
         return self
 
     @field_validator(
@@ -72,6 +94,8 @@ class Observation(Model):
 
     @property
     def measurement(self) -> datetime | None:
+        if self.adapter == "manual" and self.manual:
+            return self.manual.valid_from
         if self.device_time:
             return self.device_time
         return self.ha_measurement
@@ -159,6 +183,19 @@ def assess(
             "unavailable": ReasonCode.INPUT_UNAVAILABLE,
             "unknown": ReasonCode.INPUT_UNKNOWN,
         }[observation.availability]
+    elif observation.adapter == "manual":
+        entry = observation.manual
+        if entry is None or entry.revoked:
+            code = ReasonCode.INPUT_ABSENT
+        elif now < entry.valid_from:
+            code = ReasonCode.INPUT_NOT_YET_VALID
+        elif (
+            entry.valid_until
+            and now >= entry.valid_until
+            or policy.mode == "periodic_ttl"
+            and (now - entry.valid_from).total_seconds() >= (policy.interval_s or 0)
+        ):
+            code = ReasonCode.INPUT_STALE
     elif observation.ha_restored or observation.observation_kind == "restore":
         code = ReasonCode.INPUT_RESTORED
     elif observation.assumed_state:
@@ -189,11 +226,54 @@ def assess(
         )
     if observation.value is None:
         return unknown(ReasonCode.INVALID_VALUE, source_id, now)
+    value = observation.value
+    value_origin = observation.value_origin
+    selected = tuple(point for point in observation.forecast if point.value_origin.includes(now))
+    origins = tuple(point.value_origin for point in selected)
+    if observation.forecast:
+        if not selected:
+            return unknown(ReasonCode.VALUE_VALIDITY_GAP, source_id, now)
+        value = selected[0].value
+        begin, finish = interval_bounds(origins)
+        value_origin = selected[0].value_origin.model_copy(
+            update={
+                "valid_from": begin,
+                "valid_until": finish,
+                "issued_at": min(origin.issued_at for origin in origins if origin.issued_at),
+                "provider": origins[0].provider
+                if all(origin.provider == origins[0].provider for origin in origins)
+                else "",
+                "based_on": tuple(
+                    sorted({reference for origin in origins for reference in origin.based_on})
+                ),
+            }
+        )
+    if value_origin and (
+        not value_origin.includes(now) or value_origin.issued_at and value_origin.issued_at > now
+    ):
+        return unknown(ReasonCode.VALUE_VALIDITY_GAP, source_id, now)
+    if (
+        value_origin
+        and value_origin.kind == "forecast"
+        and value_origin.issued_at
+        and policy.interval_s
+        and (now - value_origin.issued_at).total_seconds() > policy.interval_s
+    ):
+        return unknown(ReasonCode.INPUT_STALE, source_id, now)
+    begin, finish = interval_bounds((value_origin,) if value_origin else ())
+    if observation.manual:
+        begin = max(at for at in (begin, observation.manual.valid_from) if at)
+        finish = min((at for at in (finish, observation.manual.valid_until) if at), default=None)
     return FieldValue(
         status="valid",
-        value=observation.value,
+        value=value,
+        value_origin=value_origin,
+        input_origins=origins if len(origins) > 1 else (),
+        valid_from=begin,
+        valid_until=finish,
         quality="healthy",
         measured_at=observation.measurement,
+        attribution=observation.attribution,
         evidence=(observation.reference,),
         freshness="fresh",
         since_at=observation.ha_last_changed if observation.adapter == "ha_state" else None,
