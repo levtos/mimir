@@ -108,7 +108,8 @@ it('keeps selection across source subpages and keeps the editor mounted while cl
   await user.click(await screen.findByRole('button', { name: 'Gerät aus Home Assistant hinzufügen' }));
   await user.click(await screen.findByRole('button', { name: 'Ohne Gerät anlegen' }));
   await screen.findByLabelText('Name');
-  await user.click(screen.getByRole('button', { name: 'Erweitert' }));
+  const sourceEditor = screen.getByLabelText('Name').parentElement!.parentElement!;
+  await user.click(within(sourceEditor).getAllByRole('button', { name: 'Erweitert' })[0]!);
   const id = screen.getByLabelText('Quelle-ID'); await user.clear(id);
   expect(screen.getByLabelText('Quelle-ID')).toBe(id);
   await user.type(id, 'source.temperatur');
