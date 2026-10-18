@@ -18,6 +18,7 @@ import { isObject, setAt } from '@/lib/json';
 import { useCapabilities } from '@/lib/queries';
 import { ContractsTabs } from './ContractsPage';
 import { describeError } from '@/lib/api';
+import { EditorialPanel } from '@/features/editorial/Editorial';
 
 export default function DefinitionDetailPage() {
   const { typeId = '', version = '' } = useParams();
@@ -93,6 +94,7 @@ export default function DefinitionDetailPage() {
       {versionError && <p role="alert" className="mb-3 text-sm text-bad">{versionError}</p>}
       {doc.starting && <p role="status" className="mb-3 text-sm text-muted">{uiText('alpha7.draft.preparing')}</p>}
       <ReadOnlyNotice what={uiText("features.contracts.DefinitionDetailPage.definition_9813fa")} />
+      <EditorialPanel object={{ kind: 'template', id: typeId }} />
       <PanelLayout view="definition.detail"><LayoutPanel id="editor" title={uiText("features.contracts.DefinitionDetailPage.definitionseditor_c9b1ee")}><div className="min-w-0">
         <DefinitionEditor
           value={definition}

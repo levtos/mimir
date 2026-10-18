@@ -24,6 +24,41 @@ pytestmark = pytest.mark.postgres
 MIGRATIONS = Path(__file__).resolve().parents[1] / "migrations"
 
 
+async def test_alpha9_editorial_reopen_and_rollback_keep_current_room(database, config):
+    from .test_alpha9_editorial import request, save
+
+    store = PostgresStore(database, MIGRATIONS, tls=False)
+    await store.open()
+    runtime = Runtime(store, FakeClock(NOW), type_registry())
+    await runtime.start()
+    try:
+        first = await activate(runtime, config)
+        saved = await save(runtime, request())
+        changed = copy.deepcopy(config)
+        changed["contracts"][0]["display_name"] = "Neuer Name"
+        await activate(runtime, changed)
+    finally:
+        await runtime.stop()
+        await store.close()
+    reopened = PostgresStore(database, MIGRATIONS, tls=False)
+    await reopened.open()
+    restarted = Runtime(reopened, FakeClock(NOW), type_registry())
+    await restarted.start()
+    try:
+        await restarted.submit(
+            "rollback",
+            {
+                "revision": first["revision"],
+                "expected_active_revision": restarted.state.active_revision,
+            },
+        )
+        assert restarted.state.tables["editorial_current"]["contract:fixture.echo"] == saved
+        assert await reopened.get("editorial_current", "contract:fixture.echo") == saved
+    finally:
+        await restarted.stop()
+        await reopened.close()
+
+
 async def test_alpha9_manual_result_survives_reopen_without_renewing_validity(database, config):
     from .test_alpha9_manual_source import body, enter, manual_config, value
 

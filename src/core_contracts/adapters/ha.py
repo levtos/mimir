@@ -83,6 +83,7 @@ class BridgeAdapter:
             if self.runtime.clock.monotonic() - cached_at < 15:
                 return self.discovery_preview_cache if preview else self.discovery_cache
             areas, devices, entries = {}, {}, {}
+            area_metadata: list[dict[str, Any]] | None = None
             enriched: dict[str, dict[str, Any]] = {}
             async with asyncio.timeout(10):
                 async with self.session.ws_connect(
@@ -117,6 +118,18 @@ class BridgeAdapter:
                             if not isinstance(rows, list) or len(rows) > 10000:
                                 raise ValueError("discovery_resource_limit")
                             registries.append([row for row in rows if isinstance(row, dict)])
+                            if kind == "area":
+                                area_metadata = [
+                                    {
+                                        "area_id": row["area_id"][:256],
+                                        "area_name": row["name"][:128],
+                                        "area_icon": row.get("icon"),
+                                    }
+                                    for row in registries[-1]
+                                    if isinstance(row.get("area_id"), str)
+                                    and isinstance(row.get("name"), str)
+                                    and row["name"].strip()
+                                ]
                         areas = {
                             row.get("area_id"): row.get("name")
                             for row in registries[0]
@@ -235,6 +248,7 @@ class BridgeAdapter:
                     ]
             result = sorted(result, key=lambda item: item["entity_id"])
             if preview:
+                self.runtime.discovered_areas = area_metadata
                 self.discovery_preview_cache = result
                 self.discovery_preview_at = self.runtime.clock.monotonic()
             else:

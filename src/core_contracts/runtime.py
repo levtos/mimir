@@ -136,6 +136,7 @@ class Runtime:
         self.pending_refresh: set[str] = set()
         self.refresh_overflow = 0
         self.entity_discovery: Callable[..., Awaitable[list[dict[str, Any]]]] | None = None
+        self.discovered_areas: list[dict[str, Any]] | None = None
         self.service_jobs_changed = asyncio.Event()
 
     @property
@@ -634,8 +635,12 @@ class Runtime:
         }:
             return None
         if operation == "recover":
+            from .editorial import keep_newer
+
+            current_editorial = copy.deepcopy(self.state.tables["editorial_current"])
             last_sequence = self.state.publication_seq
             self.state = await self.store.load()
+            keep_newer(current_editorial, self.state.tables["editorial_current"])
             rollback = self.state.publication_seq < last_sequence
             self.state.publication_seq = max(last_sequence, self.state.publication_seq)
             self.persistence = True
@@ -773,6 +778,20 @@ class Runtime:
         state = self.state.clone()
         now = self.clock.now_utc()
         config = self._config(state)
+        if operation == "editorial_put":
+            from .editorial import EditorialWrite, put
+
+            result = put(
+                self, state, EditorialWrite.model_validate(payload["request"]), payload["_actor"]
+            )
+            await self._commit(state)
+            return result
+        if operation == "editorial_area_refresh":
+            from .editorial import refresh_areas
+
+            if refresh_areas(self, state, payload):
+                await self._commit(state)
+            return None
         if operation == "context_register":
             from .ha_context import ContextRegistration
 
@@ -916,6 +935,21 @@ class Runtime:
             if not isinstance(result["display_name"], str) or len(result["display_name"]) > 256:
                 raise ValueError("invalid_draft_display_name")
             state.tables["registry_draft"][key] = result
+            from .editorial import EditorialWrite, carry_draft, put
+
+            carry_draft(state, result, self)
+            editorial_entries = payload.get("editorial", [])
+            if not isinstance(editorial_entries, list) or len(editorial_entries) > 128:
+                raise ValueError("invalid_editorial_batch")
+            for item in editorial_entries:
+                put(
+                    self,
+                    state,
+                    EditorialWrite.model_validate(
+                        {**item, "draft_id": key, "draft_version": result["draft_version"]}
+                    ),
+                    payload.get("_actor", {"kind": "internal", "role": "system"}),
+                )
             self._audit(
                 state, operation, payload, draft_id=key, draft_version=result["draft_version"]
             )
@@ -929,6 +963,9 @@ class Runtime:
             if old is None or payload["draft_version"] != old["draft_version"]:
                 raise ValueError("draft_version_conflict")
             del state.tables["registry_draft"][key]
+            for editorial_key, row in list(state.tables["editorial_draft"].items()):
+                if row["draft_id"] == key:
+                    del state.tables["editorial_draft"][editorial_key]
             self._audit(state, operation, payload, draft_id=key, draft_version=old["draft_version"])
             await self._commit(state)
             return {"deleted": True, "draft_id": key}
@@ -990,6 +1027,10 @@ class Runtime:
             new_config = validate(document, self.types)
             await self._definition_versions(new_config)
             await self._source_types(new_config)
+            if operation == "activate":
+                from .editorial import apply_draft
+
+                apply_draft(state, draft, self)
             revision = max((int(r) for r in state.tables["registry_revision"]), default=0) + 1
             state.active_revision = revision
             state.tables["registry_revision"][str(revision)] = {

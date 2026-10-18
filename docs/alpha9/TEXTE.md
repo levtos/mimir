@@ -2606,3 +2606,20 @@ braucht das konkrete Formular folgende ergänzende Beschriftungen:
 | codes.sensor_stuck_suspected | Quelle und Vertrag | — | Wert seit ungewöhnlich langer Zeit unverändert | Formulare und getrennte Herkunftsangabe ohne JSON. |
 | codes.value_validity_gap | Quelle und Vertrag | — | Für diesen Zeitpunkt ist kein Wert gültig. | Formulare und getrennte Herkunftsangabe ohne JSON. |
 | fields.value_origin_path | Quelle und Vertrag | — | Herkunftsangabe im gelieferten Datensatz | Formulare und getrennte Herkunftsangabe ohne JSON. |
+
+## A2: Kategorie und Raum (Bedienhinweise)
+
+| Schlüssel | Ort in der Oberfläche | alt | neu | Grund |
+|---|---|---|---|---|
+| `alpha9.editorial.loadFailed` | Kategorie und Raum | — | Kategorie und Raum konnten nicht geladen werden. Lade die Seite neu, bevor du etwas änderst. | Speichergrenze und Auswahl erklären. |
+| `alpha9.editorial.change` | Kategorie und Raum | — | Kategorie und Raum ändern | Speichergrenze und Auswahl erklären. |
+| `alpha9.editorial.changeCategory` | Kategorie und Raum | — | Kategorie ändern | Speichergrenze und Auswahl erklären. |
+| `alpha9.editorial.loading` | Kategorie und Raum | — | Die Angaben werden geladen. | Speichergrenze und Auswahl erklären. |
+| `alpha9.editorial.immediate` | Kategorie und Raum | — | Diese Angaben helfen dir beim Ordnen. Wenn du sie speicherst, gelten sie sofort. | Speichergrenze und Auswahl erklären. |
+| `alpha9.editorial.draft` | Kategorie und Raum | — | Diese Angaben werden mit dem Entwurf übernommen. | Speichergrenze und Auswahl erklären. |
+| `alpha9.editorial.haUnavailable` | Kategorie und Raum | — | Home Assistant ist gerade nicht erreichbar. Du kannst einen eigenen Raumnamen eingeben. | Speichergrenze und Auswahl erklären. |
+| `alpha9.editorial.save` | Kategorie und Raum | — | Speichern | Speichergrenze und Auswahl erklären. |
+| `alpha9.editorial.saved` | Kategorie und Raum | — | Die Angaben sind gespeichert. | Speichergrenze und Auswahl erklären. |
+| `alpha9.editorial.group` | Kategorie und Raum | — | Ordnen | Speichergrenze und Auswahl erklären. |
+| `alpha9.editorial.noGrouping` | Kategorie und Raum | — | Ohne Gruppierung | Speichergrenze und Auswahl erklären. |
+| `alpha9.editorial.noMatches` | Kategorie und Raum | — | Keine passenden Vorlagen gefunden. | Speichergrenze und Auswahl erklären. |

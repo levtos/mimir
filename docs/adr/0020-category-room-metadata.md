@@ -93,3 +93,27 @@ nur Kategorie/Raum ändern → Registry-Prüfsumme und alle Semantik-Fingerprint
 unverändert; keine Evaluation, Flanke, neue Frist, Episode oder Sitzung.
 Betroffen: §9.2/§10/§12/§21/§23 der Build-Spezifikation, Metadaten-API/-Migration,
 Bifröst-Erkennung, Draft/Übernahme, Vorlagen-/Vertragsformulare und Listen.
+
+## Umsetzung Alpha 9
+
+Migration 006 legt `editorial_current` und `editorial_draft` separat an. Die
+administrative API `GET/PUT editorial` verwendet `expected_editorial_version`.
+Bei neuen Objekten trägt `registry/drafts` die Angaben im zusätzlichen Feld
+`editorial`; das Feld wird nie Teil des Registry-Dokuments. Eine fehlgeschlagene
+Validierung übernimmt auch keine Angaben. Zurücksetzen und historische Entwürfe
+lesen diesen Speicher nicht zurück; Recovery behält neuere Angaben je Objekt.
+Ein vollständiges Datenbank-Backup muss diese beiden Tabellen einschließen.
+
+Die Bereiche stammen aus der begrenzten, lesenden HA-Bereichsabfrage. Sie enthält
+auch leere Bereiche. Nur eine erfolgreiche vollständige Abfrage kann einen
+Bereich als entfernt markieren; Ausfall oder fehlende Rechte ändern keine Räume.
+Die Quellzuordnung samt Symbol liefert Bifröst. Freie Namen und ausdrücklich
+gewählte HA-Bereiche bleiben manuell; nur bestätigte Vorschläge folgen einer
+Umbenennung.
+
+Der gepinnte MDI-Satz 7.4.47 (Apache-2.0) wird durch
+`frontend/scripts/generate-mdi.mjs` reproduzierbar in 64 lokale Teile aufgeteilt:
+7 447 Pfade, zusammen 2 741 249 Bytes JSON, größter Teil 54 368 Bytes. Die sechs
+Kategorien und das Haussymbol benötigen anfänglich nur 991 Bytes Pfaddaten.
+Bereichssymbole werden über lokale dynamische Imports geladen; unbekannte Namen
+und URLs verwenden das Haussymbol. Unit-Test prüft den lokalen Abruf ohne `fetch`.

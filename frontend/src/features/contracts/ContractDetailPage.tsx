@@ -21,6 +21,7 @@ import { useActiveRevision, useCapabilities } from '@/lib/queries';
 import { fieldsForContract } from './presentation';
 import { ContractSummary } from './ContractSummary';
 import { DeviceWizard } from '@/features/sources/DeviceWizard';
+import { EditorialPanel } from '@/features/editorial/Editorial';
 
 export default function ContractDetailPage() {
   const { contractId = '' } = useParams();
@@ -86,6 +87,7 @@ export default function ContractDetailPage() {
         }
       />
       <ReadOnlyNotice what={uiText("features.contracts.ContractDetailPage.contract_konfiguration_d1e14f")} />
+      <EditorialPanel object={{ kind: 'contract', id: contractId }} />
       <Tabs
         value={params.get('tab') ?? 'state'}
         onValueChange={(tab) => setParams({ tab }, { replace: true })}

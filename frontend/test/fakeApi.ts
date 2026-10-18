@@ -4,6 +4,7 @@ import type { JsonObject } from '@/lib/json';
 import capabilities from './fixtures/capabilities.json';
 import validOk from './fixtures/validate-ok.json';
 import validBad from './fixtures/validate-bad.json';
+import { objectKey, type EditorialRow } from '@/features/editorial/model';
 
 /**
  * In-memory stand-in for the Alpha-4 HTTP API with the same concurrency rules:
@@ -30,6 +31,8 @@ export interface FakeRevision {
 
 export interface FakeApi {
   drafts: Map<string, FakeDraft>;
+  editorial: Map<string, EditorialRow>;
+  pendingEditorial: Map<string, Map<string, EditorialRow>>;
   revisions: FakeRevision[];
   activations: { revision: number; at: string; operation: string }[];
   calls: { method: string; path: string; body: unknown }[];
@@ -49,6 +52,7 @@ const json = (status: number, body: unknown) => new Response(JSON.stringify(body
 export function installFakeApi(initial: { revisions?: FakeRevision[]; drafts?: FakeDraft[] } = {}): FakeApi {
   const api: FakeApi = {
     drafts: new Map((initial.drafts ?? []).map((d) => [d.draft_id, d])),
+    editorial: new Map(), pendingEditorial: new Map(),
     revisions: initial.revisions ?? [],
     activations: [],
     calls: [],
@@ -82,6 +86,18 @@ export function installFakeApi(initial: { revisions?: FakeRevision[]; drafts?: F
       return issues.length ? json(400, { error: 'invalid_request', valid: false, issues, details: [] }) : json(200, { ...validOk, valid: true, issues: [] });
     };
     if (path === 'capabilities') return json(200, capabilities);
+    if (path.startsWith('editorial') && method === 'GET') {
+      const draftId = new URLSearchParams(path.split('?')[1]).get('draft_id') ?? '';
+      return json(200, { items: [...api.editorial.values()], draft_items: [...(api.pendingEditorial.get(draftId)?.values() ?? [])] });
+    }
+    if (path === 'editorial' && method === 'PUT') {
+      const table = body.draft_id ? api.pendingEditorial.get(body.draft_id) ?? new Map<string, EditorialRow>() : api.editorial;
+      const key = objectKey(body.object); const previous = table.get(key) ?? api.editorial.get(key);
+      if (body.expected_editorial_version !== (previous?.editorial_version ?? 0)) return json(409, { error: 'editorial_version_conflict' });
+      const row = { object: body.object, category: body.category, room: body.room, editorial_version: (previous?.editorial_version ?? 0) + 1 };
+      table.set(key, row); if (body.draft_id) api.pendingEditorial.set(body.draft_id, table);
+      return json(200, row);
+    }
     if (path === 'info') return json(200, { version: '1.0.0a4', api_protocol: 1, bridge_protocol: 1, config_schema_version: 1, installation_id: 'inst-1', installation_label: 'Test', epoch_id: 'e1', publication_seq: 1, server_time: stamp() });
     if (path === 'registry/active') return json(200, api.revisions.at(-1) ?? null);
     if (path === 'registry/active/export') return api.revisions.length ? json(200, api.revisions.at(-1)!.config) : json(409, { error: 'no_active_registry' });
@@ -103,11 +119,17 @@ export function installFakeApi(initial: { revisions?: FakeRevision[]; drafts?: F
         if (body.draft_version !== draft.draft_version) return json(409, { error: 'draft_version_conflict', details: [] });
         const next = { ...draft, config: body.config, draft_version: draft.draft_version + 1, updated_at: stamp(), display_name: body.display_name ?? draft.display_name };
         api.drafts.set(id, next);
+        for (const entry of body.editorial ?? []) {
+          const table = api.pendingEditorial.get(id) ?? new Map<string, EditorialRow>(); const key = objectKey(entry.object);
+          table.set(key, { object: entry.object, category: entry.category, room: entry.room, editorial_version: entry.expected_editorial_version + 1 });
+          api.pendingEditorial.set(id, table);
+        }
         return json(200, next);
       }
       if (!draftMatch[2] && method === 'DELETE') {
         if (body.draft_version !== draft.draft_version) return json(409, { error: 'draft_version_conflict', details: [] });
         api.drafts.delete(id);
+        api.pendingEditorial.delete(id);
         return json(200, { deleted: true, draft_id: id });
       }
       if (draftMatch[2] === 'validate') return validation(draft.config);
@@ -118,6 +140,8 @@ export function installFakeApi(initial: { revisions?: FakeRevision[]; drafts?: F
         if (issues.length) return json(400, { error: 'invalid_request', valid: false, issues, details: [] });
         const revision = { revision: api.active() + 1, config: draft.config, checksum: `sum-${api.active() + 1}`.padEnd(64, '0'), created_at: stamp(), actor: { kind: 'ingress', role: 'admin' }, ...(body.note ? { note: body.note } : {}) };
         api.revisions.push(revision);
+        for (const [key, row] of api.pendingEditorial.get(id) ?? []) api.editorial.set(key, row);
+        api.pendingEditorial.delete(id);
         api.activations.push({ revision: revision.revision, at: revision.created_at, operation: 'activate' });
         return json(200, revision);
       }

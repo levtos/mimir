@@ -7,5 +7,5 @@ export function useHaCatalog(enabled = true, preview = false) {
   useEffect(() => {
     if (enabled && query.hasNextPage && !query.isFetchingNextPage && (query.data?.pages.length ?? 0) < 60) void query.fetchNextPage();
   }, [enabled, query.hasNextPage, query.isFetchingNextPage, query.data?.pages.length, query.fetchNextPage]);
-  return { ...query, entities: query.data?.pages.flatMap(page => page.items) ?? [] };
+  return { ...query, entities: query.data?.pages.flatMap(page => page.items) ?? [], areas: query.data?.pages[0]?.areas };
 }

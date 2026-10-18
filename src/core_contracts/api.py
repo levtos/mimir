@@ -123,6 +123,11 @@ class API:
                     in {
                         "active_revision_conflict",
                         "draft_version_conflict",
+                        "editorial_version_conflict",
+                        "editorial_scope_conflict",
+                        "editorial_object_not_found",
+                        "editorial_draft_limit",
+                        "editorial_restore_conflict",
                         "draft_limit",
                         "draft_identity_conflict",
                         "cycle",
@@ -303,6 +308,23 @@ class API:
             result = await runtime.submit("validate", await request.json())
         elif path == "definitions" and method == "GET":
             result = [d.model_dump(mode="json") for d in config.definitions] if config else []
+        elif path == "editorial" and method == "GET":
+            from .editorial import CATEGORIES
+
+            draft_id = request.query.get("draft_id")
+            result = {
+                "items": list(state.tables["editorial_current"].values()),
+                "draft_items": [
+                    row
+                    for row in state.tables["editorial_draft"].values()
+                    if row["draft_id"] == draft_id
+                ],
+                "categories": CATEGORIES,
+            }
+        elif path == "editorial" and method == "PUT":
+            result = await runtime.submit(
+                "editorial_put", {"request": await request.json(), "_actor": request["actor"]}
+            )
         elif path == "ha/contexts" and method == "GET":
             result = {
                 "ha_epoch_id": runtime.context_index.epoch if runtime.context_index else None,
@@ -335,12 +357,19 @@ class API:
             except aiohttp.ClientError, ConnectionError, TimeoutError, ValueError, TypeError:
                 return web.json_response({"error": "ha_discovery_unavailable"}, status=503)
             selected_entities = [e for e in entities if e["entity_id"] > after]
+            if preview == "1" and runtime.discovered_areas is not None:
+                await runtime.submit("editorial_area_refresh", runtime.discovered_areas)
             result = {
                 "items": selected_entities[:limit],
                 "next_cursor": selected_entities[limit - 1]["entity_id"]
                 if len(selected_entities) > limit
                 else None,
                 "read_only": True,
+                **(
+                    {"areas": runtime.discovered_areas}
+                    if preview == "1" and runtime.discovered_areas is not None
+                    else {}
+                ),
             }
         elif path == "contracts" and method == "GET":
             result = runtime.snapshot()["contracts"]

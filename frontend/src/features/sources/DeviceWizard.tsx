@@ -15,6 +15,8 @@ import type { HaEntity } from '@/lib/types';
 import { DEVICE_PRESETS, DevicePlanError, fieldTypeFor, freshnessPreset, planDevice, presetFor, type DeviceOptions, type DevicePreset } from './devicePlan';
 import { FreshnessSettings } from './FreshnessSettings';
 import { useHaCatalog } from './useHaCatalog';
+import { CategorySelect, useEditorial } from '@/features/editorial/Editorial';
+import { NO_ROOM, type Category } from '@/features/editorial/model';
 
 export function deviceValue(entity: HaEntity): string {
   const value = entity.current_value;
@@ -31,6 +33,7 @@ export function DeviceWizard({ open, onOpenChange, title, contract, expectedSche
   onAdded?: (result: ReturnType<typeof planDevice>) => void; manualOption?: ReactNode;
 }) {
   const doc = useWorkingDocument(); const ha = useHaCatalog(open, true);
+  const metadata = useEditorial(); const [category, setCategory] = useState<Category>('other');
   const [search, setSearch] = useState(''); const [area, setArea] = useState(''); const [domain, setDomain] = useState('');
   const [selected, setSelected] = useState<HaEntity | null>(null);
   const [name, setName] = useState(''); const [preset, setPreset] = useState<DevicePreset>('other'); const [freshness, setFreshness] = useState<JsonObject>(freshnessPreset('other'));
@@ -64,7 +67,12 @@ export function DeviceWizard({ open, onOpenChange, title, contract, expectedSche
     try {
       const current = await doc.ensureDraft();
       const result = planDevice(current, selected, { contract, name, preset, freshness, fieldType, sourceId: sourceId || undefined, contractId: contractId || undefined });
-      doc.replaceAll(result.config);
+      if (contract === 'new' && result.contractId) {
+        const object = { kind: 'contract' as const, id: result.contractId };
+        const created = asArray(result.config.contracts).filter(isObject).find(item => item.contract_id === result.contractId)!;
+        const template = { kind: 'template' as const, id: str(created.type_id) };
+        await doc.editWithEditorial(() => result.config, [object, template].map(ref => ({ object: ref, expected_editorial_version: metadata.item(ref).editorial_version, category, room: NO_ROOM })));
+      } else doc.replaceAll(result.config);
       onOpenChange(false); onAdded?.(result);
     } catch (failure) { setError(failure instanceof DevicePlanError ? failure.message : describeError(failure)); }
     finally { setBusy(false); }
@@ -84,6 +92,7 @@ export function DeviceWizard({ open, onOpenChange, title, contract, expectedSche
       <div className="space-y-4">
         {!selected ? <p className="py-5 text-sm text-muted">{t('alpha7.device.selectFirst')}</p> : <>
           <Field label={t('alpha7.device.name')}>{props => <Input {...props} maxLength={128} value={name} onChange={event => setName(event.target.value)} />}</Field>
+          {contract === 'new' && <CategorySelect value={category} onChange={value => setCategory(value || 'other')} />}
           <Field label={t('alpha7.device.preset')}>{props => <Select {...props} value={preset} onChange={event => { const next = event.target.value as DevicePreset; setPreset(next); setFreshness(freshnessPreset(next)); }}>{DEVICE_PRESETS.map(value => <option key={value} value={value}>{t(`alpha7.device.preset.${value}`)}</option>)}</Select>}</Field>
           <FreshnessSettings value={freshness} onChange={setFreshness} livenessSources={liveness} />
           {preset === 'contact' && <p className="text-sm text-muted">{t('alpha7.device.contactHelp')}</p>}

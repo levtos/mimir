@@ -163,6 +163,7 @@ export interface HaEntityPage {
   items: HaEntity[];
   next_cursor: string | null;
   read_only: boolean;
+  areas?: { area_id: string; area_name: string; area_icon?: string | null }[];
 }
 
 export interface TemporalState {

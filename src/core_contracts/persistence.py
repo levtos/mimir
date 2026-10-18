@@ -47,6 +47,8 @@ TABLES = (
     "service_job",
     "service_state",
     "manual_request",
+    "editorial_current",
+    "editorial_draft",
 )
 IMMUTABLE = {
     "registry_revision",
