@@ -92,6 +92,7 @@ async def main() -> None:
     parser.add_argument("--seed", action="store_true", help="activate the Alpha-4 example registry")
     parser.add_argument("--feed", action="store_true", help="feed source.a / source.b periodically")
     parser.add_argument("--alpha8", action="store_true", help="synthetic Alpha 8 review surfaces")
+    parser.add_argument("--alpha9", action="store_true", help="synthetic Alpha 9 review surfaces")
     parser.add_argument(
         "--post1", action="store_true", help="deterministic synthetic correction screenshots"
     )
@@ -101,7 +102,7 @@ async def main() -> None:
 
     clock = (
         FakeClock(datetime(2026, 10, 17, 10, tzinfo=UTC))
-        if args.post1 or args.alpha8
+        if args.post1 or args.alpha8 or args.alpha9
         else SystemClock()
     )
     runtime = Runtime(MemoryStore(), clock, type_registry())
@@ -141,6 +142,10 @@ async def main() -> None:
         from workbench_alpha8 import seed as seed_alpha8
 
         await seed_alpha8(runtime)
+    if args.alpha9:
+        from workbench_alpha9 import seed as seed_alpha9
+
+        await seed_alpha9(runtime)
     if args.seed:
         document = json.loads(
             (ROOT / "docs" / "alpha4" / "example-registry.json").read_text(encoding="utf-8")

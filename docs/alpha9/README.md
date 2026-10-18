@@ -1,4 +1,4 @@
-# Alpha 9 — A1: Design und Textreview
+# Alpha 9 — Design, Umsetzung und Review
 
 18.10.2026 · Auftrag Benni: ALPHA 9, Grundlage
 [#24](https://github.com/Levtos/mimir/issues/24),
@@ -7,17 +7,16 @@ Basis: `main = v1.0.0a8 = 6fcde2a83def3e5cde93d3dea46638d755cbf1e6`.
 Ein Branch `agent/codex-alpha9-mimir`, ein gemeinsamer PR, eigene Commits je Block.
 Aktiver Umsetzungsagent bleibt Codex; Claude prüft Technik, Benni die Texte.
 
-**A1 ist freigegeben; A2 läuft seit 18.10.2026.** Claude hat Technik und Benni
-TEXTE.md mit sechs Korrekturen freigegeben. ADR 0020 bewahrt aktuelle Kategorien/
-Räume auch bei Zurücksetzen, historischem Entwurf und Backup/Restore. Zuerst wurde
-die Programmversion synchron auf 1.0.0a9 gestellt; das reguläre Versionsgate ist grün.
-Die folgenden A1-Abgrenzungen dokumentieren den historischen Review-Schritt.
+**Teil A2 ist für das Review vorbereitet.** Claude hat Technik und Benni die
+Texte freigegeben; die ergänzenden Auflagen sind umgesetzt. Die Programmversion
+steht auf 1.0.0a9. Kategorien und Räume bleiben außerhalb der Konfiguration und
+werden bei Zurücksetzen, historischen Entwürfen und Restore erhalten.
 
-**A1 lieferte ausschließlich Vorschläge in Dokumenten.**
-Keine neuen Produkttexte, entfernten Übersetzungsschlüssel, Produktversionen,
-Tests, Migrationen, Images, HA-Aufrufe oder Live-Änderungen in diesem Schritt.
-A2 beginnt erst nach ausdrücklicher Freigabe; Texte nur gemäß Bennis bestätigter
-[TEXTE.md](TEXTE.md). Teil B benötigt danach ein gesondertes „Go“.
+Einstieg zur Umsetzung: [ABNAHME.md — Block → Commit → Nachweis](ABNAHME.md),
+[TEXTE.md](TEXTE.md), [Firefox-Bilder](bilder/nachweis.json),
+[Versionsbericht](versionsgate.json), [PR #26](https://github.com/levtos/mimir/pull/26).
+Die folgenden Abschnitte halten die Designgrundlage und Abgrenzung fest.
+**STOPP für Review; Teil B braucht Bennis gesondertes „Go“.**
 
 ## Review-Einstieg
 
@@ -60,8 +59,7 @@ passenden früheren Stand und nach geprüftem Sicherungs-/Restore-Verfahren.
 Neue optionale Schemafelder dürfen historische Prüfsummen beim bloßen Laden
 nicht ändern. Redaktionelle Kategorie/Raum liegen deshalb außerhalb der Registry.
 
-Die ADR-JSON-Ausschnitte illustrieren diese neuen, noch nicht implementierten
-Formate. Sie sind keine vollständig validierbaren Konfigurationen oder Fachverträge.
+Die ADR-JSON-Ausschnitte illustrieren die neuen Formate. Sie sind keine vollständig validierbaren Konfigurationen oder Fachverträge.
 Jedes neue Feld erhält A2-Schema, Capability, Formulareingabe, deutsche Erklärung,
 API-/Client- und Altformat-Tests. Einzig die Service-Transportfreigabe darf
 technische HA-Ziele kennen; Fachregeln benutzen kanonische Quellen/Verträge.
@@ -73,14 +71,14 @@ existierenden eigenen a8-Tag erwartbar rot; dies wird dokumentiert, nicht mit ei
 vorzeitigen Versionswechsel oder einer Gate-Ausnahme verdeckt. A2 muss nach dem
 expliziten Versionswechsel alle regulären Checks grün bestehen.
 
-## A2-Nachweisplan — noch nicht ausgeführt
+## Historischer A1-Nachweis und A2-Prüfumfang
 
 A1-Dokumentprüfung: 12 Markdown-Dateien, 32 lokale Links und 11 syntaktisch
 gültige JSON-Ausschnitte; alle 2.250 Ausgangsschlüssel in der Textprüfung,
 keine unbeabsichtigt geänderten Platzhalter. Bestehender a8-i18n-Scan: 0 harte
 Texte; Trockenlauf der Schlüsselbereinigung: 2 sicher unbenutzte Schlüssel.
 Das ist keine Implementierungs- oder Oberflächenabnahme für Alpha 9.
-Vor-Tag-Gate auf unveränderter a8-Basis: erwarteter Fehler „1.0.0a8 ist nicht
+Historisches Vor-Tag-Gate in A1 auf unveränderter a8-Basis: erwarteter Fehler „1.0.0a8 ist nicht
 neuer als v1.0.0a8 in Linie mimir“; sieben Tags gelesen. Erst A2 setzt a9.
 
 1. Servicekanal, G2/G7/G15/G16; danach G12/G10/G8/G9; Kategorien/Raum;
