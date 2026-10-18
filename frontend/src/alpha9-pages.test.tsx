@@ -36,7 +36,9 @@ function app(path: string) {
 }
 it.each(routes)('%s has a title, an everyday explanation and one primary page action', async (path, key) => {
   const api = app(path!);
-  const description = await screen.findByText(t(key!), {}, { timeout: 8000 });
+  await screen.findByText(t(key!), {}, { timeout: 8000 });
+  await waitFor(() => expect(document.querySelector('[data-page-loading]')).toBeNull());
+  const description = screen.getByText(t(key!));
   expect(description).toBeVisible();
   expect(description.textContent).toMatch(/^Hier kannst du /);
   const header = description.closest('[data-page-header]')!;
