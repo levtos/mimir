@@ -10,6 +10,10 @@ für die HA-Anbindung mit Protokoll 2. G4-Katalogpflege und portable Konfigurati
 pakete ergänzen die bestehenden Verträge. Alle mitgelieferten Beispiele sind synthetisch.
 Release, neue Datenbank, Installation und Live-Abnahme bleiben Bennis Teil B.
 
+## Übergabe / aktueller Stand
+
+- [Übergabe an die Beta](docs/uebergabe.md)
+
 ## Dokumentation
 
 - [Alpha-10-Entscheidungen](docs/alpha10/README.md), [A2-Abnahme](docs/alpha10/ABNAHME.md)
