@@ -91,7 +91,7 @@ jobs:
         working-directory: frontend
       - name: Workbench end-to-end
         run: |
-          port="${MIMIR_E2E_PORT:-8123}"
+          port="${WUSCHEL_E2E_PORT:-8123}"
           .venv/bin/python dev/workbench_demo.py --feed --interval 1 --port "$port" > /tmp/workbench-demo.log 2>&1 &
           engine_pid=$!
           cleanup() {
@@ -109,7 +109,7 @@ jobs:
             sleep 1
           done
           test "$ready" = true
-          MIMIR_E2E_URL="http://127.0.0.1:$port" npm --prefix frontend run test:e2e
+          WUSCHEL_E2E_URL="http://127.0.0.1:$port" npm --prefix frontend run test:e2e
       - name: Engine log
         if: failure()
         run: tail -n 80 /tmp/workbench-demo.log
@@ -146,7 +146,7 @@ jobs:
       - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
-          file: mimir/Dockerfile
+          file: wuschel/Dockerfile
           platforms: ${{ matrix.platform }}
           build-args: |
             BUILD_VERSION=${{ steps.package.outputs.version }}

@@ -1,7 +1,7 @@
-# Betrieb: Mimir
+# Betrieb: Wuschel
 
 Alpha 8 erlaubt eigene Vorlagen und Verträge ohne Test-Namensraum. Die Beispiele
-bleiben synthetisch. Mimir wird als neue App mit Slug `mimir` installiert; Terra
+bleiben synthetisch. Wuschel wird als neue App mit Slug `wuschel` installiert; Terra
 und die alte Bridge bleiben erhalten. Für jede Installation: eigene logische PostgreSQL-DB,
 eigene DB-Rolle und eigene Tokens. Keine Verbindung zur Legacy-DB herstellen.
 Die folgenden Installationsschritte sind eine Betriebsvorlage, keine Freigabe:
@@ -24,11 +24,11 @@ Aufforderung, die bestehenden produktiven Optionen zu ändern.
    (Migrationen benötigen auch CREATE/ALTER und Index-Erstellung). Die Rolle
    muss die unten genannten Session-Settings beim Verbindungsaufbau setzen dürfen.
    Zugangsdaten außerhalb des Repository verwahren.
-2. Bifröst aus `custom_components/bifrost` über HACS
+2. Traber aus `custom_components/traber` über HACS
    oder manuell installieren und einmal in HA hinzufügen. Keine Entities oder
    Services entstehen. Keine Registry-Konfiguration gehört in die Bridge.
 3. Für die Installation aus dem GitHub-App-Repository müssen beide in
-   `mimir/config.yaml` referenzierten GHCR-Images öffentlich
+   `wuschel/config.yaml` referenzierten GHCR-Images öffentlich
    verfügbar sein. Den aktuellen [Veröffentlichungs- und anonymen Pull-Nachweis](publishing.md)
    prüfen; eine grüne Build-CI allein genügt nicht. Für einen separaten lokalen
    Supervisor-Build `uv run python dev/stage_app.py <neues-ziel>` ausführen.

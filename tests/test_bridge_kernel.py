@@ -15,9 +15,9 @@ from homeassistant.components import websocket_api
 from homeassistant.core import Context, HomeAssistant, SupportsResponse, callback
 from homeassistant.exceptions import Unauthorized
 
-from custom_components.bifrost import async_setup_entry
-from custom_components.bifrost.service_channel import Rejected
-from custom_components.bifrost.source_metadata import refresh_action, source_metadata
+from custom_components.traber import async_setup_entry
+from custom_components.traber.service_channel import Rejected
+from custom_components.traber.source_metadata import refresh_action, source_metadata
 
 
 @pytest.mark.ha
@@ -66,7 +66,7 @@ async def test_real_state_reported_callback_and_unsubscribe(tmp_path, monkeypatc
         )
         connection.subscriptions.pop(number)()
     assert len(unload) == 1
-    assert len(hass.data["bifrost"]) == 1
+    assert len(hass.data["traber"]) == 1
     connection.subscriptions.pop(1)()
     count = len(events)
     hass.states.async_set("sensor.fixture", "on")
@@ -97,7 +97,7 @@ async def test_v2_negotiation_manifest_admin_services_and_context(tmp_path, monk
     )
     commands["info"](hass, connection, {"id": 1})
     manifest = json.loads(
-        (Path(__file__).parents[1] / "custom_components/bifrost/manifest.json").read_text()
+        (Path(__file__).parents[1] / "custom_components/traber/manifest.json").read_text()
     )
     assert results[1]["bridge_version"] == manifest["version"]
     assert results[1]["protocol_version"] == 1

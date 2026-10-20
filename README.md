@@ -1,24 +1,24 @@
-# Mimir — Core Contracts
+# Wuschel — Core Contracts
 
 Core Contracts als **Supervisor-verwaltete Home-Assistant-App**: kanonische fachliche Wahrheiten mit
 Status, Quality, Freshness, Evidence und Reasons. Dazu kommen Registry mit stabilen IDs, PostgreSQL-Persistenz,
-HA-Bridge Bifröst und `CoreContractsClient`.
+HA-Bridge Traber und `CoreContractsClient`.
 
-**Stand:** Alpha 8 im Review auf `agent/codex-alpha8-mimir`. Mimir erhält den
-neuen Supervisor-Slug `mimir` und eine eigene Datenbank. Vorlagen dürfen freie
+**Stand:** Alpha 8 im Review auf `agent/codex-alpha8-wuschel`. Wuschel erhält den
+neuen Supervisor-Slug `wuschel` und eine eigene Datenbank. Vorlagen dürfen freie
 Kennungen verwenden; die frühere Beschränkung auf `test.*` und Fixtures ist gelöst.
 Die mitgelieferten Beispiele bleiben synthetisch. Release, Installation und reale
 Supervisor-/HA-Abnahme benötigen Bennis Teil-B-Go.
 
 | Phase | Inhalt |
 |---|---|
-| **Alpha 8 — Mimir** | Zeit/Kalender, Instanzparameter, n-Klassen, Textregeln, Kataloge, Vollständigkeit, Aufbewahrung |
+| **Alpha 8 — Wuschel** | Zeit/Kalender, Instanzparameter, n-Klassen, Textregeln, Kataloge, Vollständigkeit, Aufbewahrung |
 | **Weitere Domänen und Consumer-Migration** | gesonderte Aufträge; vorhandene Terra-/Legacy-Installationen bleiben erhalten |
 
 ## Dokumentation
 
 - [Alpha-8-Auftrag und Entscheidungen](docs/alpha8/README.md), [Abnahme](docs/alpha8/ABNAHME.md)
-- [Namenskonzept](docs/naming.md), [neue Mimir-Datenbank: vorbereitetes Runbook](docs/operations/mimir-new-database.md)
+- [Namenskonzept](docs/naming.md), [neue Wuschel-Datenbank: vorbereitetes Runbook](docs/operations/wuschel-new-database.md)
 
 - [First-Run-Wizard, DB-Provisionierung und offene Bridge-Grenze](docs/first-run.md)
 - [Betrieb, Installation und Backup/Restore](docs/operations.md)

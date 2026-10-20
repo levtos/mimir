@@ -61,6 +61,6 @@ def test_terra_app_store_entry_is_unchanged():
         ["git", "-C", str(root), "show", "a08a51d:core_contracts/config.yaml"]
     )
     assert (root / "core_contracts/config.yaml").read_bytes() == original
-    mimir = yaml.safe_load((root / "mimir/config.yaml").read_text(encoding="utf-8"))
-    assert mimir["slug"] == "mimir" and mimir["name"] == "Mimir"
-    assert mimir["image"] == "ghcr.io/levtos/{arch}-mimir"
+    mimir = yaml.safe_load((root / "wuschel/config.yaml").read_text(encoding="utf-8"))
+    assert mimir["slug"] == "wuschel" and mimir["name"] == "Wuschel"
+    assert mimir["image"] == "ghcr.io/levtos/{arch}-wuschel"

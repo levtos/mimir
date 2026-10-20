@@ -22,7 +22,7 @@ ARG SOURCE_REVISION=unknown
 LABEL io.hass.type="app" \
     io.hass.version="${BUILD_VERSION}" \
     io.hass.arch="${BUILD_ARCH}" \
-    org.opencontainers.image.source="https://github.com/levtos/mimir" \
+    org.opencontainers.image.source="https://github.com/levtos/wuschel" \
     org.opencontainers.image.version="${BUILD_VERSION}" \
     org.opencontainers.image.revision="${SOURCE_REVISION}"
 RUN apt-get update && apt-get install -y --no-install-recommends util-linux ca-certificates \
@@ -33,7 +33,7 @@ WORKDIR /app
 COPY --from=build /app /app
 COPY --from=frontend /build/dist /app/frontend
 COPY migrations/ /app/migrations/
-COPY mimir/rootfs/entrypoint.sh /entrypoint.sh
+COPY wuschel/rootfs/entrypoint.sh /entrypoint.sh
 RUN chmod 0755 /entrypoint.sh
 ENV PATH="/app/.venv/bin:$PATH" PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 EXPOSE 8787 8099

@@ -50,7 +50,7 @@ describe('setup wizard (ported from the Alpha-1 UI, same safeguards)', () => {
   it('invalid Supervisor options are visible and cannot be imported through the wizard', async () => {
     const fetch = backend({ ...initial, phase: 'configuration_error', authority: 'supervisor', error: 'invalid_supervisor_options' });
     render(<App />);
-    await screen.findByText(/Prüfe die Optionen der Mimir-App/);
+    await screen.findByText(/Prüfe die Optionen der Wuschel-App/);
     expect(document.querySelector('input')).toBeNull();
     expect(screen.getByRole('button', { name: 'Verbindung einrichten' })).toBeDisabled();
     expect(fetch.mock.calls.some(([url]) => url.endsWith('/connect') || url.endsWith('/provision'))).toBe(false);
@@ -59,9 +59,9 @@ describe('setup wizard (ported from the Alpha-1 UI, same safeguards)', () => {
   it('reload after DB initialization resumes the unfinished Bridge step', async () => {
     backend({ ...initial, phase: 'completed', authority: 'wizard', database_configured: true });
     render(<App />);
-    await screen.findByRole('heading', { name: "Bifröst: HA-Anbindung für Mimir" });
-    expect(document.querySelector('h1')?.textContent).toBe("Mimir einrichten");
-    expect(document.body.textContent).toContain('Installiere Bifröst über HACS');
+    await screen.findByRole('heading', { name: "Traber: HA-Anbindung für Wuschel" });
+    expect(document.querySelector('h1')?.textContent).toBe("Wuschel einrichten");
+    expect(document.body.textContent).toContain('Installiere Traber über HACS');
   });
 
   it('database outage is not presented as an identity rejection', async () => {
@@ -75,7 +75,7 @@ describe('setup wizard (ported from the Alpha-1 UI, same safeguards)', () => {
     const status = { ...initial, phase: 'connecting' as SetupStatus['phase'], authority: 'wizard', database_configured: true, onboarding_complete: true };
     backend(status);
     render(<App />);
-    await screen.findByRole('heading', { name: 'Mimir einrichten', level: 1 });
+    await screen.findByRole('heading', { name: 'Wuschel einrichten', level: 1 });
     status.phase = 'completed';
     // Polling performs the same recovery refresh without changing configuration.
     await screen.findByText("Einstellungen", {}, { timeout: 5000 });
@@ -87,7 +87,7 @@ describe('setup wizard (ported from the Alpha-1 UI, same safeguards)', () => {
   it('fresh installation renders guided UI before any ordinary API request', async () => {
     const fetch = backend();
     render(<App />);
-    await screen.findByRole('heading', { name: 'Mimir einrichten', level: 1 });
+    await screen.findByRole('heading', { name: 'Wuschel einrichten', level: 1 });
     expect(document.body.textContent).toContain('Willkommen');
     expect(fetch.mock.calls.every(([url]) => url.includes('/setup/'))).toBe(true);
   });
@@ -118,8 +118,8 @@ describe('setup wizard (ported from the Alpha-1 UI, same safeguards)', () => {
     render(<SetupWizard initial={status} oncomplete={vi.fn()} />);
     await screen.findByText(/Bestehende Identität wird beibehalten/);
     await act(async () => clickText('Datenbankschritte überspringen'));
-    expect(document.body.textContent).toContain('Installiere Bifröst über HACS');
-    expect(document.body.textContent).toContain('bifrost');
+    expect(document.body.textContent).toContain('Installiere Traber über HACS');
+    expect(document.body.textContent).toContain('traber');
     expect(fetch.mock.calls.some(([url]) => url.endsWith('/provision') || url.endsWith('/connect'))).toBe(false);
   });
 

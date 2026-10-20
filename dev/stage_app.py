@@ -8,10 +8,10 @@ root = Path(__file__).resolve().parents[1]
 destination = Path(sys.argv[1]).resolve()
 if destination.exists():
     raise SystemExit("Destination must not exist; choose a new staging directory")
-app = destination / "mimir"
+app = destination / "wuschel"
 app.mkdir(parents=True)
 shutil.copy2(root / "repository.yaml", destination)
-for name in ("src", "migrations", "frontend", "mimir"):
+for name in ("src", "migrations", "frontend", "wuschel"):
     shutil.copytree(
         root / name,
         app / name,
@@ -20,8 +20,8 @@ for name in ("src", "migrations", "frontend", "mimir"):
 for name in ("pyproject.toml", "uv.lock"):
     shutil.copy2(root / name, app)
 for name in ("Dockerfile", "DOCS.md", "CHANGELOG.md"):
-    shutil.copy2(root / "mimir" / name, app / name)
-config = (root / "mimir/config.yaml").read_text(encoding="utf-8")
+    shutil.copy2(root / "wuschel" / name, app / name)
+config = (root / "wuschel/config.yaml").read_text(encoding="utf-8")
 # Local builds deliberately have no prebuilt image requirement.
 (app / "config.yaml").write_text(
     "\n".join(line for line in config.splitlines() if not line.startswith("image:")) + "\n",

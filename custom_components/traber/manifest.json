@@ -1,10 +1,10 @@
 {
-  "domain": "bifrost",
-  "name": "Bifröst",
+  "domain": "traber",
+  "name": "Traber",
   "version": "1.0.0a10",
   "config_flow": true,
-  "documentation": "https://github.com/Levtos/mimir",
-  "issue_tracker": "https://github.com/Levtos/mimir/issues",
+  "documentation": "https://github.com/Levtos/wuschel",
+  "issue_tracker": "https://github.com/Levtos/wuschel/issues",
   "codeowners": [
     "@levtos-codex"
   ],

@@ -259,7 +259,7 @@ async def run(options: Options | None, data: Path, migrations: Path, frontend: P
         hostname = os.environ.get("HOSTNAME", "")
         runtime.ingress_slug = (
             hostname.removeprefix("addon_")
-            if re.fullmatch(r"addon_[a-f0-9]{8}_mimir", hostname)
+            if re.fullmatch(r"addon_[a-f0-9]{8}_wuschel", hostname)
             else None
         )
         await runtime.start()

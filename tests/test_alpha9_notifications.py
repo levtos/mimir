@@ -68,17 +68,17 @@ def test_axes_debounce_individual_onsets_unchanged_digest_and_own_link(config):
         "unresolved"
     )
     plan_notices(state, conf, NOW + timedelta(seconds=29), installation)
-    plan_notices(state, conf, NOW + timedelta(seconds=30), installation, "abcd1234_mimir")
+    plan_notices(state, conf, NOW + timedelta(seconds=30), installation, "abcd1234_wuschel")
     signal = jobs(state)[0]
-    assert signal["target_ids"] == [f"mimir_{installation}_signal"]
+    assert signal["target_ids"] == [f"wuschel_{installation}_signal"]
     assert "1 Werte" in signal["arguments"]["message"]
-    assert "abcd1234_mimir" in signal["arguments"]["message"]
+    assert "abcd1234_wuschel" in signal["arguments"]["message"]
     assert "private" not in signal["arguments"]["message"]
     acknowledge(state, signal, NOW + timedelta(seconds=30))
     plan_notices(state, conf, NOW + timedelta(seconds=60), installation)
     assert len(jobs(state)) == 1
     configuration = jobs(state)[0]
-    assert configuration["target_ids"] == [f"mimir_{installation}_configuration"]
+    assert configuration["target_ids"] == [f"wuschel_{installation}_configuration"]
     acknowledge(state, configuration, NOW + timedelta(seconds=60))
     # The new signal is rate-limited against the confirmed first summary.
     assert len(jobs(state)) == 0

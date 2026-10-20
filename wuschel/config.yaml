@@ -1,8 +1,8 @@
-name: Mimir
+name: Wuschel
 version: 1.0.0a10
 slug: wuschel
-description: Mimir – Verträge verständlich anlegen und verwalten (Alpha 9)
-url: https://github.com/Levtos/mimir
+description: Wuschel – Verträge verständlich anlegen und verwalten (Alpha 10)
+url: https://github.com/Levtos/wuschel
 arch: [amd64, aarch64]
 startup: services
 boot: auto
@@ -12,6 +12,7 @@ hassio_api: false
 ingress: true
 ingress_port: 8099
 panel_admin: true
+panel_icon: mdi:script-text-outline
 ports:
   8787/tcp: null
 watchdog: http://[HOST]:[PORT:8787]/health/live
@@ -19,12 +20,12 @@ timeout: 30
 backup: hot
 services: [mqtt:want]
 map: [ssl:ro]
-image: ghcr.io/levtos/{arch}-mimir
+image: ghcr.io/levtos/{arch}-wuschel
 options:
   postgres_host: ""
   postgres_port: 5432
-  postgres_database: mimir
-  postgres_user: mimir_app
+  postgres_database: wuschel
+  postgres_user: wuschel_app
   postgres_password: ""
   postgres_sslmode: verify-full
   postgres_ca: ""

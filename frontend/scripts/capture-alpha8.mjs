@@ -3,7 +3,7 @@ import { firefox, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const base = process.env.MIMIR_REVIEW_URL ?? 'http://127.0.0.1:8099';
+const base = process.env.WUSCHEL_REVIEW_URL ?? 'http://127.0.0.1:8099';
 if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(base)) throw new Error('local review harness required');
 const output = path.resolve(process.argv[2] ?? '../docs/alpha8/screenshots');
 await mkdir(output, { recursive: true });
@@ -15,7 +15,7 @@ try {
   await page.goto(base + '/#/');
   await expect(page.getByText(/Home Assistant getrennt seit/)).toBeVisible();
   await expect(page.getByText(/1 Werte ohne Frist gelten unverändert weiter/)).toBeVisible();
-  await page.screenshot({ path: path.join(output, '01-mimir-kopf.png') });
+  await page.screenshot({ path: path.join(output, '01-wuschel-kopf.png') });
   await page.getByRole('heading', { name: 'Konfiguration unvollständig', exact: true }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: path.join(output, '02-uebersicht.png') });
 

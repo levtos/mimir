@@ -68,11 +68,11 @@ export default function ImportExportPage() {
       </section>}
     </div></Panel>
     {!contractImport && <Panel className="mt-5"><PanelHeader title={t('alpha7.export.title')} /><div className="flex flex-col items-start gap-3 p-5">
-      <Button disabled={!active.data} onClick={() => active.data && downloadText(`mimir-${new Date().toISOString().slice(0, 10)}.json`, exportRegistry(active.data))}>{t('alpha7.export.active')}</Button>
+      <Button disabled={!active.data} onClick={() => active.data && downloadText(`wuschel-${new Date().toISOString().slice(0, 10)}.json`, exportRegistry(active.data))}>{t('alpha7.export.active')}</Button>
       {!active.data && <p className="text-sm text-muted">{t('alpha7.export.noActive')}</p>}
-      {doc.config && <Button onClick={() => downloadText(`mimir-entwurf-${new Date().toISOString().slice(0, 10)}.json`, exportRegistry(doc.config!))}>{t('alpha7.export.draft')}</Button>}
+      {doc.config && <Button onClick={() => downloadText(`wuschel-entwurf-${new Date().toISOString().slice(0, 10)}.json`, exportRegistry(doc.config!))}>{t('alpha7.export.draft')}</Button>}
     </div></Panel>}
-    <Dialog open={backingUp} onOpenChange={setBackingUp} title={t('alpha9.actions.backup')} footer={<Button variant="primary" disabled={exportScope === 'active' ? !active.data : !doc.config} onClick={() => { const config = exportScope === 'active' ? active.data : doc.config; if (config) { downloadText(`mimir-${exportScope === 'draft' ? 'entwurf-' : ''}${new Date().toISOString().slice(0, 10)}.json`, exportRegistry(config)); setBackingUp(false); } }}>{t('alpha9.export.saveFile')}</Button>}>
+    <Dialog open={backingUp} onOpenChange={setBackingUp} title={t('alpha9.actions.backup')} footer={<Button variant="primary" disabled={exportScope === 'active' ? !active.data : !doc.config} onClick={() => { const config = exportScope === 'active' ? active.data : doc.config; if (config) { downloadText(`wuschel-${exportScope === 'draft' ? 'entwurf-' : ''}${new Date().toISOString().slice(0, 10)}.json`, exportRegistry(config)); setBackingUp(false); } }}>{t('alpha9.export.saveFile')}</Button>}>
       <Field label={t('alpha9.export.scope')}>{props => <Select {...props} value={exportScope} onChange={event => setExportScope(event.target.value as typeof exportScope)}><option value="active" disabled={!active.data}>{t('alpha7.export.active')}</option><option value="draft" disabled={!doc.config}>{t('alpha7.export.draft')}</option></Select>}</Field>
     </Dialog>
   </>;

@@ -16,7 +16,7 @@ from homeassistant.helpers.event import (
 from .service_channel import OPERATIONS, ServiceChannel
 from .source_metadata import refresh_action, source_metadata
 
-DOMAIN = "bifrost"
+DOMAIN = "traber"
 HA_EPOCH_ID = str(uuid4())
 VERSION = json.loads(Path(__file__).with_name("manifest.json").read_text(encoding="utf-8"))[
     "version"

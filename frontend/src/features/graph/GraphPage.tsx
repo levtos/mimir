@@ -42,7 +42,7 @@ function layout(graph: Graph): Map<string, { x: number; y: number }> {
 }
 
 /** Contract nodes show server-provided health; sources and results are structural. */
-const MimirNode = memo(function MimirNode({ data, selected }: NodeProps<Node<NodeData>>) {
+const WuschelNode = memo(function WuschelNode({ data, selected }: NodeProps<Node<NodeData>>) {
   const { node, envelope, dim } = data;
   const state = contractState(envelope, node.enabled !== false);
   const tone = node.kind !== 'contract' ? 'border-line-strong' : ({ ok: 'border-ok/60', warn: 'border-warn/70', bad: 'border-bad/70', info: 'border-info/60', neutral: 'border-line-strong', accent: 'border-line-strong' }[state.tone]);
@@ -67,7 +67,7 @@ const MimirNode = memo(function MimirNode({ data, selected }: NodeProps<Node<Nod
     </div>
   );
 });
-const nodeTypes = { terra: MimirNode };
+const nodeTypes = { terra: WuschelNode };
 
 function Canvas({ graph, envelopes, selected, onSelect, focus }: { graph: Graph; envelopes: Record<string, Envelope> | null; selected: string | null; onSelect: (id: string | null) => void; focus: string | null }) {
   const flow = useReactFlow();

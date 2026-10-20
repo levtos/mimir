@@ -3,7 +3,7 @@
 @import '@fontsource-variable/jetbrains-mono/wght.css';
 @import '@xyflow/react/dist/base.css';
 
-/* Terra Workbench — ruhiges, dunkles Petrol-Design. Alle Farben als Tokens. */
+/* Wuschel Workbench — ruhiges, dunkles Petrol-Design. Alle Farben als Tokens. */
 @theme {
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono Variable', ui-monospace, 'Cascadia Mono', monospace;

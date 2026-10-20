@@ -44,7 +44,7 @@ def action(request):
             raise Rejected("invalid_arguments")
         return "calendar", "get_events", {"entity_id": target, **args}, True
     if operation.startswith("problem_notice_"):
-        if not re.fullmatch(r"mimir_[0-9a-f-]{36}_(signal|configuration)", target):
+        if not re.fullmatch(r"wuschel_[0-9a-f-]{36}_(signal|configuration)", target):
             raise Rejected("not_allowed")
         if operation == "problem_notice_remove":
             if args:
@@ -115,8 +115,8 @@ class ServiceChannel:
             if request["operation"].startswith("problem_notice_") and request["target_ids"][
                 0
             ] not in {
-                f"mimir_{self.installation_id}_signal",
-                f"mimir_{self.installation_id}_configuration",
+                f"wuschel_{self.installation_id}_signal",
+                f"wuschel_{self.installation_id}_configuration",
             }:
                 raise Rejected("not_allowed")
         except Rejected as error:

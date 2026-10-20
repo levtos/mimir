@@ -157,5 +157,5 @@ async def seed(runtime: Runtime):
     )
     await runtime.submit("bridge_state", ("unavailable", "disconnected"))
     await runtime.submit(
-        "draft_create", {"display_name": "Mimir – Einstellungen prüfen", "config": deepcopy(config)}
+        "draft_create", {"display_name": "Wuschel – Einstellungen prüfen", "config": deepcopy(config)}
     )

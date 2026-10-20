@@ -32,7 +32,7 @@ describe('system conditions are named separately', () => {
   it('explains missing retention as incomplete setup before production', () => {
     const result = classifySystem({ service: { ...healthy, ready: false, reasons: ['history_retention_required'] }, connection: 'open', hasActiveRegistry: true });
     expect(result[0]?.title).toBe('Aufbewahrung fehlt');
-    expect(result[0]?.detail).toContain('wie lange Mimir');
+    expect(result[0]?.detail).toContain('wie lange Wuschel');
     expect(overallState(result, { ...healthy, ready: false }).label).toBe('Nicht bereit');
   });
 

@@ -8,8 +8,8 @@ from uuid import uuid4
 import pytest
 
 spec = importlib.util.spec_from_file_location(
-    "bifrost_service_channel",
-    Path(__file__).parents[1] / "custom_components/bifrost/service_channel.py",
+    "traber_service_channel",
+    Path(__file__).parents[1] / "custom_components/traber/service_channel.py",
 )
 assert spec and spec.loader
 module = importlib.util.module_from_spec(spec)
@@ -149,7 +149,7 @@ async def test_own_notice_only_and_provider_errors_are_redacted():
     result = await channel.call(
         request(
             operation="problem_notice_put",
-            target_ids=[f"mimir_{installation}_configuration"],
+            target_ids=[f"wuschel_{installation}_configuration"],
             arguments={
                 "title": "Konfiguration unvollständig",
                 "message": "Ein Vertrag braucht eine Zuordnung.",
@@ -161,7 +161,7 @@ async def test_own_notice_only_and_provider_errors_are_redacted():
     assert "private" not in str(result)
     rejected = await channel.call(
         request(
-            operation="problem_notice_remove", target_ids=[f"mimir_{uuid4()}_signal"], arguments={}
+            operation="problem_notice_remove", target_ids=[f"wuschel_{uuid4()}_signal"], arguments={}
         )
     )
     assert rejected["error_code"] == "not_allowed"

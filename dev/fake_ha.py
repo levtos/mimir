@@ -32,7 +32,7 @@ class FakeHA:
                 self.requests.append(data)
                 kind = data["type"]
                 result = {}
-                if kind == "bifrost/negotiate":
+                if kind == "traber/negotiate":
                     if not self.v2:
                         await socket.send_json(
                             {
@@ -48,7 +48,7 @@ class FakeHA:
                         "bridge_version": "test",
                         "features": ["calendar_events"],
                     }
-                if kind == "bifrost/service_call":
+                if kind == "traber/service_call":
                     result = {
                         "request_id": data["request_id"],
                         "outcome": "completed",
@@ -60,7 +60,7 @@ class FakeHA:
                     ]
                 if kind.startswith("config/") and kind.endswith("_registry/list"):
                     result = self.registries.get(kind, [])
-                if kind == "bifrost/info":
+                if kind == "traber/info":
                     if self.missing:
                         await socket.send_json(
                             {
@@ -80,7 +80,7 @@ class FakeHA:
                 await socket.send_json(
                     {"id": data["id"], "type": "result", "success": True, "result": result}
                 )
-                if kind == "bifrost/subscribe":
+                if kind == "traber/subscribe":
                     await socket.send_json(
                         {
                             "id": data["id"],

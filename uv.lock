@@ -233,7 +233,7 @@ wheels = [
 ]
 
 [[package]]
-name = "core-contracts-platform"
+name = "wuschel"
 version = "1.0.0a10"
 source = { editable = "." }
 dependencies = [

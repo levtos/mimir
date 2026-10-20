@@ -1,11 +1,11 @@
 [project]
-name = "core-contracts-platform"
+name = "wuschel"
 version = "1.0.0a10"
 requires-python = ">=3.14,<3.15"
 dependencies = ["aiohttp>=3.13,<4", "asyncpg>=0.32,<0.33", "pydantic>=2.12,<3", "aiomqtt>=2.5,<3", "tzdata==2026.2"]
 
 [project.scripts]
-core-contracts = "core_contracts.app:main"
+wuschel = "core_contracts.app:main"
 
 [build-system]
 requires = ["hatchling"]

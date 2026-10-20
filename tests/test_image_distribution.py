@@ -42,7 +42,7 @@ def image_info(meta):
 @pytest.mark.parametrize("arch,docker_arch", [("amd64", "amd64"), ("aarch64", "arm64")])
 def test_supervisor_reference_and_platform(arch, docker_arch):
     meta = package.metadata(arch, REVISION)
-    assert meta["image"] == f"ghcr.io/levtos/{arch}-mimir:1.0.0a9"
+    assert meta["image"] == f"ghcr.io/levtos/{arch}-wuschel:1.0.0a10"
     assert meta["docker_arch"] == docker_arch
 
 
@@ -54,12 +54,12 @@ def test_distribution_rejects_wrong_arch_name_or_unpinned_source(arch, revision)
 
 @pytest.mark.parametrize("change", ["namespace", "version"])
 def test_distribution_rejects_config_drift(tmp_path, change):
-    (tmp_path / "mimir").mkdir()
-    config = yaml.safe_load((package.ROOT / "mimir/config.yaml").read_text())
+    (tmp_path / "wuschel").mkdir()
+    config = yaml.safe_load((package.ROOT / "wuschel/config.yaml").read_text())
     config["image" if change == "namespace" else "version"] = (
         "ghcr.io/levtos/arm64-core-contracts" if change == "namespace" else "0.0.0-invalid"
     )
-    (tmp_path / "mimir/config.yaml").write_text(yaml.safe_dump(config))
+    (tmp_path / "wuschel/config.yaml").write_text(yaml.safe_dump(config))
     (tmp_path / "pyproject.toml").write_text((package.ROOT / "pyproject.toml").read_text())
     with pytest.raises(AssertionError):
         package.metadata("amd64", REVISION, tmp_path)

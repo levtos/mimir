@@ -15,16 +15,16 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-REPOSITORY = "levtos/mimir"
+REPOSITORY = "levtos/wuschel"
 SOURCE = "https://github.com/" + REPOSITORY
 ARCHITECTURES = {"amd64": "amd64", "aarch64": "arm64"}
 
 
 def metadata(arch, revision, root=ROOT):
-    config = yaml.safe_load((root / "mimir/config.yaml").read_text())
+    config = yaml.safe_load((root / "wuschel/config.yaml").read_text())
     version = str(config["version"])
     assert set(config["arch"]) == set(ARCHITECTURES), "Unsupported Supervisor architectures"
-    assert config["image"] == "ghcr.io/levtos/{arch}-mimir", "Unexpected image namespace"
+    assert config["image"] == "ghcr.io/levtos/{arch}-wuschel", "Unexpected image namespace"
     assert arch in ARCHITECTURES, "Use Supervisor arch names: amd64 or aarch64"
     assert re.fullmatch(r"[0-9a-f]{40}", revision), "A full tested commit SHA is required"
     assert re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}", version), "Invalid image tag"
@@ -76,7 +76,7 @@ def check_content(image, meta):
         + sorted((ROOT / "migrations").glob("*.sql"))
     }
     expected["/entrypoint.sh"] = hashlib.sha256(
-        (ROOT / "mimir/rootfs/entrypoint.sh").read_bytes()
+        (ROOT / "wuschel/rootfs/entrypoint.sh").read_bytes()
     ).hexdigest()
     probe = (
         "import hashlib,importlib.metadata,json,sys; from pathlib import Path; "
@@ -86,7 +86,7 @@ def check_content(image, meta):
         "assert Path('/entrypoint.sh').stat().st_mode & 0o111; "
         "assert Path('/app/frontend/index.html').is_file(); "
         "assert any(Path('/app/frontend/assets').glob('*')); "
-        "assert importlib.metadata.version('core-contracts-platform')==sys.argv[2]; "
+        "assert importlib.metadata.version('wuschel')==sys.argv[2]; "
         "print('PASS: packaged source, migrations, entrypoint, frontend and installed version')"
     )
     print(
@@ -151,7 +151,7 @@ def pull(meta):
 
 def publish(meta, receipt):
     local = verify("core-contracts:smoke", meta)
-    name = meta["arch"] + "-mimir"
+    name = meta["arch"] + "-wuschel"
     before = package_api(name)
     print(
         json.dumps(

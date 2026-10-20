@@ -50,7 +50,7 @@ it.each(routes)('%s has a title, an everyday explanation and one primary page ac
 
 it('retains the page rule while loading, without offering a premature action', () => {
   render(<PageLoading />);
-  expect(screen.getByRole('heading', { level: 1, name: 'Mimir' })).toBeVisible();
+  expect(screen.getByRole('heading', { level: 1, name: 'Wuschel' })).toBeVisible();
   expect(screen.getByRole('button', { name: 'Seite neu laden' })).toBeDisabled();
   expect(screen.getByText(t('alpha9.pages.app'))).toBeVisible();
 });
