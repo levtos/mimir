@@ -24,6 +24,39 @@ pytestmark = pytest.mark.postgres
 MIGRATIONS = Path(__file__).resolve().parents[1] / "migrations"
 
 
+async def test_alpha10_catalog_and_import_survive_reopen_with_atomic_history(database, config):
+    from .test_managed_catalog import configured, request
+    from .test_portable import export, plan, stage
+
+    store = PostgresStore(database, MIGRATIONS, tls=False)
+    await store.open()
+    runtime = Runtime(store, FakeClock(NOW), type_registry())
+    await runtime.start()
+    try:
+        await activate(runtime, configured(config))
+        body = request(runtime)
+        saved = await runtime.submit("catalog_write", {"request": body})
+        package = await export(runtime)
+        preview = await plan(runtime, package)
+        imported = await stage(runtime, package, preview)
+        await runtime.submit("activate", {**imported, "expected_active_revision": 1})
+    finally:
+        await runtime.stop()
+        await store.close()
+    reopened = PostgresStore(database, MIGRATIONS, tls=False)
+    await reopened.open()
+    restarted = Runtime(reopened, FakeClock(NOW), type_registry())
+    await restarted.start()
+    try:
+        assert await restarted.submit("catalog_write", {"request": body}) == saved
+        assert len(await reopened.rows("catalog_content_revision")) == 1
+        assert len(await reopened.rows("catalog_entry_revision")) == 1
+        assert (await export(restarted))["catalog_contents"] == package["catalog_contents"]
+    finally:
+        await restarted.stop()
+        await reopened.close()
+
+
 async def test_alpha9_editorial_reopen_and_rollback_keep_current_room(database, config):
     from .test_alpha9_editorial import request, save
 

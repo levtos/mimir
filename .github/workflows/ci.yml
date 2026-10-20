@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-24.04
     services:
       postgres:
-        image: postgres:17-bookworm
+        image: postgres:18-bookworm
         env:
           POSTGRES_USER: core_contracts_test
           POSTGRES_PASSWORD: ephemeral-test-only

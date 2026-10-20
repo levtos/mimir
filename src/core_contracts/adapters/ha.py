@@ -50,6 +50,8 @@ def transform(value: Any, binding: Binding, config: RegistryConfig) -> Any:
         assert transformation.factor is not None and transformation.offset is not None
         return finite(float(value) * transformation.factor + transformation.offset)
     catalog = next(c for c in config.catalogs if c.catalog_id == transformation.catalog_id)
+    if catalog.kind != "map":
+        raise ValueError("inline_catalog_required")
     return catalog.entries[str(value)]
 
 
@@ -341,7 +343,7 @@ class BridgeAdapter:
                 "assumed_state": bool(attributes.get("assumed_state", False)),
                 "epoch_id": self.runtime.state.epoch_id,
                 "ingest_seq": self.sequence,
-                "reference_version": config.fingerprint_version,
+                "reference_version": 2 if config.fingerprint_version >= 2 else 1,
                 "registry_revision": self.runtime.state.active_revision
                 if revision is None
                 else revision,

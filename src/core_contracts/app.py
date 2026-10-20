@@ -153,6 +153,15 @@ def diagnostic_options() -> Options:
     )
 
 
+def mqtt_status(options: Options) -> tuple[str, bool]:
+    """Only safe diagnostics cross into the public service status."""
+    return options.mqtt_mode, bool(
+        options.mqtt_host.strip()
+        or options.mqtt_username.strip()
+        or options.mqtt_password.get_secret_value()
+    )
+
+
 async def run(options: Options | None, data: Path, migrations: Path, frontend: Path) -> None:
     setup = prepare_setup(options, data)
     options = options or diagnostic_options()
@@ -168,6 +177,8 @@ async def run(options: Options | None, data: Path, migrations: Path, frontend: P
         tls=False,
     )
     runtime = Runtime(store, clock, type_registry(), require_history_retention=True)
+    if not setup.configuration_error:
+        runtime.mqtt_mode, runtime.mqtt_external_settings_present = mqtt_status(options)
     runtime.task = asyncio.create_task(runtime.run(), name="processor")
     stopped = asyncio.Event()
     loop = asyncio.get_running_loop()

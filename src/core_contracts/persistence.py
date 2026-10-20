@@ -49,8 +49,18 @@ TABLES = (
     "manual_request",
     "editorial_current",
     "editorial_draft",
+    "catalog_content_revision",
+    "catalog_entry_revision",
+    "catalog_head",
+    "catalog_sighting",
+    "catalog_request",
+    "catalog_import",
 )
 IMMUTABLE = {
+    "catalog_content_revision",
+    "catalog_entry_revision",
+    "catalog_request",
+    "catalog_import",
     "registry_revision",
     "registry_activation",
     "contract_state_history",

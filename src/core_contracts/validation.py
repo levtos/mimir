@@ -157,7 +157,7 @@ def validate_document(
 
     types = TypeRegistry()
     types.types.update(base.types)
-    if config.definitions and config.fingerprint_version != 2:
+    if config.definitions and config.fingerprint_version < 2:
         add(
             "fingerprint_upgrade_required",
             "/fingerprint_version",
@@ -223,7 +223,48 @@ def validate_document(
     dependencies = {d.dependency_id: d for d in config.dependencies}
     contracts = {c.contract_id: c for c in config.contracts}
     catalogs = {c.catalog_id for c in config.catalogs}
-    if config.fingerprint_version == 2:
+    from .catalog_models import ManagedCatalog
+    from .declarative import rule_children
+    from .declarative_models import ManagedCatalogRule, ReferenceRule
+
+    def check_lookup(rule: Any, path: str) -> None:
+        if isinstance(rule, ManagedCatalogRule):
+            catalog = next(
+                (
+                    c
+                    for c in config.catalogs
+                    if c.catalog_id == rule.catalog_id and c.version == rule.definition_version
+                ),
+                None,
+            )
+            if (
+                not isinstance(catalog, ManagedCatalog)
+                or catalog.classification_schema.field_schema() != rule.field_schema
+            ):
+                add("catalog_reference", path, "managed catalog definition or schema mismatch")
+        if not isinstance(rule, ReferenceRule):
+            for name, child in rule_children(rule):
+                check_lookup(child, path + "/" + name)
+
+    for index, lookup_definition in enumerate(config.definitions):
+        for group in ("rules", "outputs"):
+            for name, rule in getattr(lookup_definition, group).items():
+                check_lookup(rule, f"/definitions/{index}/{group}/{name}")
+    for index, binding in enumerate(config.bindings):
+        if (
+            binding.transform
+            and binding.transform.kind == "map_ref"
+            and any(
+                c.catalog_id == binding.transform.catalog_id and isinstance(c, ManagedCatalog)
+                for c in config.catalogs
+            )
+        ):
+            add(
+                "catalog_reference",
+                f"/bindings/{index}/transform/catalog_id",
+                "managed catalogs require explicit lookup",
+            )
+    if config.fingerprint_version >= 2:
         visited_sources: set[str] = set()
         active_sources: set[str] = set()
         source_depths: dict[str, int] = {}
@@ -476,8 +517,12 @@ def validate_document(
                 catalog = next(
                     (c for c in config.catalogs if c.catalog_id == transform.catalog_id), None
                 )
-                if catalog and any(
-                    not declared_schema.accepts(value) for value in catalog.entries.values()
+                if (
+                    catalog
+                    and catalog.kind == "map"
+                    and any(
+                        not declared_schema.accepts(value) for value in catalog.entries.values()
+                    )
                 ):
                     add(
                         "catalog_type_mismatch",
@@ -673,7 +718,7 @@ def validate_document(
                 (depths.get(resolve_ref(item.ref, config)[0], 0) for item in contract.inputs),
                 default=0,
             )
-        if config.fingerprint_version == 2 and max(depths.values(), default=0) > 64:
+        if config.fingerprint_version >= 2 and max(depths.values(), default=0) > 64:
             add("contract_graph_depth", "/contracts", "contract graph depth limit")
     except RecursionError:
         add("contract_graph_depth", "/contracts", "contract graph depth limit")

@@ -160,7 +160,7 @@ def complete_calendar(
                     "observation_kind": "report",
                     "epoch_id": state.epoch_id,
                     "ingest_seq": state.generation + 1,
-                    "reference_version": config.fingerprint_version,
+                    "reference_version": 2 if config.fingerprint_version >= 2 else 1,
                     "registry_revision": state.active_revision,
                 }
             )

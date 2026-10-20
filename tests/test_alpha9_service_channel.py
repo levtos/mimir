@@ -161,7 +161,9 @@ async def test_own_notice_only_and_provider_errors_are_redacted():
     assert "private" not in str(result)
     rejected = await channel.call(
         request(
-            operation="problem_notice_remove", target_ids=[f"wuschel_{uuid4()}_signal"], arguments={}
+            operation="problem_notice_remove",
+            target_ids=[f"wuschel_{uuid4()}_signal"],
+            arguments={},
         )
     )
     assert rejected["error_code"] == "not_allowed"

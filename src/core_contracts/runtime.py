@@ -114,6 +114,8 @@ class Runtime:
         self.next_retention = self.clock.now_utc()
         self.retention_receipt: dict[str, Any] | None = None
         self.mqtt = "disabled"
+        self.mqtt_mode: str | None = None
+        self.mqtt_external_settings_present: bool | None = None
         self.latest: dict[str, Observation] = {}
         self.overflow = False
         self.snapshot_pending = False
@@ -180,6 +182,8 @@ class Runtime:
             "ha": self.ha if self.requires_ha_snapshot else "not_needed",
             "bridge": self.bridge if self.requires_ha_snapshot else "not_needed",
             "mqtt": self.mqtt,
+            "mqtt_mode": self.mqtt_mode,
+            "mqtt_external_settings_present": self.mqtt_external_settings_present,
             "reasons": self.readiness_reasons,
             "conditions": self.readiness_conditions,
             "ha_disconnected_since": self.ha_changed_at.isoformat()
@@ -536,6 +540,9 @@ class Runtime:
         LOGGER.warning("history_gap", extra={"reason": reason})
 
     async def _restore(self, reason: str) -> None:
+        from .managed_catalog import validate_heads
+
+        validate_heads(self.state, self.config)
         self.first_snapshot = False
         if self.context_index:
             self.context_index.clear_registered()
@@ -816,6 +823,114 @@ class Runtime:
         state = self.state.clone()
         now = self.clock.now_utc()
         config = self._config(state)
+        if operation == "portable_export":
+            from .portable import export
+
+            return export(self, state, payload)
+        if operation == "portable_preview":
+            from .portable import preview as portable_preview
+
+            return portable_preview(self, state, payload)
+        if operation == "portable_stage":
+            from uuid import UUID
+
+            from .portable import stage
+
+            import_record = "stage:" + str(UUID(payload["request_id"]))
+            import_digest = checksum(payload)
+            import_previous = await self.store.get("catalog_import", import_record)
+            if import_previous:
+                if import_previous["digest"] != import_digest:
+                    raise ValueError("import_plan_conflict")
+                return import_previous["result"]
+            result = stage(self, state, payload, payload.get("_actor"), now)
+            state.tables["catalog_import"][import_record] = {
+                "digest": import_digest,
+                "result": result,
+            }
+            await self._commit(state)
+            return result
+        if operation == "catalog_revision":
+            from .managed_catalog import definition, historical_entries
+
+            catalog = definition(config, payload["catalog_id"], payload["definition_version"])
+            entries = await historical_entries(self.store, catalog, payload["revision"])
+            selected = [
+                (key, row) for key, row in sorted(entries.items()) if key > payload.get("after", "")
+            ]
+            return {
+                "items": [{"identity": key, **row} for key, row in selected[:100]],
+                "total": len(entries),
+                "next_cursor": selected[99][0] if len(selected) > 100 else None,
+            }
+        if operation == "catalog_write":
+            from .catalog_models import CatalogRestore, CatalogWrite, EntryChange
+            from .managed_catalog import (
+                affected_contracts,
+                definition,
+                head,
+                historical_entries,
+                invalidate,
+                prepare,
+            )
+            from .registry import safe_document
+
+            restoring = "restore_revision" in payload["request"]
+            request = (CatalogRestore if restoring else CatalogWrite).model_validate(
+                payload["request"]
+            )
+            safe_document(payload["request"])
+            digest = checksum(request)
+            catalog_previous = await self.store.get("catalog_request", request.request_id)
+            if catalog_previous:
+                if catalog_previous["digest"] != digest:
+                    raise ValueError("catalog_request_conflict")
+                return catalog_previous["result"]
+            if isinstance(request, CatalogRestore):
+                catalog = definition(config, request.catalog_id, request.definition_version)
+                past = await historical_entries(self.store, catalog, request.restore_revision)
+                current_entries = head(state, catalog)["entries"]
+                changes = []
+                for key in past.keys() | current_entries.keys():
+                    row = past.get(key) or {**current_entries[key], "tombstone": True}
+                    changes.append(
+                        EntryChange.model_validate(
+                            {
+                                k: v
+                                for k, v in row.items()
+                                if k not in {"normalized_key", "master_identity"}
+                            }
+                        )
+                    )
+                request = request.model_copy(update={"changes": tuple(changes)})
+            result = prepare(
+                state,
+                config,
+                request,
+                payload.get("_actor"),
+                now,
+                expanded_limit=100_000 if restoring else 1000,
+            )
+            if result["affected_keys"]:
+                assert config is not None
+                direct_catalog_contracts = affected_contracts(state, result)
+                latches = invalidate(state, result, self.latches)
+                failures = self._evaluate(
+                    state,
+                    config,
+                    origin="revision",
+                    initial_latches=latches,
+                    catalog_affected=direct_catalog_contracts,
+                )
+                if failures:
+                    raise ValueError("catalog_evaluation_failed")
+            result["publication_seq"] = state.publication_seq
+            state.tables["catalog_request"][request.request_id] = {
+                "digest": digest,
+                "result": result,
+            }
+            await self._commit(state, publication=bool(result["affected_keys"]))
+            return result
         if operation == "editorial_put":
             from .editorial import EditorialWrite, put
 
@@ -969,6 +1084,7 @@ class Runtime:
                 "display_name": payload.get(
                     "display_name", old.get("display_name", "") if old else ""
                 ),
+                **({"portable": old["portable"]} if old and "portable" in old else {}),
             }
             if not isinstance(result["display_name"], str) or len(result["display_name"]) > 256:
                 raise ValueError("invalid_draft_display_name")
@@ -1069,6 +1185,9 @@ class Runtime:
                 from .editorial import apply_draft
 
                 apply_draft(state, draft, self)
+                from .portable import apply
+
+                imported_latches = apply(self, state, draft, new_config, now)
             revision = max((int(r) for r in state.tables["registry_revision"]), default=0) + 1
             state.active_revision = revision
             state.tables["registry_revision"][str(revision)] = {
@@ -1087,7 +1206,7 @@ class Runtime:
             self._audit(
                 state, operation, payload, revision=revision, **({"note": note} if note else {})
             )
-            next_latches = self.latches
+            next_latches = imported_latches if operation == "activate" else self.latches
             if config:
                 old_fp, new_fp = (
                     fingerprints(config, self.types),
@@ -1098,7 +1217,7 @@ class Runtime:
                         state.tables["source_observation_current"].pop(binding.binding_id, None)
                 next_latches = {
                     k: v
-                    for k, v in self.latches.items()
+                    for k, v in next_latches.items()
                     if old_fp.get(k.partition(":")[0]) == new_fp.get(k.partition(":")[0])
                 }
             self._evaluate(state, new_config, origin="revision", initial_latches=next_latches)
@@ -1446,6 +1565,7 @@ class Runtime:
         machine_override: dict[str, MachineState] | None = None,
         trigger_source: str | None = None,
         initial_latches: dict[str, Bucket] | None = None,
+        catalog_affected: set[str] | None = None,
     ) -> set[str]:
         """Return transaction-local failures after discarding their staged producer effects."""
         evaluation_errors: set[str] = set()
@@ -1474,6 +1594,8 @@ class Runtime:
             and now >= self.last_clock
             and (self.next_evaluation is None or self.next_evaluation > now)
         )
+        if catalog_affected is not None:
+            can_reuse = True
         self.pending_refresh = set()
         previous_config = self.config
         if previous_config:
@@ -1508,7 +1630,7 @@ class Runtime:
                 state,
                 trigger_source=trigger_source if origin == "input" else None,
             )
-            triggered = any(
+            triggered = (catalog_affected is not None and key in catalog_affected) or any(
                 resolve_ref(item.ref, config)[0] in affected for item in contract.inputs
             )
             if triggered:
@@ -1742,6 +1864,28 @@ class Runtime:
             factory = declaration.machine_factory
             assert factory is not None
             machine = factory(contract.parameters)
+            if declaration.definition:
+                from .declarative import Evaluation, compile_machine
+                from .declarative_models import DeclarativeDefinition
+
+                definition = DeclarativeDefinition.model_validate(declaration.definition)
+                inputs = self._inputs(contract, config, state)
+                # Guards read the transaction's catalog head. A rejected command
+                # must not mutate a live temporal slot or its dependency trace.
+                context = Context(
+                    self.clock,
+                    copy.deepcopy(self.latches),
+                    contract,
+                    inputs,
+                    copy.deepcopy(state.tables["node_state"].get(contract.contract_id, {})),
+                    state,
+                    "command",
+                    "valid",
+                    None,
+                )
+                machine = compile_machine(
+                    definition, evaluation=Evaluation(definition, inputs, now, context)
+                )
             data = state.tables["node_state"].get(contract.contract_id, {}).get("machine")
             args_model = declaration.commands.get(command.command)
             args = command.args
