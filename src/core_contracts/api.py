@@ -388,17 +388,18 @@ class API:
             )
             result = entry_view(state, catalog, request.query["identity"])
         elif path == "catalogs/history" and method == "GET":
-            from .managed_catalog import definition, head_key
+            from .managed_catalog import definition, head, head_key
 
             catalog = definition(
                 config, request.query["catalog_id"], int(request.query["definition_version"])
             )
-            rows = await runtime.store.rows("catalog_content_revision")
-            result = sorted(
-                [row for row in rows if row["catalog"] == head_key(catalog)],
-                key=lambda row: row["revision"],
-                reverse=True,
-            )[:100]
+            revision = head(state, catalog)["revision"]
+            before = min(int(request.query.get("after") or revision + 1), revision + 1)
+            rows = await runtime.store.catalog_revisions(head_key(catalog), before)
+            result = [
+                {**row, "head_revision": revision, "active_revision": state.active_revision}
+                for row in rows
+            ]
         elif path == "catalogs/revision" and method == "GET":
             result = await runtime.submit(
                 "catalog_revision",

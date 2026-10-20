@@ -340,12 +340,7 @@ async def historical_entries(store: Any, catalog: ManagedCatalog, revision: int)
         "catalog_content_revision", f"{head_key(catalog)}:{revision}"
     ):
         raise ValueError("revision_not_found")
-    result: dict[str, Any] = {}
-    rows = await store.rows("catalog_entry_revision")
-    for row in sorted(rows, key=lambda row: row["revision"]):
-        if row["catalog"] == head_key(catalog) and row["revision"] <= revision:
-            result[row["identity"]] = row["entry"]
-    return result
+    return dict(await store.managed_entries(head_key(catalog), revision))
 
 
 async def verify_stored_heads(store: Any, state: State, config: Any) -> None:

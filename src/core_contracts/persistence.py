@@ -178,6 +178,10 @@ class Store(Protocol):
     ) -> dict[str, Any]: ...
     async def rollups(self, query: HistoryQuery) -> dict[str, Any]: ...
     async def catalog(self, catalog_id: str, version: int) -> dict[str, Any] | None: ...
+    async def managed_entries(self, catalog: str, revision: int) -> dict[str, Any]: ...
+    async def catalog_revisions(
+        self, catalog: str, before: int, limit: int = 100
+    ) -> list[dict[str, Any]]: ...
     async def load(self) -> State: ...
     async def commit(self, state: State) -> None: ...
     async def probe(self) -> None: ...
@@ -431,6 +435,33 @@ class PostgresStore:
             raise PersistenceUnavailable("persistence_unavailable")
         value = await self.pool.fetchval(f"SELECT payload FROM {table} WHERE key=$1", key)
         return json.loads(value) if value is not None else None
+
+    async def managed_entries(self, catalog: str, revision: int) -> dict[str, Any]:
+        if self.pool is None:
+            raise PersistenceUnavailable("persistence_unavailable")
+        rows = await self.pool.fetch(
+            "SELECT DISTINCT ON (payload->>'identity') payload FROM catalog_entry_revision "
+            "WHERE payload->>'catalog'=$1 AND (payload->>'revision')::bigint <= $2 "
+            "ORDER BY payload->>'identity', (payload->>'revision')::bigint DESC",
+            catalog,
+            revision,
+        )
+        entries = [json.loads(row["payload"]) for row in rows]
+        return {row["identity"]: row["entry"] for row in entries}
+
+    async def catalog_revisions(
+        self, catalog: str, before: int, limit: int = 100
+    ) -> list[dict[str, Any]]:
+        if self.pool is None:
+            raise PersistenceUnavailable("persistence_unavailable")
+        rows = await self.pool.fetch(
+            "SELECT payload FROM catalog_content_revision WHERE payload->>'catalog'=$1 "
+            "AND (payload->>'revision')::bigint < $2 ORDER BY (payload->>'revision')::bigint DESC LIMIT $3",
+            catalog,
+            before,
+            min(max(limit, 1), 100),
+        )
+        return [json.loads(row["payload"]) for row in rows]
 
     async def rows(
         self, table: str, *, contract_id: str | None = None, limit: int = 100
@@ -716,6 +747,31 @@ class MemoryStore:
     async def get(self, table: str, key: str) -> dict[str, Any] | None:
         await self.probe()
         return copy.deepcopy(self.state.tables[table].get(key))
+
+    async def managed_entries(self, catalog: str, revision: int) -> dict[str, Any]:
+        await self.probe()
+        rows = sorted(
+            (
+                row
+                for row in self.state.tables["catalog_entry_revision"].values()
+                if row["catalog"] == catalog and row["revision"] <= revision
+            ),
+            key=lambda row: row["revision"],
+        )
+        return copy.deepcopy({row["identity"]: row["entry"] for row in rows})
+
+    async def catalog_revisions(
+        self, catalog: str, before: int, limit: int = 100
+    ) -> list[dict[str, Any]]:
+        await self.probe()
+        rows = [
+            row
+            for row in self.state.tables["catalog_content_revision"].values()
+            if row["catalog"] == catalog and row["revision"] < before
+        ]
+        return copy.deepcopy(
+            sorted(rows, key=lambda row: row["revision"], reverse=True)[: min(max(limit, 1), 100)]
+        )
 
     async def rows(
         self, table: str, *, contract_id: str | None = None, limit: int = 100

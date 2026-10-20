@@ -2587,5 +2587,7 @@
   "alpha10.catalog.restoreHelp": "Dieser ältere Inhalt ersetzt die aktuellen Zuordnungen als neue Pflegerevision. Die Zuordnung wirkt sofort. Die bisherige Geschichte bleibt erhalten.",
   "alpha10.catalog.restoreReason": "Älteren Kataloginhalt übernommen",
   "alpha10.catalog.preview": "Auswirkungen prüfen",
-  "alpha10.catalog.impact": "{keys} Schlüssel und {contracts} Verträge werden fachlich neu bewertet."
+  "alpha10.catalog.impact": "{keys} Schlüssel und {contracts} Verträge werden fachlich neu bewertet.",
+  "alpha10.catalog.older": "Ältere Änderungen",
+  "alpha10.catalog.removed": "Zuordnung aufgehoben"
 }

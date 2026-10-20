@@ -92,6 +92,39 @@ async def test_impact_preview_and_history_check_do_not_publish_or_write(runtime,
 
 
 @pytest.mark.asyncio
+async def test_full_catalog_history_exceeds_generic_page_and_filters_other_catalogs(
+    runtime, config
+):
+    from core_contracts.managed_catalog import verify_stored_heads
+
+    await activate(runtime, configured(config))
+    for start in range(0, 1100, 100):
+        await runtime.submit(
+            "catalog_write",
+            {
+                "request": request(
+                    runtime,
+                    [change(f"Synthetic {i}") for i in range(start, start + 100)],
+                    start // 100,
+                )
+            },
+        )
+    await verify_stored_heads(runtime.store, runtime.state, runtime.config)
+    current = next(iter(runtime.state.tables["catalog_head"]))
+    assert len(await runtime.store.managed_entries(current, 11)) == 1100
+    assert len(await runtime.store.managed_entries(current, 1)) == 100
+    # Pure history storage fixture: independent catalog rows must not consume pages.
+    rows = runtime.store.state.tables["catalog_content_revision"]
+    for revision in range(12, 132):
+        rows[f"{current}:{revision}"] = {"catalog": current, "revision": revision}
+        rows[f"other:{revision}"] = {"catalog": "other", "revision": revision}
+    first = await runtime.store.catalog_revisions(current, 132)
+    second = await runtime.store.catalog_revisions(current, first[-1]["revision"])
+    assert [row["revision"] for row in first] == list(range(131, 31, -1))
+    assert [row["revision"] for row in second] == list(range(31, 0, -1))
+
+
+@pytest.mark.asyncio
 async def test_master_one_level_and_affected_variants(runtime, config):
     await activate(runtime, configured(config))
     await runtime.submit(

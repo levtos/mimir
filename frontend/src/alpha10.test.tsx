@@ -79,3 +79,25 @@ it('rejects a late preview after the assignment form changes', async () => {
   expect(within(dialog).queryByText(t('alpha10.catalog.impact', { keys: 1, contracts: 1 }))).not.toBeInTheDocument();
   expect(fake.calls.some(call => call.path === 'catalogs/entries' && call.method === 'POST')).toBe(false);
 }, 15_000);
+
+it('pages older catalog history and keeps the current head for a restore preview', async () => {
+  const fake = installFakeApi(); const user = userEvent.setup();
+  fake.routes.push({ match: /^catalogs$/, respond: () => reply(200, [{ catalog_id: 'example.titles', version: 1, classification_schema: { values: ['other', 'example'] } }]) });
+  fake.routes.push({ match: /^catalogs\/entries\?/, respond: () => reply(200, { items: [], content_revision: 120, next_cursor: null }) });
+  fake.routes.push({ match: /^catalogs\/history\?/, respond: path => {
+    const before = Number(new URLSearchParams(path.split('?')[1]).get('after') || 121);
+    return reply(200, Array.from({ length: Math.min(100, before - 1) }, (_, index) => ({ revision: before - index - 1, head_revision: 120, active_revision: 0, at: '2026-10-20T12:00:00Z', reason: 'Synthetic history', affected: [] })));
+  } });
+  fake.routes.push({ match: /^catalogs\/revision\?/, respond: () => reply(200, { items: [], total: 0, next_cursor: null }) });
+  fake.routes.push({ match: /^catalogs\/preview$/, method: 'POST', respond: () => reply(200, { affected_keys: 0, affected_contracts: 0 }) });
+  app('/catalog-care');
+  await user.selectOptions(await screen.findByRole('combobox', { name: t('alpha10.catalog.view'), exact: true }), 'history');
+  await user.click(await screen.findByRole('button', { name: t('alpha10.catalog.older') }));
+  const row = (await screen.findByText(t('alpha10.catalog.revision', { n: 20 }), { exact: false })).closest('li')!;
+  await user.click(within(row).getByRole('button', { name: t('alpha10.catalog.historyOpen') }));
+  const dialog = await screen.findByRole('dialog', { name: t('alpha10.catalog.revision', { n: 20 }) });
+  await waitFor(() => expect(within(dialog).getByRole('button', { name: t('alpha10.catalog.preview') })).toBeEnabled());
+  await user.click(within(dialog).getByRole('button', { name: t('alpha10.catalog.preview') }));
+  await waitFor(() => expect(fake.calls.find(call => call.path === 'catalogs/preview')?.body).toMatchObject({ restore_revision: 20, expected_content_revision: 120 }));
+  expect(fake.calls.some(call => call.path === 'catalogs/entries' && call.method === 'POST')).toBe(false);
+}, 15_000);
