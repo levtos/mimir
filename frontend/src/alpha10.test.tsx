@@ -91,7 +91,7 @@ it('pages older catalog history and keeps the current head for a restore preview
   fake.routes.push({ match: /^catalogs\/revision\?/, respond: () => reply(200, { items: [], total: 0, next_cursor: null }) });
   fake.routes.push({ match: /^catalogs\/preview$/, method: 'POST', respond: () => reply(200, { affected_keys: 0, affected_contracts: 0 }) });
   app('/catalog-care');
-  await user.selectOptions(await screen.findByRole('combobox', { name: t('alpha10.catalog.view'), exact: true }), 'history');
+  await user.selectOptions(await screen.findByRole('combobox', { name: t('alpha10.catalog.view') }), 'history');
   await user.click(await screen.findByRole('button', { name: t('alpha10.catalog.older') }));
   const row = (await screen.findByText(t('alpha10.catalog.revision', { n: 20 }), { exact: false })).closest('li')!;
   await user.click(within(row).getByRole('button', { name: t('alpha10.catalog.historyOpen') }));
