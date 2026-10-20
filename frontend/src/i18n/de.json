@@ -2585,5 +2585,7 @@
   "alpha10.catalog.historyOpen": "Inhalt ansehen",
   "alpha10.catalog.restore": "Als neue Revision übernehmen",
   "alpha10.catalog.restoreHelp": "Dieser ältere Inhalt ersetzt die aktuellen Zuordnungen als neue Pflegerevision. Die Zuordnung wirkt sofort. Die bisherige Geschichte bleibt erhalten.",
-  "alpha10.catalog.restoreReason": "Älteren Kataloginhalt übernommen"
+  "alpha10.catalog.restoreReason": "Älteren Kataloginhalt übernommen",
+  "alpha10.catalog.preview": "Auswirkungen prüfen",
+  "alpha10.catalog.impact": "{keys} Schlüssel und {contracts} Verträge werden fachlich neu bewertet."
 }

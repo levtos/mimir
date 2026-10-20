@@ -73,6 +73,25 @@ async def test_atomic_idempotent_occ_and_restart(runtime, config):
 
 
 @pytest.mark.asyncio
+async def test_impact_preview_and_history_check_do_not_publish_or_write(runtime, config):
+    from core_contracts.managed_catalog import verify_stored_heads
+
+    await activate(runtime, configured(config))
+    before = runtime.state.model_dump()
+    persisted = runtime.store.state.model_dump()
+    impact = await runtime.submit("catalog_preview", {"request": request(runtime)})
+    assert impact == {"affected_keys": 1, "affected_contracts": 0}
+    assert runtime.state.model_dump() == before
+    assert runtime.store.state.model_dump() == persisted
+    await runtime.submit("catalog_write", {"request": request(runtime)})
+    await verify_stored_heads(runtime.store, runtime.state, runtime.config)
+    damaged = runtime.state.clone()
+    next(iter(damaged.tables["catalog_head"].values()))["entries"] = {}
+    with pytest.raises(ValueError, match="catalog_restore_incompatible"):
+        await verify_stored_heads(runtime.store, damaged, runtime.config)
+
+
+@pytest.mark.asyncio
 async def test_master_one_level_and_affected_variants(runtime, config):
     await activate(runtime, configured(config))
     await runtime.submit(

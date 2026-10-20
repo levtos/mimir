@@ -36,6 +36,11 @@ try {
   await page.getByRole('combobox', { name: 'Ansicht', exact: true }).selectOption('all');
   await page.getByText('Synthetischer Beispieltitel', { exact: true }).waitFor();
   await shot('03-katalogpflege.png');
+  await page.getByRole('button', { name: 'Zuordnung bearbeiten', exact: true }).click();
+  await page.getByLabel('Klasse', { exact: true }).selectOption('other');
+  await page.getByRole('button', { name: 'Auswirkungen prüfen', exact: true }).click();
+  await page.getByText('1 Schlüssel und 0 Verträge werden fachlich neu bewertet.', { exact: true }).waitFor();
+  await shot('07-katalog-zuordnung.png');
   await go('/import-export', 'Import & Export'); await shot('04-import-export.png');
   await go('/changes/versions', 'Konfigurationen');
   await page.getByRole('button', { name: 'Technische Details', exact: true }).first().click();

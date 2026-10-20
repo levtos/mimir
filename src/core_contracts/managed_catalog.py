@@ -348,6 +348,17 @@ async def historical_entries(store: Any, catalog: ManagedCatalog, revision: int)
     return result
 
 
+async def verify_stored_heads(store: Any, state: State, config: Any) -> None:
+    if config is None:
+        return
+    for catalog in config.catalogs:
+        if isinstance(catalog, ManagedCatalog):
+            current = head(state, catalog)
+            history = await historical_entries(store, catalog, current["revision"])
+            if history != current["entries"]:
+                raise ValueError("catalog_restore_incompatible")
+
+
 def page(
     state: Any,
     catalog: ManagedCatalog,

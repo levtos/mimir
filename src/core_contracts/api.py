@@ -375,6 +375,11 @@ class API:
                 "catalog_write",
                 {"request": await self.object_body(request), "_actor": request["actor"]},
             )
+        elif path == "catalogs/preview" and method == "POST":
+            result = await runtime.submit(
+                "catalog_preview",
+                {"request": await self.object_body(request), "_actor": request["actor"]},
+            )
         elif path == "catalogs/entry" and method == "GET":
             from .managed_catalog import definition, entry_view
 

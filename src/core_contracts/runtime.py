@@ -540,9 +540,10 @@ class Runtime:
         LOGGER.warning("history_gap", extra={"reason": reason})
 
     async def _restore(self, reason: str) -> None:
-        from .managed_catalog import validate_heads
+        from .managed_catalog import validate_heads, verify_stored_heads
 
         validate_heads(self.state, self.config)
+        await verify_stored_heads(self.store, self.state, self.config)
         self.first_snapshot = False
         if self.context_index:
             self.context_index.clear_registered()
@@ -863,7 +864,7 @@ class Runtime:
                 "total": len(entries),
                 "next_cursor": selected[99][0] if len(selected) > 100 else None,
             }
-        if operation == "catalog_write":
+        if operation in {"catalog_write", "catalog_preview"}:
             from .catalog_models import CatalogRestore, CatalogWrite, EntryChange
             from .managed_catalog import (
                 affected_contracts,
@@ -881,7 +882,11 @@ class Runtime:
             )
             safe_document(payload["request"])
             digest = checksum(request)
-            catalog_previous = await self.store.get("catalog_request", request.request_id)
+            catalog_previous = (
+                await self.store.get("catalog_request", request.request_id)
+                if operation == "catalog_write"
+                else None
+            )
             if catalog_previous:
                 if catalog_previous["digest"] != digest:
                     raise ValueError("catalog_request_conflict")
@@ -911,6 +916,18 @@ class Runtime:
                 now,
                 expanded_limit=100_000 if restoring else 1000,
             )
+            if operation == "catalog_preview":
+                affected = affected_contracts(self.state, result)
+                if config:
+                    for contract in topological(config):
+                        if any(
+                            resolve_ref(item.ref, config)[0] in affected for item in contract.inputs
+                        ):
+                            affected.add(contract.contract_id)
+                return {
+                    "affected_keys": len(result["affected_keys"]),
+                    "affected_contracts": len(affected),
+                }
             if result["affected_keys"]:
                 assert config is not None
                 direct_catalog_contracts = affected_contracts(state, result)

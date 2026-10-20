@@ -19,6 +19,7 @@ export default function CatalogPage() {
   const [chosen, setChosen] = useState('');
   const [past, setPast] = useState<number | null>(null); const [pastAfter, setPastAfter] = useState('');
   const [restoringId, setRestoringId] = useState('');
+  const [impact, setImpact] = useState<{ affected_keys: number; affected_contracts: number; request: string } | null>(null);
   const catalog = catalogs.data?.find(c => c.catalog_id === chosen) ?? catalogs.data?.[0];
   const [view, setView] = useState('unassigned'); const [query, setQuery] = useState(''); const [after, setAfter] = useState('');
   const [editing, setEditing] = useState<Entry | null>(null); const [classification, setClassification] = useState('');
@@ -31,20 +32,25 @@ export default function CatalogPage() {
   const masters = useQuery({ queryKey: ['catalog-masters', catalog?.catalog_id, masterQuery], enabled: !!catalog && !!editing, queryFn: () => api<Page>(`catalogs/entries?${new URLSearchParams({ catalog_id: catalog!.catalog_id, definition_version: String(catalog!.version), view: 'masters', q: masterQuery })}`) });
   const history = useQuery({ queryKey: ['catalog-history', catalog?.catalog_id], enabled: !!catalog && view === 'history', queryFn: () => api<{ revision: number; at: string; reason: string; affected: string[] }[]>(`catalogs/history?${parameters}`) });
   const pastContent = useQuery({ queryKey: ['catalog-past', catalog?.catalog_id, past, pastAfter], enabled: !!catalog && past !== null, queryFn: () => api<{ items: Entry[]; total: number; next_cursor: string | null }>(`catalogs/revision?${new URLSearchParams({ catalog_id: catalog!.catalog_id, definition_version: String(catalog!.version), revision: String(past), after: pastAfter })}`) });
-  const restore = async () => { if (!catalog || past === null) return; setBusy(true); setError(''); try {
-    await api('catalogs/entries', { method: 'POST', body: { catalog_id: catalog.catalog_id, definition_version: catalog.version, restore_revision: past, expected_active_revision: expectedActive, expected_content_revision: expected, request_id: restoringId, reason: t('alpha10.catalog.restoreReason') } });
+  const restoreBody = () => ({ catalog_id: catalog!.catalog_id, definition_version: catalog!.version, restore_revision: past, expected_active_revision: expectedActive, expected_content_revision: expected, request_id: restoringId, reason: t('alpha10.catalog.restoreReason') });
+  const restore = async () => { if (!catalog || past === null || !impactCurrent) return; setBusy(true); setError(''); try {
+    await api('catalogs/entries', { method: 'POST', body: restoreBody() });
     setPast(null); await cache.invalidateQueries({ queryKey: ['catalog-entries'] }); await cache.invalidateQueries({ queryKey: ['catalog-history'] });
   } catch (failure) { setError(describeError(failure)); } finally { setBusy(false); } };
   const open = (entry: Entry) => { setEditing(entry); setClassification(entry.classification ?? catalog?.classification_schema.values[0] ?? ''); setMode(entry.master_key ? 'variant' : 'independent'); setMaster(entry.master_key ?? ''); setNote(entry.note); setExpected(entries.data?.content_revision ?? 0); setExpectedActive(active.data?.revision ?? 0); setComparison(''); setMasterQuery(''); setRequestId(crypto.randomUUID()); setError(''); };
-  useEffect(() => { setRequestId(crypto.randomUUID()); }, [classification, master, mode, note]);
+  useEffect(() => { setRequestId(crypto.randomUUID()); setImpact(null); }, [classification, master, mode, note, editing, past, expected, expectedActive]);
+  const body = () => ({ catalog_id: catalog!.catalog_id, definition_version: catalog!.version,
+        expected_active_revision: expectedActive, expected_content_revision: expected, request_id: requestId,
+        reason: t('alpha10.catalog.reason'), changes: [{ scope: editing!.scope, media_type: editing!.media_type, signal_type: editing!.signal_type, key: editing!.key,
+          classification: mode === 'variant' ? null : classification, master_key: mode === 'variant' ? master : null, note, display_name: editing!.display_name, tombstone: false }] });
+  const currentPayload = catalog ? past !== null ? restoreBody() : editing ? body() : null : null;
+  const impactCurrent = !!impact && impact.request === JSON.stringify(currentPayload);
+  const inspectImpact = async (restoring = false) => { if (!catalog || (!editing && !restoring)) return; const payload = restoring ? restoreBody() : body(); setBusy(true); setError(''); try { const result = await api<{ affected_keys: number; affected_contracts: number }>('catalogs/preview', { method: 'POST', body: payload }); setImpact({ ...result, request: JSON.stringify(payload) }); } catch (failure) { setError(describeError(failure)); } finally { setBusy(false); } };
   const save = async () => {
-    if (!editing || !catalog) return;
+    if (!editing || !catalog || !impactCurrent) return;
     setBusy(true); setError('');
     try {
-      await api('catalogs/entries', { method: 'POST', body: { catalog_id: catalog.catalog_id, definition_version: catalog.version,
-        expected_active_revision: expectedActive, expected_content_revision: expected, request_id: requestId,
-        reason: t('alpha10.catalog.reason'), changes: [{ scope: editing.scope, media_type: editing.media_type, signal_type: editing.signal_type, key: editing.key,
-          classification: mode === 'variant' ? null : classification, master_key: mode === 'variant' ? master : null, note, display_name: editing.display_name, tombstone: false }] } });
+      await api('catalogs/entries', { method: 'POST', body: body() });
       setEditing(null); await cache.invalidateQueries({ queryKey: ['catalog-entries'] }); await cache.invalidateQueries({ queryKey: ['catalog-history'] });
     } catch (failure) { setError(describeError(failure)); }
     finally { setBusy(false); }
@@ -66,8 +72,8 @@ export default function CatalogPage() {
         <div className="flex gap-3"><Button disabled={!after} onClick={() => setAfter('')}>{t('alpha10.catalog.first')}</Button><Button disabled={!entries.data?.next_cursor} onClick={() => setAfter(entries.data?.next_cursor ?? '')}>{t('alpha10.catalog.next')}</Button></div>
       </>}
     </Panel>}
-    <Dialog open={!!editing} onOpenChange={open => !open && setEditing(null)} title={t('alpha10.catalog.edit')} footer={<Button variant="primary" disabled={busy || (mode === 'variant' && !master)} onClick={() => void save()}>{t('alpha10.catalog.save')}</Button>}>
-      <div className="space-y-4"><p className="font-medium">{editing?.key}</p><Notice tone="warn">{t('alpha10.catalog.immediate')}</Notice>
+    <Dialog open={!!editing} onOpenChange={open => !open && setEditing(null)} title={t('alpha10.catalog.edit')} footer={<><Button disabled={busy || (mode === 'variant' && !master)} onClick={() => void inspectImpact()}>{t('alpha10.catalog.preview')}</Button><Button variant="primary" disabled={busy || !impactCurrent || (mode === 'variant' && !master)} onClick={() => void save()}>{t('alpha10.catalog.save')}</Button></>}>
+      <div className="space-y-4"><p className="font-medium">{editing?.key}</p><Notice tone="warn">{t('alpha10.catalog.immediate')}</Notice>{impactCurrent && impact && <Notice tone="info">{t('alpha10.catalog.impact', { keys: impact.affected_keys, contracts: impact.affected_contracts })}</Notice>}
         <Field label={t('alpha10.catalog.assignment')}>{p => <Select {...p} value={mode} onChange={e => setMode(e.target.value)}><option value="independent">{t('alpha10.catalog.independent')}</option><option value="variant">{t('alpha10.catalog.variant')}</option></Select>}</Field>
         {mode === 'independent' ? <Field label={t('alpha10.catalog.class')}>{p => <Select {...p} value={classification} onChange={e => setClassification(e.target.value)}>{catalog?.classification_schema.values.map(value => <option key={value} value={value}>{value}</option>)}</Select>}</Field> : <><Field label={t('alpha10.catalog.masterSearch')}>{p => <Input {...p} value={masterQuery} onChange={e => setMasterQuery(e.target.value)} />}</Field><Field label={t('alpha10.catalog.master')}>{p => <Select {...p} value={master} onChange={e => setMaster(e.target.value)}><option value="">{t('alpha10.catalog.chooseMaster')}</option>{masters.data?.items.filter(row => row.identity !== editing?.identity && row.scope === editing?.scope && row.media_type === editing?.media_type && row.signal_type === editing?.signal_type).map(row => <option key={row.identity} value={row.key}>{row.key}</option>)}</Select>}</Field></>}
         <Field label={t('alpha10.catalog.note')}>{p => <Textarea {...p} value={note} maxLength={1024} onChange={e => setNote(e.target.value)} />}</Field>
@@ -76,8 +82,8 @@ export default function CatalogPage() {
         {error && <Notice tone="bad">{error}<p>{t('alpha10.catalog.conflictHelp')}</p><Button onClick={async () => { if (!catalog || !editing) return; try { const current = await api<{ content_revision: number; active_revision: number; effective_classification: string; entry: { master_key?: string } | null }>(`catalogs/entry?${new URLSearchParams({ catalog_id: catalog.catalog_id, definition_version: String(catalog.version), identity: editing.identity })}`); setExpected(current.content_revision); setExpectedActive(current.active_revision); setComparison(t('alpha10.catalog.comparison', { classification: current.effective_classification, master: current.entry?.master_key ?? t('alpha10.catalog.independent') })); setRequestId(crypto.randomUUID()); setError(''); } catch (failure) { setError(describeError(failure)); } }}>{t('alpha10.catalog.reload')}</Button></Notice>}
       </div>
     </Dialog>
-    <Dialog open={past !== null} onOpenChange={open => !open && setPast(null)} title={t('alpha10.catalog.revision', { n: past ?? 0 })} footer={<Button variant="primary" disabled={busy || pastContent.isPending || pastContent.isError} onClick={() => void restore()}>{t('alpha10.catalog.restore')}</Button>}>
-      <Notice tone="warn">{t('alpha10.catalog.restoreHelp')}</Notice>
+    <Dialog open={past !== null} onOpenChange={open => !open && setPast(null)} title={t('alpha10.catalog.revision', { n: past ?? 0 })} footer={<><Button disabled={busy || pastContent.isPending || pastContent.isError} onClick={() => void inspectImpact(true)}>{t('alpha10.catalog.preview')}</Button><Button variant="primary" disabled={busy || !impactCurrent || pastContent.isPending || pastContent.isError} onClick={() => void restore()}>{t('alpha10.catalog.restore')}</Button></>}>
+      <Notice tone="warn">{t('alpha10.catalog.restoreHelp')}</Notice>{impactCurrent && impact && <Notice tone="info">{t('alpha10.catalog.impact', { keys: impact.affected_keys, contracts: impact.affected_contracts })}</Notice>}
       {pastContent.isPending ? <Spinner /> : pastContent.isError ? <Notice tone="bad">{t('alpha10.catalog.loadError')}</Notice> : <ul className="divide-y divide-line">{pastContent.data?.items.map(row => <li key={row.identity} className="py-2">{row.key} · {row.master_key || row.classification}</li>)}</ul>}
       {pastContent.data?.next_cursor && <Button onClick={() => setPastAfter(pastContent.data!.next_cursor!)}>{t('alpha10.catalog.next')}</Button>}
       {error && <Notice tone="bad">{error}</Notice>}

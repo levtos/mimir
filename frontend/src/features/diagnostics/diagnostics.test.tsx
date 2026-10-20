@@ -174,7 +174,7 @@ describe('commands are typed, confirmed and idempotent', () => {
     await screen.findByText('angenommen');
     const body = api.calls.find((c) => c.path === 'commands')!.body as Record<string, unknown>;
     expect(body.command_id).toMatch(/^[0-9a-f-]{36}$/);
-    expect(body.origin).toEqual({ kind: 'workbench', actor: 'admin', client_name: 'terra-workbench' });
+    expect(body.origin).toEqual({ kind: 'workbench', actor: 'admin', client_name: 'wuschel-workbench' });
     const issued = Date.parse(body.issued_at as string);
     const until = Date.parse(body.valid_until as string);
     expect(until - issued).toBe(30_000);
