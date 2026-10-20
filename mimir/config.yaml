@@ -1,6 +1,6 @@
 name: Mimir
-version: 1.0.0a9
-slug: mimir
+version: 1.0.0a10
+slug: wuschel
 description: Mimir – Verträge verständlich anlegen und verwalten (Alpha 9)
 url: https://github.com/Levtos/mimir
 arch: [amd64, aarch64]

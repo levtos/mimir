@@ -234,7 +234,7 @@ wheels = [
 
 [[package]]
 name = "core-contracts-platform"
-version = "1.0.0a9"
+version = "1.0.0a10"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
