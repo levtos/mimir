@@ -2,26 +2,26 @@
 
 | Name | Aufgabe |
 |---|---|
-| Wuschel | Core Contracts, eigenständige App |
-| Traber | HA-Bridge, reiner Transport, Domain `traber` |
-| Yggdrasil | Proxmox-Anzeigename; Hostname `einhornstation` bleibt |
-| Midgard | Home Assistant Benni |
-| Vanaheim | Home Assistant Eltern, eigene Wuschel-Installation, eigene DB/Rolle/ID/Tokens |
-| Heimdall | Anwesenheit |
-| Frey | Klima |
-| Sol | Licht und Rollos |
-| Mani | Schlafen und Wecken |
-| Bragi | Medien |
-| Hugin, Munin, Sleipnir, Odin | Reserve |
+| Wuschel | Core Contracts, eigenständige App, Slug wuschel |
+| Traber | HA-Integration, Domain traber; die Funktion heißt „HA-Anbindung“ |
+| Schnüffel | Anwesenheit, spätere Vorlage |
+| Kuschel | Klima, spätere Vorlage |
+| Funkel | Licht, spätere Vorlage |
+| Blinzel | Rollos, spätere Vorlage |
+| Schlummer | Schlaf/Wecken, spätere Vorlage |
+| Träller | Medien, spätere Vorlage |
+| Pförtchen | Tür, spätere Vorlage |
 
-Producer liefern Zustände und Evidence ein. Policies entscheiden Handlungen;
-Apply führt sie aus. Diese Rollen bleiben getrennt. Wuschel hat keine Core-Profile
-(APP-01 und [Profil-Delta-Audit](audits/profile-delta-audit-2026-10-07.md)).
-Technische Python-Importnamen und Contract-IDs bleiben stabil.
+Die [Herde](https://github.com/Levtos/control/issues/60) legt Figuren, Farben
+und Symbole fest. Weitere Module werden hier nicht implementiert.
+Images ghcr.io/levtos/{arch}-wuschel. Hauptdistribution und CLI: wuschel.
+Python-Import core_contracts und SDK core_contracts_client/CoreContractsClient
+bleiben technische Schnittstellen. Traber spricht traber/* mit Protokoll 2.
+Fachliche IDs, /api/v1 und gespeicherte Dokumente werden nicht umbenannt.
 
-Die neue App liegt unter `wuschel/`, Slug `wuschel`, Images
-`ghcr.io/levtos/{arch}-wuschel`. `core_contracts/config.yaml` bleibt als unveränderter
-Terra-App-Store-Eintrag erhalten; neue Builds und Veröffentlichungen betreffen Wuschel.
-Terra, alte Bridge und Legacy bleiben bis zu Bennis Abnahme installiert.
-Installation, Supervisor-Weiterleitung und gegebenenfalls Ergänzung der neuen
-Repo-URL im Store werden erst in Teil B geprüft, ohne den Terra-Eintrag zu entfernen.
+Wuschel ersetzt den Produktnamen Mimir, Traber den Namen Bifröst. Historische
+Tags/Belege und installierte alte Apps bleiben unverändert. core_contracts/
+bleibt bytegleich als Terra-Store-Eintrag. Keine automatische Übernahme alter
+DBs, UUIDs, /data-Ablagen oder HA-Einträge. Siehe
+[ADR 0022](adr/0022-wuschel-traber-naming.md) und [Betrieb](operations.md).
+Producer liefern Evidence; Policies entscheiden Handlungen; Apply führt sie aus.

@@ -1,6 +1,6 @@
 # ADR 0024 — Einhorn-Herde und reproduzierbare Bildableitungen
 
-20.10.2026 · Bennis Motive/Verwendung beschlossen; Pipeline **A1 / Review**.
+20.10.2026 · Bennis Motive/Verwendung beschlossen; Pipeline **A1 freigegeben für A2**.
 Quelle: [control#60](https://github.com/Levtos/control/issues/60) samt Kommentar
 vom 20.10.; bereitgestelltes ZIP und sein Steckbrief Version 4.
 Dateiprüfung: neun Figuren 1024×1536 und neun Icons 1254×1254, alle RGBA.
@@ -68,7 +68,7 @@ Kein direktes Filtern unvormultiplizierter RGBA-Kanäle, das unsichtbare Farben
 in sichtbare Ränder ziehen könnte.
 
 WebP wird erst nach Rückrechnung in gerades Alpha encodiert:
-lossless, method=6, exact=True, ohne EXIF/sonstige private Metadaten.
+verlustbehaftetes RGB, quality=82 (bei Budgetüberschreitung deterministisch 78/74/70/66/62/58), method=6, alpha_quality=100, exact=True. Alpha wird nach dem Decodieren bytegleich geprüft. Keine EXIF/privaten Metadaten. Pillow 12.1.1, NumPy 2.4.2, libwebp 1.6.0 sind gepinnt. Budgets: 512×768 höchstens 150.000 Bytes, 1024×1536 höchstens 400.000 Bytes (K2).
 PNG-Ableitungen verlustfrei. Erneuter Lauf mit denselben Eingaben/Tools
 muss dieselben Hashes liefern; CI prüft das in A2.
 
@@ -107,8 +107,7 @@ kein benutzerdefiniertes PNG ersetzen.
 Seit HA 2026.3 können Custom-Integrationen lokale Bilder in `brand/` liefern;
 sie haben Vorrang vor dem brands-Repository. Traber nutzt diesen Weg,
 kein erforderlicher PR an home-assistant/brands für unterstützte HA-Versionen.
-Vor B die tatsächlich installierte HA-Core-Version über einen Statusendpunkt
-ohne Optionen lesen. Unter 2026.3: anhalten und Kompatibilitätsentscheidung
+Geprüfter Befund von Benni/Claude am 20.10.2026: HA Core 2026.10.2; diesen Befund nicht erneut abfragen. Unter 2026.3: anhalten und Kompatibilitätsentscheidung
 melden, kein automatisches HA-Upgrade. Ein brands-PR wäre nur ein separat
 freizugebender Rückwärtskompatibilitätsweg.
 
@@ -127,3 +126,5 @@ hell/dunkel, gemeinsame Grundlinie/keine abgeschnittenen Hufe/Hörner.
 Kontaktbogen 16/32/128 hell/dunkel; 16-px-Siegel muss erkennbar bleiben.
 Firefox-Belege laut Alpha-10-Einstieg. B ergänzt reale Kachel-/Store-/Traber-
 Darstellung; lokales Packaging beweist keine Live-Iconanzeige.
+
+A2-Präzisierung der Alpha-Ausläufer: Der Hufanker wird an Alpha ≥ 8 bestimmt; sämtliche Pixel mit Alpha > 0 bleiben erhalten. Schwache Ausläufer unterhalb des Hufs dürfen den sonst transparenten unteren Rand nutzen. Der proportionale Maßstab wird zusätzlich so begrenzt, dass auch diese Pixel vollständig im festen Canvas bleiben. Das Manifest benennt diese Rand-Ausnahme je Figur; sichtbare Hufe stehen auf y=1488.

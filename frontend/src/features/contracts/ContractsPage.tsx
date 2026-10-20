@@ -220,16 +220,16 @@ export default function ContractsPage() {
           </div>
           <div className="w-48"><CategorySelect value={categoryFilter} onChange={setCategoryFilter} all /></div>
           <Field label={uiText('alpha9.room.label')}>{props => <Select {...props} className="w-48" value={roomFilter} onChange={event => setRoomFilter(event.target.value)}><option value="">{uiText('alpha9.room.all')}</option>{roomOptions.map(([key, room]) => <option key={key} value={key}>{room.mode === 'none' ? uiText('alpha9.room.none') : room.name}</option>)}</Select>}</Field>
+          <Field label={uiText("features.contracts.ContractsPage.aktivierung_90ba1a")}>{props => <Select {...props} aria-label={uiText("features.contracts.ContractsPage.aktivierung_90ba1a")} className="w-40" value={enabledFilter} onChange={(e) => setEnabledFilter(e.target.value as typeof enabledFilter)}>
+            <option value="all">{uiText("features.contracts.ContractsPage.alle_3801a3")}</option>
+            <option value="on">{uiText("features.contracts.ContractsPage.aktiviert_acb27b")}</option>
+            <option value="off">{uiText("features.contracts.ContractsPage.deaktiviert_10f33e")}</option>
+          </Select>}</Field>
           <Field label={uiText("features.contracts.ContractsPage.typ_1b0241")}>{props => <Select {...props} aria-label={uiText("features.contracts.ContractsPage.typ_1b0241")} className="w-52" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
             <option value="">{uiText("features.contracts.ContractsPage.alle_typen_83162a")}</option>
             {typeOptions.map((t) => (
               <option key={t} value={t}>{t}</option>
             ))}
-          </Select>}</Field>
-          <Field label={uiText("features.contracts.ContractsPage.aktivierung_90ba1a")}>{props => <Select {...props} aria-label={uiText("features.contracts.ContractsPage.aktivierung_90ba1a")} className="w-40" value={enabledFilter} onChange={(e) => setEnabledFilter(e.target.value as typeof enabledFilter)}>
-            <option value="all">{uiText("features.contracts.ContractsPage.alle_3801a3")}</option>
-            <option value="on">{uiText("features.contracts.ContractsPage.aktiviert_acb27b")}</option>
-            <option value="off">{uiText("features.contracts.ContractsPage.deaktiviert_10f33e")}</option>
           </Select>}</Field>
           <Field label={uiText("features.contracts.ContractsPage.gesundheit_1c7f2f")}>{props => <Select {...props} aria-label={uiText("features.contracts.ContractsPage.gesundheit_1c7f2f")} className="w-44" value={healthFilter} onChange={(e) => setHealthFilter(e.target.value as typeof healthFilter)}>
             <option value="all">{uiText("features.contracts.ContractsPage.jede_gesundheit_b848a7")}</option>

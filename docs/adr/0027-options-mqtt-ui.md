@@ -1,12 +1,12 @@
 # ADR 0027 — verständliche App-Optionen, MQTT-Hinweis und Alpha-10-Texte
 
-20.10.2026 · Soll durch Benni entschieden; Umsetzungsvorschlag **A1 / Review**.
+20.10.2026 · Soll durch Benni entschieden; Umsetzungsvorschlag **A1 freigegeben für A2**.
 Grundlage: [ADR 0021](0021-plain-ui-retention-readiness.md), #24 und
 Bennis Befund „MQTT ausgeschaltet“.
 
 ## Ursache und sicherer Statusvertrag
 
-`mimir/config.yaml` setzt mqtt_mode standardmäßig auf disabled.
+`wuschel/config.yaml` setzt mqtt_mode standardmäßig auf disabled.
 `MQTTAdapter.run` wartet bei disabled dauerhaft, bevor er Credentials lädt.
 Eingetragene Zugangsdaten aktivieren MQTT deshalb nicht; das ist erwartetes
 Modusverhalten. Bennis genannter Optionsstand ist die Befundquelle:
@@ -21,10 +21,8 @@ Ein unbekannter Optionszustand liefert null/„Noch nicht prüfbar“, kein fals
 Die UI liest ausschließlich diesen dedizierten Statusvertrag.
 
 Bei disabled + Einstellungen vorhanden unter Einstellungen → Verbindungen:
-„MQTT ist ausgeschaltet. Du hast Verbindungsdaten eingetragen; sie werden
-erst verwendet, wenn du den MQTT-Modus auf ‚Eigener Broker‘ stellst.“
-Ergänzung: „Für die Mosquitto-App in Home Assistant wählst du ‚Home Assistant‘.
-Die Zugangsdaten werden dann automatisch übernommen.“
+„MQTT ist ausgeschaltet. Du hast Verbindungsdaten eingetragen; sie werden erst verwendet, wenn du den MQTT-Modus auf ‚external‘ (eigener Broker) stellst. Für die Mosquitto-App in Home Assistant wählst du ‚supervisor‘; die Zugangsdaten kommen dann automatisch.“
+Die Auswahl zeigt disabled/supervisor/external. HA unterstützt nur configuration.<key>.name/description, keine Übersetzung der Listenwerte (K1).
 Kein automatischer Moduswechsel, Verbindungsversuch oder Öffnen von Optionen
 durch diese Anzeige. Bei supervisor vorhandene externe Daten nicht verwenden.
 

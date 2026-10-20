@@ -1,6 +1,6 @@
 # ADR 0022 — Wuschel und Traber ersetzen Mimir und Bifröst
 
-20.10.2026 · Produktnamen durch Benni beschlossen; technische Details **A1 / Review**.
+20.10.2026 · Produktnamen durch Benni beschlossen; technische Details **A1 freigegeben für A2**.
 Ersetzt [ADR 0008](0008-mimir-naming-installation.md) für neue Installationen ab
 Alpha 10, einschließlich der damaligen Aussage „kein weiterer Slugwechsel“ und
 der alten Modulnamenliste. Historische Installationen/Tags bleiben unverändert.
@@ -61,7 +61,7 @@ erneut zu reviewen statt still „2“ beizubehalten.
 Hashrouter und Ingress bleiben. Bestehende `legacyTarget`-Abbildungen bleiben
 funktional; `/contracts/import/json` und `/changes/transfer` leiten per replace
 zu `/import-export` weiter. `/sources/catalogs` bleibt Wertelisten-Einstieg;
-neue Katalogpflege unter `/catalogs/:catalogId`. Query-/Filterzustand erhalten,
+neue Katalogpflege unter `/catalog-care`. Query-/Filterzustand erhalten,
 encoded IDs genau einmal dekodieren, kein externes Redirect aus Queryparametern.
 Alte Vertrags-/Vorlagen-/Entwurfslinks werden mit vorhandenen Aliasen getestet.
 Keine Umleitung eines alten Supervisor-/Terra-/Mimir-App-Slugs: ein Bookmark
@@ -111,3 +111,5 @@ Integration/Config-Flow, alle Redirects mit Query/IDs, i18n inklusive Meldungen.
 Terra-Verzeichnis bytegleich zur Basis. B: Repo-/Release-Weiterleitungen und
 alte Image-Abrufbarkeit, Store-Repository, Traber geladen mit echter
 Manifestversion/Protokoll 2, eigene neue UUID. Keine Live-Behauptung aus CI.
+
+K3 – geprüfter Stand 20.10.2026: HACS-ID 1409323489 folgt levtos/mimir → levtos/wuschel. Bifröst ist als Commit f039081 installiert. Traber in B gezielt als Release v1.0.0a10 installieren; im Repository „Beta-Versionen anzeigen“ einschalten. Nach Entfernen des alten Eintrags zeigt Mimir 1.0.0a9 erwartungsgemäß „HA-Anbindung getrennt“. Schritt 6 nur falls Hinweise vorhanden; Stand 20.10.: keine. hacs.json heißt Traber. Repo-Beschreibung auf Wuschel/Traber aktualisieren, mit Actor-Preflight; fehlende Adminrechte als Benni-Schritt melden.

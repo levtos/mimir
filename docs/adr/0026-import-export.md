@@ -1,6 +1,6 @@
 # ADR 0026 — Import & Export als vollständiges, portables Konfigurationspaket
 
-20.10.2026 · Bennis Funktionsumfang beschlossen; Format/Verfahren **A1 / Review**.
+20.10.2026 · Bennis Funktionsumfang beschlossen; Format/Verfahren **A1 freigegeben für A2**.
 Bezug: [ADR 0020](0020-category-room-metadata.md),
 [0025](0025-managed-catalog.md), [#24](https://github.com/Levtos/wuschel/issues/24).
 
@@ -27,7 +27,7 @@ Commands, Baselines, Fristen, Installationsidentität, Tokens, App-Optionen,
 DB-/MQTT-Zugangsdaten oder HA-Config-Entries. Desaster-Recovery benötigt
 zusätzlich das externe Datenbank-Backup und geschützte /data-Sicherung.
 
-## Austauschformat v1 (Vorschlag)
+## Austauschformat v1 (beschlossen)
 
 ```json
 {"format":"wuschel.configuration","format_version":1,"scope":"configuration",

@@ -62,15 +62,25 @@ def figure_canvas(image: Image.Image) -> tuple[Image.Image, dict]:
     if crop is None:
         raise ValueError("empty_figure")
     cut = image.crop(crop)
-    scale = min(928 / cut.width, 1440 / cut.height)
+    visible = image.getchannel("A").point(lambda alpha: 255 if alpha >= 8 else 0).getbbox()
+    if visible is None:
+        raise ValueError("missing_hoof_anchor")
+    anchor = visible[3] - crop[1]
+    trailing = cut.height - anchor
+    # Preserve even alpha 1..7 outside the visible hoof. Its trailing pixels
+    # may use the transparent bottom margin; no source content is discarded.
+    scale = min(928 / cut.width, 1440 / anchor, 47 / trailing if trailing else 100)
     size = (round(cut.width * scale), round(cut.height * scale))
     cut = resize_premultiplied(cut, size)
-    xy = ((1024 - size[0]) // 2, 1488 - size[1])
+    xy = ((1024 - size[0]) // 2, 1488 - round(anchor * scale))
     canvas = Image.new("RGBA", (1024, 1536))
     canvas.paste(cut, xy)
     return canvas, {
         "crop": list(crop),
-        "source_hoof_anchor_y": crop[3] - 1,
+        "source_hoof_anchor_y": visible[3] - 1,
+        "hoof_anchor_alpha_threshold": 8,
+        "trailing_low_alpha_pixels": trailing,
+        "bottom_margin_exception": "Alpha 1..7 retained below visible hoof" if trailing else None,
         "canvas": [1024, 1536],
         "placement": list(xy),
         "baseline_exclusive": 1488,

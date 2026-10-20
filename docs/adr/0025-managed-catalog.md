@@ -1,6 +1,6 @@
 # ADR 0025 — G4: verwalteter Hybrid-Katalog, gezielte Wirkung
 
-20.10.2026 · Detaildesign **A1 / Review** zur beschlossenen Variante 3 aus
+20.10.2026 · Detaildesign **A1 freigegeben für A2** zur beschlossenen Variante 3 aus
 [ADR 0007](0007-hybrid-catalog-decision.md). Grundlage: Matrix G4,
 M30-27/M30-34, M07-09/10, A-06, M30-17/M30-30 und G14.
 Keine Title-Classifier-Fachregeln oder Activity-State-Verträge in diesem Scope.
@@ -16,7 +16,7 @@ für sie fingerprint_version=3. Neue geschlossene Fähigkeit
 `managed_catalog_lookup` wird nur von einer ausdrücklich neuen Definition
 (language_version=4) verwendet. Kein automatisches Hochsetzen beim Öffnen.
 
-Definitionsvorschlag:
+Definition:
 
 ```json
 {"catalog_id":"example.titles","kind":"managed","version":1,
@@ -44,7 +44,7 @@ Anzeige/Herkunft aufbewahrt. Gleicher Titel in anderem Scope bleibt separat.
 Änderung der Normalisierungsregel verlangt neue Definitionsversion und
 explizite Migration/Review, keine spontane Zusammenlegung.
 
-Tabellenvorschläge (alle auf demselben serialisierten Writer):
+Tabellen (alle auf demselben serialisierten Writer):
 
 | Tabelle | Inhalt / Invariante |
 |---|---|
@@ -145,7 +145,7 @@ erneutes Speichern. Kein Last-write-wins und kein stilles Retry über fremde Än
 Sichtungen konkurrieren nicht mit Inhalts-OCC. Snapshot-Neuladen verliert keine
 ungesendeten Formulare; UI bietet eigenen/aktuellen Stand zum Vergleichen.
 
-Vorschlag A2-Grenzen: Seiten höchstens 100 Einträge, Suche/Paging serverseitig;
+A2-Grenzen: Seiten höchstens 100 Einträge, Suche/Paging serverseitig;
 ein Pflegevorgang höchstens 100 direkte Änderungen, inklusive Masterfolgen
 höchstens 1000 betroffene Schlüssel, sonst sichtbar ablehnen. Kein Abschneiden.
 Import maximal 50 MiB/100.000 Einträge (streamend vorprüfen); alle anzuwendenden

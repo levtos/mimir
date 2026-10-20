@@ -7,6 +7,21 @@ on:
 permissions:
   contents: read
 jobs:
+  herd-assets:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: levtos/control
+          ref: 70b6e83b26a930632c7b2430fb6d5b955ec63158
+          path: herd-originals
+          sparse-checkout: assets/herde
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          python-version: '3.14.5'
+      - run: uv sync --frozen
+      - run: uv run python dev/verify_herd_rebuild.py herd-originals/assets/herde
   platform:
     runs-on: ubuntu-24.04
     services:
