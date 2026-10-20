@@ -22,6 +22,7 @@ import { useActiveRevision, useInfo } from '@/lib/queries';
 import { classifySystem } from '@/lib/status';
 import { cn } from '@/lib/utils';
 import { IssueFocus } from './IssueFocus';
+import { HerdIcon } from './Herd';
 
 const MODULE_ICONS = { contracts: FileCode2, templates: BookOpen, sources: Cable, changes: FlaskConical, settings: Settings2 };
 
@@ -43,7 +44,7 @@ export function Shell(_props: { onSetup: () => void }) {
   const info = useInfo();
   const [collapsed, setCollapsed] = useCollapsedNavigation(info.data?.installation_id ?? null);
   const { pathname } = useLocation();
-  const moduleId = pathname.split('/')[1] ?? '';
+  const moduleId = ['/import-export', '/catalog-care'].includes(pathname) ? 'changes' : pathname.split('/')[1] ?? '';
   const [expanded, setExpanded] = useState<string[]>([]);
   useEffect(() => { if (moduleId) setExpanded(previous => previous.includes(moduleId) ? previous : [...previous, moduleId]); }, [moduleId]);
 
@@ -56,7 +57,7 @@ export function Shell(_props: { onSetup: () => void }) {
         )}
       >
         <div className="flex h-14 items-center gap-2.5 border-b border-line px-3.5">
-          <div className="grid size-7 shrink-0 place-items-center rounded-[var(--radius-sm)] bg-accent text-sm font-bold text-accent-fg">{uiText("components.Shell.t_e632b7")}</div>
+          <HerdIcon />
           {!collapsed && (
             <div className="min-w-0 leading-tight">
               <p className="truncate text-sm font-semibold">{uiText("components.Shell.terra_workbench_7ad523")}</p>

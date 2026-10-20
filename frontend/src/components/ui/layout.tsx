@@ -2,6 +2,7 @@ import { t as uiText } from '@/i18n';
 import { AlertTriangle, CircleAlert, Info, Loader2 } from 'lucide-react';
 import type { HTMLAttributes, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { HerdFigure } from '@/components/Herd';
 
 export function Panel({ className, ...props }: HTMLAttributes<HTMLElement>) {
   return <section className={cn('rounded-[var(--radius-lg)] border border-line bg-panel', className)} {...props} />;
@@ -22,9 +23,12 @@ export function PanelHeader({ title, aside, description }: { title: ReactNode; a
 export function PageHeader({ title, description, actions }: { title: ReactNode; description?: ReactNode; actions?: ReactNode }) {
   return (
     <header data-page-header className="mb-5 flex flex-wrap items-end justify-between gap-3 pr-12">
-      <div className="min-w-0">
+      <div className="flex min-w-0 items-center gap-4">
+        <HerdFigure />
+        <div>
         <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
         {description && <p className="mt-1 max-w-3xl text-sm text-muted">{description}</p>}
+        </div>
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </header>

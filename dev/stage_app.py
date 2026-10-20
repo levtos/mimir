@@ -19,8 +19,9 @@ for name in ("src", "migrations", "frontend", "wuschel"):
     )
 for name in ("pyproject.toml", "uv.lock"):
     shutil.copy2(root / name, app)
-for name in ("Dockerfile", "DOCS.md", "CHANGELOG.md"):
+for name in ("Dockerfile", "DOCS.md", "CHANGELOG.md", "icon.png", "logo.png"):
     shutil.copy2(root / "wuschel" / name, app / name)
+shutil.copytree(root / "wuschel/translations", app / "translations")
 config = (root / "wuschel/config.yaml").read_text(encoding="utf-8")
 # Local builds deliberately have no prebuilt image requirement.
 (app / "config.yaml").write_text(
