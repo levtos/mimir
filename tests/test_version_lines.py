@@ -55,6 +55,22 @@ def test_missing_metadata_and_suffix_fail(tagged_repo):
     assert not compare_tags(root, "1.0.0a8", "mimir", ["v9.0.0"])["passed"]
 
 
+@pytest.mark.parametrize("mode", ["ci", "release"])
+@pytest.mark.parametrize("candidate", ["1.0.0a8", "1.0.0a10", "1.0.0a11"])
+def test_ci_allows_equality_but_release_requires_newer(tagged_repo, mode, candidate):
+    root, tag = tagged_repo
+    tag("v1.0.0a9", "wuschel")
+    tag("v1.0.0a10", "wuschel")
+    tag("v9.0.0", "other_app")
+    report = compare_tags(
+        root, candidate, "wuschel", ["v1.0.0a9", "v1.0.0a10", "v9.0.0"], mode=mode
+    )
+    expected = candidate == "1.0.0a11" or (candidate == "1.0.0a10" and mode == "ci")
+    assert report["passed"] is expected
+    assert report["mode"] == mode
+    assert len(report["comparisons"]) == 3
+
+
 def test_terra_app_store_entry_is_unchanged():
     root = Path(__file__).resolve().parents[1]
     original = subprocess.check_output(

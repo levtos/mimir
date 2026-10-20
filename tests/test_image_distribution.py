@@ -176,6 +176,15 @@ def test_publication_is_manual_and_gated_by_full_ci():
     assert set(workflow["on"]) == {"workflow_dispatch"}
     assert workflow["permissions"] == {"contents": "read"}
     jobs = workflow["jobs"]
+    release_gate = jobs["guard"]["steps"][-1]
+    assert release_gate["run"] == "uv run python dev/verify_postrelease.py --mode release"
+    assert "if" not in release_gate
+    checkout = next(
+        step
+        for step in jobs["guard"]["steps"]
+        if step.get("uses", "").startswith("actions/checkout@")
+    )
+    assert checkout["with"]["fetch-depth"] == "0"
     assert jobs["ci"]["uses"] == "./.github/workflows/ci.yml"
     assert jobs["ci"]["needs"] == "guard"
     assert jobs["publish"]["needs"] == "ci"
@@ -185,6 +194,10 @@ def test_publication_is_manual_and_gated_by_full_ci():
     assert "docker login" not in str(jobs["anonymous-pull"])
     assert set(jobs["publish"]["strategy"]["matrix"]["arch"]) == set(package.ARCHITECTURES)
     ci = yaml.load((package.ROOT / ".github/workflows/ci.yml").read_text(), Loader=yaml.BaseLoader)
+    assert any(
+        step.get("run") == "uv run python dev/verify_postrelease.py --mode ci" and "if" not in step
+        for step in ci["jobs"]["platform"]["steps"]
+    )
     assert "workflow_call" in ci["on"]
     matrix = ci["jobs"]["images"]["strategy"]["matrix"]["include"]
     assert {row["arch"]: row["platform"] for row in matrix} == {
