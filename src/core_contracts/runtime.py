@@ -923,6 +923,8 @@ class Runtime:
                     catalog_affected=direct_catalog_contracts,
                 )
                 if failures:
+                    self.pending_latches = None
+                    self.pending_refresh.clear()
                     raise ValueError("catalog_evaluation_failed")
             result["publication_seq"] = state.publication_seq
             state.tables["catalog_request"][request.request_id] = {

@@ -162,6 +162,20 @@ def test_strict_json_rejects_ambiguous_and_nonfinite(text):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "field,value", [("scope", []), ("producer", []), ("format_version", True), ("manifest", None)]
+)
+async def test_malformed_package_is_rejected_without_mutating_state(runtime, config, field, value):
+    await activate(runtime, config)
+    package = await export(runtime)
+    package[field] = value
+    before = runtime.state.model_dump()
+    with pytest.raises(ValueError, match="import_format_unknown"):
+        await plan(runtime, package)
+    assert runtime.state.model_dump() == before
+
+
+@pytest.mark.asyncio
 async def test_single_contract_uses_exact_saved_own_draft_with_occ(runtime, config):
     await activate(runtime, config)
     package = await export(runtime, contract_id="fixture.echo")

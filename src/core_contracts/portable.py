@@ -237,10 +237,19 @@ def read_package(value: Any) -> dict[str, Any]:
         }
         or value["format"] != "wuschel.configuration"
         or value["format_version"] != 1
+        or not isinstance(value["scope"], str)
         or value["scope"] not in {"configuration", "contract"}
+        or type(value["format_version"]) is not int
     ):
         raise ValueError("import_format_unknown")
     manifest = value["manifest"]
+    producer = value["producer"]
+    if (
+        not isinstance(producer, dict)
+        or set(producer) != {"name", "version"}
+        or not all(isinstance(item, str) for item in producer.values())
+    ):
+        raise ValueError("import_format_unknown")
     if (
         not isinstance(value["config"], dict)
         or not isinstance(manifest, dict)
@@ -289,6 +298,9 @@ def read_package(value: Any) -> dict[str, Any]:
         raise ValueError("import_entry_limit")
     for row in value["editorial"]:
         EditorialWrite.model_validate({**row, "expected_editorial_version": 0})
+    editorial_keys = [ObjectRef.model_validate(row["object"]).key for row in value["editorial"]]
+    if len(editorial_keys) != len(set(editorial_keys)):
+        raise ValueError("import_format_unknown")
     return value
 
 
@@ -321,6 +333,22 @@ def preview(runtime: Any, state: Any, request: dict[str, Any]) -> dict[str, Any]
         if key in old_objects and checksum(row) != checksum(old_objects[key])
     ]
     resolutions = request.get("resolutions", {})
+    if not isinstance(resolutions, dict) or any(
+        not isinstance(key, str)
+        or not (
+            value == "keep"
+            or isinstance(value, dict)
+            and set(value) == {"new_id"}
+            and isinstance(value["new_id"], str)
+        )
+        for key, value in resolutions.items()
+    ):
+        raise ValueError("import_format_unknown")
+    choices = request.get("editorial_choices", {})
+    if not isinstance(choices, dict) or any(
+        not isinstance(key, str) or value not in ("keep", "file") for key, value in choices.items()
+    ):
+        raise ValueError("import_format_unknown")
     remaps: dict[str, str] = {}
     for key in conflicts:
         resolution = resolutions.get(key)

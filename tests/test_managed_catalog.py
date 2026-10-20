@@ -395,6 +395,28 @@ async def test_history_restore_is_new_revision_and_keeps_original(runtime, confi
 
 
 @pytest.mark.asyncio
+async def test_independent_lookup_output_does_not_reset_machine_in_same_contract(runtime, config):
+    from .test_declarative import machine_definition, registry, schema
+
+    data = machine_definition()
+    data["language_version"] = 4
+    data["outputs"]["classification"] = lookup_rule("Synthetic First")
+    data["schema"]["fields"]["classification"] = schema("enum", value_catalog=["other", "example"])
+    await activate(runtime, configured(registry(config, data)))
+    before = copy.deepcopy(runtime.state.tables["node_state"]["fixture.echo"]["machine"])
+    await runtime.submit("catalog_write", {"request": request(runtime)})
+    root = runtime.state.tables["node_state"]["fixture.echo"]
+    assert root["machine"] == before
+    assert "catalog_machine_pending" not in root
+    assert (
+        runtime.state.tables["contract_state_current"]["fixture.echo"]["fields"]["classification"][
+            "value"
+        ]
+        == "example"
+    )
+
+
+@pytest.mark.asyncio
 async def test_command_guard_reads_current_catalog_and_replays(runtime, config):
     from datetime import timedelta
 
