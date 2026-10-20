@@ -8,6 +8,12 @@ from .declarative_models import TextRule
 from .quality import FieldValue, ReasonCode, derive, unknown
 
 
+def normalize_key(value: str, delimiters: str = "_- ", separator: str = " ") -> str:
+    """Pinned, finite normalization shared by rules, catalogs and import planning."""
+    translation = str.maketrans({char: " " for char in delimiters})
+    return separator.join(value.lower().translate(translation).split())
+
+
 def evaluate_text(rule: TextRule, args: list[FieldValue], now: datetime) -> FieldValue:
     if any(not arg.usable(now) for arg in args):
         return derive(None, args, now)
@@ -20,8 +26,7 @@ def evaluate_text(rule: TextRule, args: list[FieldValue], now: datetime) -> Fiel
         case "strip":
             result = strings[0].strip()
         case "normalize_key":
-            translation = str.maketrans({char: " " for char in rule.delimiters})
-            result = rule.separator.join(strings[0].lower().translate(translation).split())
+            result = normalize_key(strings[0], rule.delimiters, rule.separator)
         case "contains":
             result = strings[1] in strings[0]
         case "matches":
