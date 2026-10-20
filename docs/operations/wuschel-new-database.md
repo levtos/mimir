@@ -53,7 +53,7 @@ aus dem privaten Betriebsblatt, dann den gesamten Block einfügen.
 Er enthält keine Passwortwerte. Keine Ausführung mit `bash -x`, SQL-Echo
 oder Debug-Logging. Das Passwort wird ausschließlich im Container erzeugt.
 
-Das Skript prüft die Sitzungseinstellungen vor dem Geheimnis. Unbekannte
+Das Skript prüft die Sitzungseinstellungen vor dem Geheimnis. Nur TimescaleDB ist als Preload-Modul erlaubt. Andere
 Preload-/Auditmodule führen vor Passwortanlage zum Abbruch; deren mögliche
 Zusatzprotokollierung muss zuerst separat bewertet werden. Keine stille
 Abschaltung globaler Clusterprotokollierung. Session-Logging wird für diese
@@ -125,6 +125,15 @@ def sql(text, db="postgres"):
         data=text.encode()
     ).decode().strip()
 
+def parse_preloads(value: str) -> tuple[str, ...]:
+    """Only no modules or TimescaleDB; reject every unknown or empty list item."""
+    if not value.strip():
+        return ()
+    names = tuple(part.strip() for part in value.split(","))
+    if any(name != "timescaledb" for name in names):
+        raise ValueError("preload_module_not_allowed")
+    return names
+
 password_path = Path("/root/wuschel_app.password")
 hba_path = None
 old_hba = None
@@ -137,8 +146,7 @@ try:
         raise RuntimeError("PostgreSQL mindestens 14 erforderlich.")
     if sql("SHOW ssl;") != "on":
         raise RuntimeError("Vorhandenes Server-TLS erforderlich.")
-    if sql("SHOW shared_preload_libraries;"):
-        raise RuntimeError("Preload-/Auditmodule zuerst separat reviewen.")
+    parse_preloads(sql("SHOW shared_preload_libraries;"))
     if sql("SELECT count(*) FROM pg_extension WHERE extname='pgaudit';") != "0":
         raise RuntimeError("Auditmodul zuerst separat reviewen.")
     checks = sql(
@@ -274,6 +282,18 @@ Passwortdatei oder eigener HBA-Block führen zum Abbruch, nie zur Rotation oder
 Wiederverwendung unbekannter Identität. Nach Teilfehler Zustand anhand
 DB-/Rollenexistenz, NOLOGIN, HBA-Hash und Sicherungsdatei prüfen. Passwortdatei
 nicht anzeigen. Nur nach geklärtem Rückweg darf Benni einen neuen Versuch planen.
+
+## Freigegebene TimescaleDB-Ausnahme (K5)
+
+Die Erlaubnisliste enthält ausschließlich timescaledb; Kommas und Leerzeichen
+werden ausdrücklich geparst. Leere Liste ist zulässig, jedes andere Modul
+(einschließlich pgaudit, auto_explain und pg_stat_statements) bricht vor der
+Passwortanlage ab. Die separate pgaudit-Extension-Prüfung bleibt bestehen.
+TimescaleDB protokolliert keine Statements; in das SQL gelangt ausschließlich
+der SCRAM-Verifier. CREATE DATABASE mit template0 legt die TimescaleDB-Extension
+nicht an. Quelle des Betriebsbefunds: Benni/Claude, 20.10.2026, keine erneute
+Live-Abfrage durch Codex. Die Datenbanken core_contracts, core_contracts_app,
+homeassistant und media_catalog werden vom Skript nicht berührt.
 
 ## Passwort und Client-Konfiguration
 
