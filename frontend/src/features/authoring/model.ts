@@ -110,6 +110,8 @@ export function newRule(op: string, ctx: RuleContext, defaults: OperatorDefaults
       return { op, args: [inputRule()] };
     case 'compare':
       return { op, comparison: 'eq', left: literal('number', 0), right: literal('number', 0) };
+    case 'managed_catalog_lookup':
+      return { op, catalog_id: '', definition_version: 1, scope: literal('text', 'default'), media_type: literal('text', ''), signal_type: literal('text', 'title'), key: inputRule(), schema: { ...newFieldSchema('enum'), value_catalog: ['other'] } };
     case 'map':
       return { op, arg: inputRule(), schema: newFieldSchema('text'), entries: { true: 'ja' } };
     case 'first_match':

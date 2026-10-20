@@ -48,7 +48,7 @@ it('shows one global save button on the open draft page', async () => {
   expect(screen.getAllByText('Keine Fehler')).toHaveLength(1); // only the global check chip
 });
 
-it('keeps the draft identifier, semantic checksum and deadline details under Erweitert', async () => {
+it('keeps the draft identifier, semantic checksum and deadline details under Technische Details', async () => {
   const user = userEvent.setup();
   const id = '12345678-1234-4567-8123-123456789abc';
   installFakeApi({ drafts: [makeDraft(id, sampleConfig(), { display_name: 'Neue Geräte' })] }); app(`#/changes/drafts/${id}`);
@@ -58,9 +58,10 @@ it('keeps the draft identifier, semantic checksum and deadline details under Erw
   expect(screen.queryByText(id)).not.toBeInTheDocument();
   expect(screen.queryByText('Semantik-Prüfsumme-Version')).not.toBeInTheDocument();
   expect(screen.queryByText('Fristen bleiben erhalten')).not.toBeInTheDocument();
-  await user.click(screen.getByRole('button', { name: 'Erweitert' }));
+  await user.click(screen.getByRole('button', { name: 'Technische Details' }));
   expect(screen.getByText(id)).toBeVisible();
-  await user.click(screen.getByRole('button', { name: 'Erweitert: technische Änderungen' }));
+  expect(screen.getByText('Die Prüfsumme ist ein Fingerabdruck dieses Stands. Damit lassen sich zwei Stände vergleichen. Sie ist keine Kennung.')).toBeVisible();
+  await user.click(screen.getByRole('button', { name: 'Technische Details: Änderungen' }));
   expect(screen.getByText('Fristen bleiben erhalten')).toBeVisible();
 });
 

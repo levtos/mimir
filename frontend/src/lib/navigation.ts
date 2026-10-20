@@ -4,7 +4,6 @@ export interface NavigationModule { id: string; label: string; children: { to: s
 export const NAVIGATION: NavigationModule[] = [
   { id: 'contracts', label: t('alpha7.nav.contracts'), children: [
     { to: '/contracts/list/all', label: t('alpha7.nav.mine') },
-    { to: '/contracts/import/json', label: t('alpha7.nav.contractImport') },
     { to: '/contracts/relations/graph', label: t('alpha7.nav.relations') },
   ] },
   { id: 'templates', label: t('alpha7.nav.templates'), children: [
@@ -20,7 +19,8 @@ export const NAVIGATION: NavigationModule[] = [
   { id: 'changes', label: t('alpha7.nav.changes'), children: [
     { to: '/changes/drafts', label: t('alpha7.nav.drafts') },
     { to: '/changes/versions', label: t('alpha7.nav.versions') },
-    { to: '/changes/transfer', label: t('alpha7.nav.transfer') },
+    { to: '/import-export', label: t('alpha10.transfer.title') },
+    { to: '/catalog-care', label: t('alpha10.catalog.navigation') },
   ] },
   { id: 'settings', label: t('alpha7.nav.settings'), children: [
     { to: '/settings/system', label: t('alpha7.nav.system') },
@@ -38,7 +38,8 @@ export const NAVIGATION: NavigationModule[] = [
 export function legacyTarget(path: string, search = ''): string {
   const query = new URLSearchParams(search);
   let target = path;
-  if (['/contracts/list/all', '/contracts/import/json', '/contracts/relations/graph'].includes(path)) return path + search;
+  if (path === '/contracts/import/json' || path === '/changes/transfer') return '/import-export' + search;
+  if (['/contracts/list/all', '/contracts/relations/graph'].includes(path)) return path + search;
   if (path === '/contracts' || path === '/contracts/select/contract') target = '/contracts/list/all';
   else if (/^\/contracts\/[^/]+$/.test(path)) target = path.replace('/contracts/', '/contracts/view/');
   else if (path === '/definitions') target = '/templates/own';

@@ -22,12 +22,12 @@ export default function NotificationsPage() {
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false); const [error, setError] = useState('');
   const settings = noticeSettings(source.config);
-  const change = (value: JsonObject) => doc.edit(current => ({ ...current, config_schema_version: 2, notifications: value }));
+  const change = (value: JsonObject) => doc.edit(current => ({ ...current, config_schema_version: Math.max(2, Number(current.config_schema_version ?? 1)), notifications: value }));
   const save = async () => {
     if (!source.editable) { if (doc.draft) doc.setEditing(true); else setCreating(true); return; }
     setBusy(true); setError('');
     try {
-      await doc.editAndSave(current => ({ ...current, config_schema_version: 2, notifications: noticeSettings(current) }));
+      await doc.editAndSave(current => ({ ...current, config_schema_version: Math.max(2, Number(current.config_schema_version ?? 1)), notifications: noticeSettings(current) }));
     } catch (failure) { setError(describeError(failure)); } finally { setBusy(false); }
   };
   return <>

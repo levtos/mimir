@@ -91,7 +91,7 @@ describe('ValueEditor', () => {
 
   it('the JSON view is optional, shows the same value and never takes over on invalid text', async () => {
     const result = mount({ a: 1 });
-    await user.click(screen.getByText("Erweitert: Daten als JSON"));
+    await user.click(screen.getByText("Technische Details: Daten als JSON"));
     const json = screen.getByLabelText('Wert: JSON');
     expect(JSON.parse((json as HTMLTextAreaElement).value)).toEqual({ a: 1 });
     await user.click(json);

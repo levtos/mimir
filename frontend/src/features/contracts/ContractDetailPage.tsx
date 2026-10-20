@@ -24,6 +24,7 @@ import { ContractSummary } from './ContractSummary';
 import { DeviceWizard } from '@/features/sources/DeviceWizard';
 import { EditorialPanel } from '@/features/editorial/Editorial';
 import { describeError } from '@/lib/api';
+import { ContractExport } from '@/features/registry/ContractExport';
 
 export default function ContractDetailPage() {
   const { contractId = '' } = useParams();
@@ -94,6 +95,7 @@ export default function ContractDetailPage() {
               } catch (failure) { setActionError(describeError(failure)); }
             }}>{uiText(src.editable ? 'alpha9.actions.saveDraft' : 'alpha9.actions.editContract')}</Button>
             {draftOnly ? <Badge tone="info">{uiText('alpha7.contract.state.draft')}</Badge> : <Badge>{enabled ? uiText("features.contracts.ContractDetailPage.aktiviert_acb27b") : uiText("features.contracts.ContractDetailPage.deaktiviert_10f33e")}</Badge>}
+            <ContractExport contractId={contractId} source={src.source === 'draft' ? 'draft' : 'active'} />
             <Button size="sm" onClick={() => navigate(`/settings/diagnostics?contract=${encodeURIComponent(contractId)}`)}><Stethoscope size={14} /> {uiText("features.contracts.ContractDetailPage.diagnose_64dd65")}</Button>
             {src.editable && <Button size="sm" variant="danger" onClick={() => setRemoving(true)}><Trash2 size={14} /> {uiText("features.contracts.ContractDetailPage.entfernen_382837")}</Button>}
           </>
@@ -125,7 +127,7 @@ export default function ContractDetailPage() {
             content: (
               <Panel className="max-w-4xl p-5">
                 <fieldset disabled={!src.editable} className="min-w-0">
-                  <ContractEditor value={contract} pointer={pointer} types={src.types} refs={refs} refreshSources={refreshSources} onChange={(next) => doc.edit((c) => ({ ...setAt(c, pointer, next), ...(next.refresh_plan !== undefined ? { config_schema_version: 2 } : {}) }))} onAddDevice={setDeviceInput} />
+                  <ContractEditor value={contract} pointer={pointer} types={src.types} refs={refs} refreshSources={refreshSources} onChange={(next) => doc.edit((c) => ({ ...setAt(c, pointer, next), ...(next.refresh_plan !== undefined ? { config_schema_version: Math.max(2, Number(c.config_schema_version ?? 1)) } : {}) }))} onAddDevice={setDeviceInput} />
                 </fieldset>
               </Panel>
             ),

@@ -12,7 +12,7 @@ for (const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)) {
   if (!/\bsrc="\.\/assets\//.test(match[1]) || match[2].trim()) problems.push(`inline or non-relative script: ${match[0].slice(0, 80)}`);
 }
 for (const match of html.matchAll(/\b(?:src|href)="([^"]+)"/g)) {
-  if (!match[1].startsWith('./assets/')) problems.push(`non-relative or external reference in index.html: ${match[1]}`);
+  if (!match[1].startsWith('./assets/') && !/^\.\/favicon-(16|32|180)\.png$/.test(match[1])) problems.push(`non-relative or external reference in index.html: ${match[1]}`);
 }
 if (/\son\w+="/.test(html)) problems.push('inline event handler in index.html');
 if (/<style\b/.test(html)) problems.push('inline <style> block in index.html');

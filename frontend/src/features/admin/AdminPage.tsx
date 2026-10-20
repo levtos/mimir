@@ -239,7 +239,7 @@ export default function AdminPage() {
       <PageHeader title={title} description={uiText(section === 'system' ? 'alpha9.system.description' : `alpha9.pages.${section}`)} actions={<Button variant="primary" disabled={section === 'connections' && discovery.isPending} disabledReason={uiText('alpha7.copy.inProgress')} onClick={action}>{uiText(section === 'system' ? 'alpha9.readiness.open' : `alpha9.actions.${actionKey}`)}</Button>} />
       {section === 'system' && <ReadinessPanel />}
       {section === 'installation' && <InstallationPanel />}
-      {section === 'connections' && <div className="space-y-5"><BridgePanel discovery={discovery} /><Panel><PanelHeader title={uiText('alpha7.settings.databaseMqtt')} /><div className="p-5"><KeyValue items={[
+      {section === 'connections' && <div className="space-y-5">{live.service?.mqtt_mode === 'disabled' && live.service.mqtt_external_settings_present === true && <Notice tone="warn">{uiText('alpha10.mqtt.disabledHint')}</Notice>}<BridgePanel discovery={discovery} /><Panel><PanelHeader title={uiText('alpha7.settings.databaseMqtt')} /><div className="p-5"><KeyValue items={[
         { label: uiText('alpha7.settings.database'), value: connectionLabel(live.service?.persistence ?? 'unknown') },
         { label: uiText('alpha7.settings.mqtt'), value: connectionLabel(live.service?.mqtt ?? 'unknown') },
       ]} /></div></Panel><ContextProducersPanel /></div>}
