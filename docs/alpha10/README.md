@@ -1,3 +1,5 @@
+> **A2 von Benni freigegeben, einschließlich K1–K8.** Aktuelle Umsetzung und Nachweise: [ABNAHME.md](ABNAHME.md). Die folgende A1-Planung bleibt als Provenienz. Teil B ist gesperrt.
+
 # Alpha 10 — Design zur Review (Teil A1)
 
 20.10.2026 · Agent: `agent:codex`. **A1 dokumentiert; A2 und B gesperrt.**

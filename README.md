@@ -4,19 +4,15 @@ Core Contracts als **Supervisor-verwaltete Home-Assistant-App**: kanonische fach
 Status, Quality, Freshness, Evidence und Reasons. Dazu kommen Registry mit stabilen IDs, PostgreSQL-Persistenz,
 HA-Bridge Traber und `CoreContractsClient`.
 
-**Stand:** Alpha 8 im Review auf `agent/codex-alpha8-wuschel`. Wuschel erhält den
-neuen Supervisor-Slug `wuschel` und eine eigene Datenbank. Vorlagen dürfen freie
-Kennungen verwenden; die frühere Beschränkung auf `test.*` und Fixtures ist gelöst.
-Die mitgelieferten Beispiele bleiben synthetisch. Release, Installation und reale
-Supervisor-/HA-Abnahme benötigen Bennis Teil-B-Go.
-
-| Phase | Inhalt |
-|---|---|
-| **Alpha 8 — Wuschel** | Zeit/Kalender, Instanzparameter, n-Klassen, Textregeln, Kataloge, Vollständigkeit, Aufbewahrung |
-| **Weitere Domänen und Consumer-Migration** | gesonderte Aufträge; vorhandene Terra-/Legacy-Installationen bleiben erhalten |
+**Stand:** Alpha 10 / 1.0.0a10, A2 zur technischen Review auf `agent/codex-alpha10-wuschel`.
+Wuschel nutzt den eigenen Supervisor-Slug `wuschel`; Traber ist die Integration
+für die HA-Anbindung mit Protokoll 2. G4-Katalogpflege und portable Konfigurations-
+pakete ergänzen die bestehenden Verträge. Alle mitgelieferten Beispiele sind synthetisch.
+Release, neue Datenbank, Installation und Live-Abnahme bleiben Bennis Teil B.
 
 ## Dokumentation
 
+- [Alpha-10-Entscheidungen](docs/alpha10/README.md), [A2-Abnahme](docs/alpha10/ABNAHME.md)
 - [Alpha-8-Auftrag und Entscheidungen](docs/alpha8/README.md), [Abnahme](docs/alpha8/ABNAHME.md)
 - [Namenskonzept](docs/naming.md), [neue Wuschel-Datenbank: vorbereitetes Runbook](docs/operations/wuschel-new-database.md)
 

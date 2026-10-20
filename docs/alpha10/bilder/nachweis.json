@@ -1,0 +1,61 @@
+{
+  "engine": "isolated real API, memory store, synthetic data",
+  "errors": [],
+  "external": [],
+  "shots": [
+    {
+      "file": "01-uebersicht.png",
+      "browser": "Firefox",
+      "version": "157.0",
+      "viewport": [
+        1568,
+        710
+      ]
+    },
+    {
+      "file": "02-leere-vertragsliste.png",
+      "browser": "Firefox",
+      "version": "157.0",
+      "viewport": [
+        1568,
+        710
+      ]
+    },
+    {
+      "file": "03-katalogpflege.png",
+      "browser": "Firefox",
+      "version": "157.0",
+      "viewport": [
+        1568,
+        710
+      ]
+    },
+    {
+      "file": "04-import-export.png",
+      "browser": "Firefox",
+      "version": "157.0",
+      "viewport": [
+        1568,
+        710
+      ]
+    },
+    {
+      "file": "05-versionen.png",
+      "browser": "Firefox",
+      "version": "157.0",
+      "viewport": [
+        1568,
+        710
+      ]
+    },
+    {
+      "file": "06-verbindungen-mqtt.png",
+      "browser": "Firefox",
+      "version": "157.0",
+      "viewport": [
+        1568,
+        710
+      ]
+    }
+  ]
+}
