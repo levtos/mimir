@@ -1,11 +1,13 @@
 """Version ordering belongs to the Supervisor slug read from each historical tag."""
 
+import argparse
 import json
 import re
 import subprocess
 import tomllib
 from importlib.metadata import version
 from pathlib import Path
+from typing import Literal
 
 import yaml
 from awesomeversion import AwesomeVersion
@@ -33,7 +35,14 @@ def tagged_app(root: Path, tag: str) -> dict[str, str]:
     return configs[0]
 
 
-def compare_tags(root: Path, candidate: str, slug: str, tags: list[str]) -> dict:
+def compare_tags(
+    root: Path,
+    candidate: str,
+    slug: str,
+    tags: list[str],
+    *,
+    mode: Literal["ci", "release"] = "release",
+) -> dict:
     errors, comparisons = [], []
     new = AwesomeVersion(candidate)
     if not new.valid or re.search(r"(?:a|b|rc)\d+.*(?:\.post|\.dev)", candidate):
@@ -62,12 +71,14 @@ def compare_tags(root: Path, candidate: str, slug: str, tags: list[str]) -> dict
                     "classification": "gleiche App" if same else "andere App",
                 }
             )
-            if same and not newer:
-                errors.append(f"{candidate} ist nicht neuer als {tag} in Linie {slug}")
+            if same and (not newer if mode == "release" else new < old):
+                relation = "nicht neuer als" if mode == "release" else "kleiner als"
+                errors.append(f"{candidate} ist {relation} {tag} in Linie {slug}")
         except (ValueError, subprocess.CalledProcessError, yaml.YAMLError) as error:
             errors.append(str(error))
     return {
         "candidate": candidate,
+        "mode": mode,
         "slug": slug,
         "awesomeversion": PIN,
         "tag_snapshot": sorted(tags),
@@ -78,6 +89,9 @@ def compare_tags(root: Path, candidate: str, slug: str, tags: list[str]) -> dict
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--mode", choices=("ci", "release"), default="release")
+    args = parser.parse_args()
     if version("awesomeversion") != PIN:
         raise SystemExit(f"awesomeversion=={PIN} erforderlich")
     if git(ROOT, "rev-parse", "--is-shallow-repository").strip() != "false":
@@ -95,7 +109,7 @@ def main() -> None:
             raise SystemExit(f"Tag-Snapshot stimmt nicht mit origin überein: {ref}")
     app = yaml.safe_load((ROOT / "wuschel/config.yaml").read_text(encoding="utf-8"))
     candidate = str(app["version"])
-    report = compare_tags(ROOT, candidate, app["slug"], tags)
+    report = compare_tags(ROOT, candidate, app["slug"], tags, mode=args.mode)
     versions = [
         tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"],
         json.loads((ROOT / "frontend/package.json").read_text(encoding="utf-8"))["version"],

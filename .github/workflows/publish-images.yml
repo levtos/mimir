@@ -26,6 +26,16 @@ jobs:
         run: |
           test "$GITHUB_REF" = "refs/heads/main"
           test "$GITHUB_SHA" = "$EXPECTED_SHA"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          python-version: '3.14.5'
+      - run: uv sync --frozen
+      - name: Require a new release version before building or publishing images
+        run: uv run python dev/verify_postrelease.py --mode release
 
   ci:
     needs: guard

@@ -57,3 +57,19 @@ Zuordnung und kann den Konflikt nicht über einen ungeprüften Schalter umgehen.
 Betroffen: Matrix §7, `dev/verify_postrelease.py`, CI/Tag-/Image-Workflow,
 Release-Anleitung und [ADR 0008](0008-mimir-naming-installation.md).
 Keine Skript-/Tag-/Release-Änderung in A1.
+
+## Ergänzung: normale CI und Release-Pfad (Benni, 20.10.2026)
+
+Normale `pull_request`-/`push`-CI prüft mit `--mode ci`, dass die Version nicht
+kleiner als ein vorhandener Tag derselben Supervisor-Slug-Linie ist. Gleichstand
+ist erlaubt; dadurch brauchen Dokumentations- und Fix-PRs keine neue Version.
+Es gibt keine Pfad-Ausnahmen. Alle Tags, Slug-Metadaten, Versionskonsistenz,
+Suffixregeln und der AwesomeVersion-Pin werden weiterhin geprüft.
+
+Im Release-Pfad bleibt die bisherige strenge Regel bestehen: neuer als **alle**
+Tags derselben Linie. Der Veröffentlichungsworkflow prüft `--mode release` im
+Guard vor den Image-Builds und der Veröffentlichung. Lokal vor dem Taggen gilt
+weiter `uv run python dev/verify_postrelease.py`; ohne Schalter ist der Modus
+immer `release`. Der Bericht nennt den verwendeten Modus. Gleichstand besteht
+nur die normale CI, ein Rückschritt besteht keinen Modus, eine höhere Version
+besteht beide. Diese Ergänzung ersetzt keine früheren Entscheidungen.

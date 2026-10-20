@@ -43,7 +43,7 @@ jobs:
         with:
           python-version: '3.14.5'
       - run: uv sync --frozen
-      - run: uv run python dev/verify_postrelease.py
+      - run: uv run python dev/verify_postrelease.py --mode ci
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy --strict src client/core_contracts_client
