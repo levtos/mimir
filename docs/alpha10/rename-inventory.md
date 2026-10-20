@@ -237,3 +237,33 @@ Keine Trefferzahl ist eine Aufforderung zur globalen Ersetzung. A2 ergänzt neue
 | `tests/test_workbench_api.py` | 10,11,12,13,14,15,16,315 | Technische Imports behalten; aktuelle Namens-/Pfad-Erwartungen anpassen |
 | `tests/test_workbench_ci_lifecycle.py` | 49,65 | Technische Imports behalten; aktuelle Namens-/Pfad-Erwartungen anpassen |
 | `uv.lock` | 236 | Aktive Produktnamen/Pfade/URLs gemäß ADR 0022; technische APIs erhalten |
+
+## A2-Abschlusssuche
+
+Aktuelle Produktionsquellen unter `src`, `custom_components/traber` und
+`frontend/src` erneut nach `mimir|bifrost|bifröst|terra` (ohne Beachtung der
+Großschreibung) durchsucht. Backend und Traber: keine Treffer. Im Frontend
+verbleiben ausschließlich die unten erklärten technischen Kennungen,
+Regressionsmuster und Teilwörter im eingebundenen MDI-Symbolkatalog.
+Sichtbares deutsches Wörterbuch separat mit Regression geprüft; keine alten
+Produktnamen. Befehlsherkunft heißt jetzt `wuschel-workbench`.
+Historische Dokumente und der geschützte Terra-Store bleiben separat erhalten.
+
+| Datei | Zeile am Prüfstand | Einordnung |
+|---|---:|---|
+| `frontend/src/alpha10.test.tsx` | 60 | Regression: alte Wörter ausdrücklich abweisen bzw. technische Bestandskennung prüfen |
+| `frontend/src/alpha9/retention-readiness.test.tsx` | 71 | Regression: alte Wörter ausdrücklich abweisen bzw. technische Bestandskennung prüfen |
+| `frontend/src/assets/mdi/02.json` | 1 | MDI-Symbolkatalog: Teilwörter wie Terrain, kein Produktname |
+| `frontend/src/assets/mdi/23.json` | 1 | MDI-Symbolkatalog: Teilwörter wie Terrain, kein Produktname |
+| `frontend/src/components/PageLoading.tsx` | 6 | Interner Übersetzungsschlüssel; sichtbarer Wert ist Wuschel |
+| `frontend/src/components/PanelLayout.tsx` | 11 | Interner Graph-/Browser-Speicherschlüssel; kein sichtbarer Produktname |
+| `frontend/src/components/RouteError.tsx` | 13 | Interner Übersetzungsschlüssel; sichtbarer Wert ist Wuschel |
+| `frontend/src/components/Shell.tsx` | 63 | Interner Übersetzungsschlüssel; sichtbarer Wert ist Wuschel |
+| `frontend/src/features/authoring/WorkingDocument.tsx` | 76 | Interner Graph-/Browser-Speicherschlüssel; kein sichtbarer Produktname |
+| `frontend/src/features/graph/GraphPage.tsx` | 70 | Interner Graph-/Browser-Speicherschlüssel; kein sichtbarer Produktname |
+| `frontend/src/features/graph/GraphPage.tsx` | 85 | Interner Graph-/Browser-Speicherschlüssel; kein sichtbarer Produktname |
+| `frontend/src/features/sources/useSourceSelection.ts` | 14 | Interner Graph-/Browser-Speicherschlüssel; kein sichtbarer Produktname |
+| `frontend/src/features/sources/useSourceSelection.ts` | 16 | Interner Graph-/Browser-Speicherschlüssel; kein sichtbarer Produktname |
+| `frontend/src/i18n/de.json` | 400 | Interner Übersetzungsschlüssel; sichtbarer Wert ist Wuschel |
+| `frontend/src/i18n/de.json` | 452 | Interner Übersetzungsschlüssel; sichtbarer Wert ist Wuschel |
+| `frontend/src/lib/request-budget.ts` | 11 | Interner Graph-/Browser-Speicherschlüssel; kein sichtbarer Produktname |

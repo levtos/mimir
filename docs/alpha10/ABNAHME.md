@@ -13,25 +13,33 @@ mit K1–K8; keine andere Freigabe wird vorausgesetzt. **Teil B bleibt gesperrt.
 | Herde, lokale Brands, 19 Übersetzungen | 6810aa4, f896c07 | [Manifest](herde-ableitungen.json), zweimal identische Hashes, CI herd-assets |
 | Rein lesender Title-Classifier-Planer | 955c13c | [Öffentliche Summen](titelkatalog-probelauf-summen.json), nur synthetische Fixtures |
 | G4 und atomare portable Importpläne | 3d94ef4, f79d172 | Katalog-/Portable-/PostgreSQL-Regressionen, Migration 007 |
-| Pflegeoberfläche, Import & Export, Textkorrekturen | 262a8df, f896c07 | Frontend 353 bestanden, i18n-Scan 0, sechs Firefox-Bilder |
+| Pflegeoberfläche, Import & Export, Textkorrekturen | 262a8df, f896c07 | Frontend 355 bestanden, i18n-Scan 0, sechs Firefox-Bilder |
+| Auswirkungsvorschau, Restore-Integrität und vollständiger Verlauf | 6ca0191, 1db22b3 | Verspätete Antwort, >1000 Einträge, Seitenwechsel und aktuelle OCC-Basis |
 | K5, Betriebs- und Aufräumanleitung | 73462e4 | 14 Runbook-/Assetprüfungen, AST/bash -n, nie ausgeführt |
 | Control: 18 Originale und Steckbrief | 70b6e83 | SHA-256 aller PNGs gegen freigegebenes ZIP; nur eine Steckbriefzeile geändert |
 
 ## Tests und Grenzen
 
-Lokale Frontend-Suite: 353 bestanden, fünf separate API-E2E-Tests lokal ausgenommen.
+Lokale Frontend-Suite: 355 bestanden, fünf separate API-E2E-Tests lokal ausgenommen.
 TypeScript, JSX-Lint, vollständiger i18n-Scan und dist-Prüfung erfolgreich;
 deutsches Wörterbuch ohne sichtbare Mimir/Terra/Bifröst-Produktnamen.
-Ruff/Format und mypy strict erfolgreich. Der vollständige CI-Lauf des finalen
-PR-Heads muss erfolgreich sein; der verifizierte Abschluss steht im PR und in
-der abschließenden Übergabe. [CI](https://github.com/levtos/wuschel/actions/workflows/ci.yml).
+Lokale Backend-Suite: 704 bestanden, 25 umgebungsabhängige Tests ausgenommen.
+Ruff/Format und mypy strict erfolgreich. Der vollständige CI-Lauf ist die abschließende
+Prüfung. Der verbindliche Head samt erfolgreichem Lauf steht im PR-Abschlussvermerk
+und in der abschließenden Übergabe; laufende Jobs gelten nicht als bestanden. [CI](https://github.com/levtos/wuschel/actions/workflows/ci.yml).
 PostgreSQL-Tests laufen isoliert gegen Version 18; keine Verbindung zu LXC 108.
 Beide Architekturimages werden nur gebaut/geprüft; CI publiziert kein Image.
 
 Katalog: Negative Lookups, Masterfolgen, gleichwertige Elternwechsel, OCC,
 Idempotenz/Neustart, gezielte Temporal-Slots, unabhängige Maschinen im selben
 Vertrag, Befehls-Guards, Sitzungssperre bei geänderter Basis, Commitfehler und
-Historienrücknahme als neue Revision. Sichtungen zählen nur neue Quellreports;
+Historienrücknahme als neue Revision. Vorschau an den genauen Formularinhalt
+gebunden; verspätete Antworten geben geänderte Eingaben nicht frei. Restore
+prüft den Head gegen die unveränderliche Eintragshistorie. Dedizierte vollständige
+Katalogabfragen umgehen die 100-/1000-Zeilen-Grenze allgemeiner Diagnoseabfragen.
+Der PostgreSQL-Neustarttest umfasst 1.101 synthetische Einträge. Der Verlauf wird
+katalogweise mit Revisionscursor geblättert; Rücknahme verwendet auch auf älteren
+Seiten den aktuellen Head als OCC-Basis. Sichtungen zählen nur neue Quellreports;
 keine neue Messzeit, künstliche Flanke, Grace oder Sitzung durch Pflege.
 Import: volle und abgeschlossene Teilkonfiguration, exakter eigener Zielentwurf,
 Referenzabbildung, Kategorien/Räume, Kopf-/Entwurfs-/Aktivierungsraces,
@@ -43,11 +51,13 @@ mehr als 100 Zeilen. Adressen können vor Übernahme im geführten Entwurf angep
 Firefox, 1568×710, DPR 1, de-DE, Europe/Berlin. Reale API mit MemoryStore und
 synthetischer Konfiguration auf Loopback. Keine externen Browseranfragen oder
 JavaScript-Fehler; [maschinenlesbarer Nachweis](bilder/nachweis.json).
-Alle sechs Aufnahmen wurden visuell geprüft.
+Die sechs geforderten Ansichten und der zusätzliche Zuordnungsdialog wurden visuell geprüft.
 
 - [Übersicht mit Figur](bilder/01-uebersicht.png)
 - [Leere Vertragsliste](bilder/02-leere-vertragsliste.png)
 - [Katalogpflege](bilder/03-katalogpflege.png)
+- [Zuordnungsdialog mit schreibfreier Auswirkungsvorschau](bilder/07-katalog-zuordnung.png)
+- [Zuordnungsdialog mit schreibfreier Auswirkungsvorschau](bilder/07-katalog-zuordnung.png)
 - [Import & Export](bilder/04-import-export.png)
 - [Konfigurationen mit Technische Details](bilder/05-versionen.png)
 - [Verbindungen mit genauem MQTT-Hinweis](bilder/06-verbindungen-mqtt.png)
