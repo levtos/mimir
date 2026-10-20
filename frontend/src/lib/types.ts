@@ -23,6 +23,8 @@ export interface ServiceState {
   ha: string;
   bridge: string;
   mqtt: string;
+  mqtt_mode?: 'disabled' | 'supervisor' | 'external' | null;
+  mqtt_external_settings_present?: boolean | null;
   reasons: string[];
   conditions?: { code: string; satisfied: boolean | null }[];
   ha_disconnected_since?: string | null;

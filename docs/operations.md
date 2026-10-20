@@ -1,7 +1,7 @@
-# Betrieb: Mimir
+# Betrieb: Wuschel
 
 Alpha 8 erlaubt eigene Vorlagen und Verträge ohne Test-Namensraum. Die Beispiele
-bleiben synthetisch. Mimir wird als neue App mit Slug `mimir` installiert; Terra
+bleiben synthetisch. Wuschel wird als neue App mit Slug `wuschel` installiert; Terra
 und die alte Bridge bleiben erhalten. Für jede Installation: eigene logische PostgreSQL-DB,
 eigene DB-Rolle und eigene Tokens. Keine Verbindung zur Legacy-DB herstellen.
 Die folgenden Installationsschritte sind eine Betriebsvorlage, keine Freigabe:
@@ -24,11 +24,11 @@ Aufforderung, die bestehenden produktiven Optionen zu ändern.
    (Migrationen benötigen auch CREATE/ALTER und Index-Erstellung). Die Rolle
    muss die unten genannten Session-Settings beim Verbindungsaufbau setzen dürfen.
    Zugangsdaten außerhalb des Repository verwahren.
-2. Bifröst aus `custom_components/bifrost` über HACS
+2. Traber aus `custom_components/traber` über HACS
    oder manuell installieren und einmal in HA hinzufügen. Keine Entities oder
    Services entstehen. Keine Registry-Konfiguration gehört in die Bridge.
 3. Für die Installation aus dem GitHub-App-Repository müssen beide in
-   `mimir/config.yaml` referenzierten GHCR-Images öffentlich
+   `wuschel/config.yaml` referenzierten GHCR-Images öffentlich
    verfügbar sein. Den aktuellen [Veröffentlichungs- und anonymen Pull-Nachweis](publishing.md)
    prüfen; eine grüne Build-CI allein genügt nicht. Für einen separaten lokalen
    Supervisor-Build `uv run python dev/stage_app.py <neues-ziel>` ausführen.
@@ -190,3 +190,39 @@ DBs. Ohne DSN werden sie mit `skipped: environment` ausgewiesen.
 läuft im separaten CI-Environment mit gepinnter Home-Assistant-Version.
 `uv run python dev/resource_probe.py` reproduziert die isolierte Idle-Messung.
 Dev-Compose benötigt eine nicht eingecheckte Datei `dev/secrets/postgres_password`.
+
+## Alte Apps und Bifröst nach Abnahme
+
+Erst nach Abnahme und Bennis gesondertem Go; Benni entfernt die alten Komponenten
+selbst. Vorher HA-Sicherung und externen DB-Rückweg prüfen. Legacy
+benni_core_contracts 0.2.4 bleibt unberührt.
+
+1. Bifröst-Eintrag unter Einstellungen → Geräte & Dienste entfernen.
+2. HACS: Das bisherige Paket folgt dem umbenannten Repo levtos/mimir
+   (HACS-ID 1409323489) und ist als Commit f039081 installiert, nicht als Release.
+   Altes Paket entfernen; keine zweite Repositoryidentität erfinden.
+3. Repo levtos/wuschel auswählen, „Beta-Versionen anzeigen“ einschalten und
+   Traber gezielt als Release v1.0.0a10 laden. Nicht nur den neuesten Commit wählen.
+   HACS-Name Traber; Dateipfad custom_components/traber.
+4. Falls übrig: Benni entfernt genau custom_components/bifrost. Keine Änderung
+   an .storage oder anderen Integrationen. Konfigurationsprüfung und geplanter
+   HA-Neustart erst im autorisierten Teil B.
+5. Mimir 1.0.0a9 zeigt danach „HA-Anbindung getrennt“. Das ist erwartet:
+   Die App bleibt installiert und unverändert, ihr Transport wurde entfernt.
+6. Alte mimir_<alte UUID>_signal/configuration-Hinweise nur falls vorhanden
+   einzeln entfernen. Stand 20.10.2026, Benni/Claude: keine vorhanden.
+   Kein dismiss_all, keine Wildcards oder fremden UUIDs.
+7. Terra und Mimir erst nach ausdrücklicher Abnahme von Benni deinstallieren;
+   Sicherungen behalten. Keine automatische Deinstallation/DB-Löschung.
+   Alte DB mimir bis Beta-Abnahme behalten, Löschen nur mit gesondertem Go
+   gemäß [Runbook](operations/wuschel-new-database.md).
+
+### Verbindungsdaten und MQTT-Abnahme in Teil B
+
+Benni überträgt Datenbank-Host und öffentlichen CA-Pfad selbst von Mimir;
+Codex liest keine App-Optionen. TLS bleibt verify-full.
+MQTT: Benni wählt external und trägt die im privaten Betriebsblatt festgelegten
+Brokerdaten samt Benutzer/Passwort selbst ein. Testnachricht über HA-Aktion
+mqtt.publish auf wuschel/test/abnahme; kein mosquitto_pub mit Passwort in der Shell.
+Nachweis: Verbindungen meldet verbunden und die synthetische Testquelle liefert
+den veröffentlichten Wert. Kein Teil-B-Schritt wird in A2 ausgeführt.

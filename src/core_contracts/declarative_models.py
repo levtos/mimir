@@ -280,6 +280,17 @@ class ConfigurationHintRule(Model):
     message: str = Field(default="", max_length=256)
 
 
+class ManagedCatalogRule(DeclarativeModel):
+    op: Literal["managed_catalog_lookup"]
+    catalog_id: str
+    definition_version: int = Field(ge=1)
+    scope: Rule
+    media_type: Rule
+    signal_type: Rule
+    key: Rule
+    field_schema: FieldSchema = Field(alias="schema")
+
+
 class TextRule(Model):
     op: Literal["lower", "strip", "normalize_key", "matches", "contains", "compound_key"]
     args: tuple[Rule, ...] = Field(min_length=1, max_length=MAX_INPUTS)
@@ -314,7 +325,8 @@ Rule = Annotated[
     | TimeReachedRule
     | KnownAutomaticRule
     | TextRule
-    | ConfigurationHintRule,
+    | ConfigurationHintRule
+    | ManagedCatalogRule,
     Field(discriminator="op"),
 ]
 
@@ -444,7 +456,7 @@ class MachineDefinition(Model):
 class DeclarativeDefinition(DeclarativeModel):
     type_id: str = Field(pattern=r"^[a-zA-Z][a-zA-Z0-9_-]*\.[a-zA-Z0-9_.-]+$", max_length=128)
     type_version: int = Field(ge=1)
-    language_version: Literal[1, 2, 3] = 1
+    language_version: Literal[1, 2, 3, 4] = 1
     display_name: str = ""
     description: str = ""
     inputs: tuple[TypedInput, ...] = Field(default=(), max_length=MAX_INPUTS)
@@ -550,6 +562,7 @@ for _model in (
     KnownAutomaticRule,
     TextRule,
     ConfigurationHintRule,
+    ManagedCatalogRule,
     DeclarativeDefinition,
 ):
     _model.model_rebuild()

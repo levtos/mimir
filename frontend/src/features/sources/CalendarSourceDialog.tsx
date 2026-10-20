@@ -29,7 +29,7 @@ export function planCalendar(config: JsonObject, entity: string, name: string, s
     freshness: { mode: 'periodic_ttl', interval_s: settings.validMinutes*60, future_tolerance_s: 0 } });
   bindings.push({ binding_id: uniqueName(`binding.${entity.replace('.', '_')}`, bindings.map(item => str(item.binding_id))), source_id: sourceId,
     adapter: { kind: 'ha_calendar', ha_entity_id: entity, window: { timezone: 'Europe/Berlin', past_days: settings.past, future_days: settings.future }, refresh_s: settings.refreshMinutes*60, max_age_s: settings.validMinutes*60 } });
-  return { config: { ...next, config_schema_version: 2, sources, bindings, dependencies }, sourceIndex: sources.length-1 };
+  return { config: { ...next, config_schema_version: Math.max(2, Number(next.config_schema_version ?? 1)), sources, bindings, dependencies }, sourceIndex: sources.length-1 };
 }
 
 export function CalendarFields({ value, onChange }: { value: CalendarSettings; onChange: (value: CalendarSettings) => void }) {

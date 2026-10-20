@@ -146,7 +146,7 @@ describe('evidence references are opaque and may legitimately be missing', () =>
     const api = installFakeApi();
     api.routes.push({ match: /^evidence\/reference\//, respond: (path) => reply(404, { error: 'evidence_not_found', reference: decodeURIComponent(path.split('/').pop()!) }) });
     wrap(<EvidenceTab />);
-    await user.click(screen.getByRole('button', { name: "Erweitert: gespeicherten Nachweis suchen" }));
+    await user.click(screen.getByRole('button', { name: "Technische Details: gespeicherten Nachweis suchen" }));
     await user.type(screen.getByLabelText("Kennung des Nachweises"), 'v2:e:7:ha:12:binding.a');
     await user.click(screen.getByRole('button', { name: 'Auflösen' }));
     await screen.findByText('Kein gespeicherter Nachweis');
@@ -174,7 +174,7 @@ describe('commands are typed, confirmed and idempotent', () => {
     await screen.findByText('angenommen');
     const body = api.calls.find((c) => c.path === 'commands')!.body as Record<string, unknown>;
     expect(body.command_id).toMatch(/^[0-9a-f-]{36}$/);
-    expect(body.origin).toEqual({ kind: 'workbench', actor: 'admin', client_name: 'terra-workbench' });
+    expect(body.origin).toEqual({ kind: 'workbench', actor: 'admin', client_name: 'wuschel-workbench' });
     const issued = Date.parse(body.issued_at as string);
     const until = Date.parse(body.valid_until as string);
     expect(until - issued).toBe(30_000);

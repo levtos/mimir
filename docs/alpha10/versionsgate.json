@@ -1,0 +1,83 @@
+{
+  "candidate": "1.0.0a10",
+  "slug": "wuschel",
+  "awesomeversion": "25.8.0",
+  "tag_snapshot": [
+    "v1.0.0a3",
+    "v1.0.0a4",
+    "v1.0.0a5",
+    "v1.0.0a6",
+    "v1.0.0a7",
+    "v1.0.0a7.post1",
+    "v1.0.0a8",
+    "v1.0.0a9"
+  ],
+  "comparisons": [
+    {
+      "tag": "v1.0.0a3",
+      "version": "1.0.0a3",
+      "newer": true,
+      "slug_lineage": "core_contracts",
+      "config_path": "core_contracts/config.yaml",
+      "classification": "andere App"
+    },
+    {
+      "tag": "v1.0.0a4",
+      "version": "1.0.0a4",
+      "newer": true,
+      "slug_lineage": "core_contracts",
+      "config_path": "core_contracts/config.yaml",
+      "classification": "andere App"
+    },
+    {
+      "tag": "v1.0.0a5",
+      "version": "1.0.0a5",
+      "newer": true,
+      "slug_lineage": "core_contracts",
+      "config_path": "core_contracts/config.yaml",
+      "classification": "andere App"
+    },
+    {
+      "tag": "v1.0.0a6",
+      "version": "1.0.0a6",
+      "newer": true,
+      "slug_lineage": "core_contracts",
+      "config_path": "core_contracts/config.yaml",
+      "classification": "andere App"
+    },
+    {
+      "tag": "v1.0.0a7",
+      "version": "1.0.0a7",
+      "newer": true,
+      "slug_lineage": "core_contracts",
+      "config_path": "core_contracts/config.yaml",
+      "classification": "andere App"
+    },
+    {
+      "tag": "v1.0.0a7.post1",
+      "version": "1.0.0a7.post1",
+      "newer": false,
+      "slug_lineage": "core_contracts",
+      "config_path": "core_contracts/config.yaml",
+      "classification": "andere App"
+    },
+    {
+      "tag": "v1.0.0a8",
+      "version": "1.0.0a8",
+      "newer": true,
+      "slug_lineage": "mimir",
+      "config_path": "mimir/config.yaml",
+      "classification": "andere App"
+    },
+    {
+      "tag": "v1.0.0a9",
+      "version": "1.0.0a9",
+      "newer": true,
+      "slug_lineage": "mimir",
+      "config_path": "mimir/config.yaml",
+      "classification": "andere App"
+    }
+  ],
+  "errors": [],
+  "passed": true
+}

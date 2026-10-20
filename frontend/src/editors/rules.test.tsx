@@ -67,7 +67,7 @@ describe('operators beyond the example', () => {
     const result = mount({ ...newDefinition('test.u', 1), outputs: { value: { op: 'future_op', x: 1 } } });
     await user.click(screen.getByRole('tab', { name: /Ausgaben/ }));
     expect(within(node(root)).getAllByRole('combobox', { name: /^Rechenschritt/ })[0]).toHaveValue('future_op');
-    expect(screen.getByText("Unbekannter Rechenschritt – Daten unter Erweitert prüfen")).toBeInTheDocument();
+    expect(screen.getByText("Unbekannter Rechenschritt – Daten unter Technische Details prüfen")).toBeInTheDocument();
     expect((result().outputs as JsonObject).value).toEqual({ op: 'future_op', x: 1 });
   });
 

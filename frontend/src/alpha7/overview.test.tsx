@@ -95,8 +95,8 @@ it('uses status colors for known counts and equally sized quick actions', async 
   expect(screen.getByRole('link', { name: '1 ausgeschaltet' }).querySelector('span')).toHaveClass('text-muted');
   expect(screen.getByRole('link', { name: '1 eingeschaltet' }).querySelector('span')).toHaveClass('text-fg');
   await user.click(screen.getByRole('button', { name: 'Bearbeiten' }));
-  const apply = await screen.findByRole('button', { name: 'Änderungen übernehmen' });
-  for (const action of [apply, screen.getByRole('button', { name: 'Neuer Vertrag' }), screen.getByRole('button', { name: 'Vertrag importieren' })]) expect(action).toHaveClass('h-9');
+  expect(screen.queryByRole('button', { name: 'Änderungen übernehmen' })).not.toBeInTheDocument();
+  for (const action of [screen.getByRole('button', { name: 'Neuer Vertrag' }), screen.getByRole('button', { name: 'Import & Export' })]) expect(action).toHaveClass('h-9');
 });
 
 it.each(['healthy', 'degraded'] as const)('uses current %s publications instead of stale polled problem details', async health => {

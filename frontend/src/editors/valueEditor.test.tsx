@@ -31,7 +31,7 @@ describe('ValueEditor', () => {
     await user.click(screen.getByRole('button', { name: 'Wert: Eigenschaft hinzufügen' }));
     await type(screen.getByLabelText('Wert: Schlüssel 1'), 'name');
     await user.tab();
-    await type(screen.getByLabelText('Wert.name'), 'Terra');
+    await type(screen.getByLabelText('Wert.name'), 'Wuschel');
     await user.click(screen.getByRole('button', { name: 'Wert: Eigenschaft hinzufügen' }));
     await type(screen.getByLabelText('Wert: Schlüssel 2'), 'liste');
     await user.tab();
@@ -45,7 +45,7 @@ describe('ValueEditor', () => {
     await user.selectOptions(screen.getByLabelText('Wert.liste[2].schluessel1: Typ'), 'boolean');
     await user.click(screen.getByRole('button', { name: 'Wert.liste: Element hinzufügen' }));
     await user.selectOptions(screen.getByLabelText('Wert.liste[3]: Typ'), 'null');
-    expect(result()).toEqual({ name: 'Terra', liste: [42, { schluessel1: false }, null] });
+    expect(result()).toEqual({ name: 'Wuschel', liste: [42, { schluessel1: false }, null] });
   });
 
   it('opens an existing structure with its real types and edits one leaf without touching the rest', async () => {
@@ -91,7 +91,7 @@ describe('ValueEditor', () => {
 
   it('the JSON view is optional, shows the same value and never takes over on invalid text', async () => {
     const result = mount({ a: 1 });
-    await user.click(screen.getByText("Erweitert: Daten als JSON"));
+    await user.click(screen.getByText("Technische Details: Daten als JSON"));
     const json = screen.getByLabelText('Wert: JSON');
     expect(JSON.parse((json as HTMLTextAreaElement).value)).toEqual({ a: 1 });
     await user.click(json);

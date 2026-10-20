@@ -1,15 +1,15 @@
 # GHCR-Veröffentlichung und Supervisor-Packaging
 
-Alpha 8 vorbereitet; Veröffentlichung erst nach Bennis Teil-B-Go und Repo-Umbenennung. [Issue #5](https://github.com/levtos/mimir/issues/5).
+Alpha 8 vorbereitet; Veröffentlichung erst nach Bennis Teil-B-Go und Repo-Umbenennung. [Issue #5](https://github.com/levtos/wuschel/issues/5).
 Ein erfolgreicher Image-Build allein belegt keine Installierbarkeit. Die
-Konfiguration `mimir/config.yaml` verlangt diese öffentlichen Images:
+Konfiguration `wuschel/config.yaml` verlangt diese öffentlichen Images:
 
 | Supervisor-Architektur | Docker-Plattform | Image |
 |---|---|---|
-| amd64 | linux/amd64 | ghcr.io/levtos/amd64-mimir:1.0.0a8 |
-| aarch64 | linux/arm64 | ghcr.io/levtos/aarch64-mimir:1.0.0a8 |
+| amd64 | linux/amd64 | ghcr.io/levtos/amd64-wuschel:1.0.0a8 |
+| aarch64 | linux/arm64 | ghcr.io/levtos/aarch64-wuschel:1.0.0a8 |
 
-`{arch}` wird mit dem Supervisor-Namen ersetzt; `arm64-mimir` wäre
+`{arch}` wird mit dem Supervisor-Namen ersetzt; `arm64-wuschel` wäre
 für die zweite Zeile falsch. Version und Image-Vorlage kommen aus der
 Supervisor-Konfiguration; die Python-Paketversion muss dazu passen.
 
@@ -30,8 +30,8 @@ trennen Vorbereitung, GHCR-Publikation und Live-Abnahme. Frühere Stände:
    Beispiel mit ersetztem SHA-Platzhalter:
 
    ```sh
-   gh api repos/levtos/mimir/commits/main --jq .sha
-   gh workflow run publish-images.yml --repo levtos/mimir --ref main -f expected_sha=REPLACE_WITH_FULL_MAIN_SHA
+   gh api repos/levtos/wuschel/commits/main --jq .sha
+   gh workflow run publish-images.yml --repo levtos/wuschel --ref main -f expected_sha=REPLACE_WITH_FULL_MAIN_SHA
    ```
 
 3. Der Workflow führt die **vollständige bestehende CI** als wiederverwendbaren
@@ -56,12 +56,12 @@ anonymen Pull-Jobs fehlschlagen.
 
 Ein Package-Admin prüft für **beide** Pakete in GitHub:
 
-1. Organisation **levtos → Packages → amd64-mimir** beziehungsweise
-   **aarch64-mimir → Package settings**.
+1. Organisation **levtos → Packages → amd64-wuschel** beziehungsweise
+   **aarch64-wuschel → Package settings**.
 2. Unter **Danger Zone → Change visibility → Public** die Sichtbarkeit ändern.
    GitHub erlaubt danach keinen Wechsel zurück auf privat.
 3. Falls der Push bereits an Berechtigungen scheitert: unter **Manage Actions
-   access** das Repository `levtos/mimir` mit Write-Zugriff freigeben.
+   access** das Repository `levtos/wuschel` mit Write-Zugriff freigeben.
    Die Workflow-Images tragen bereits das passende Source-Label; bei neu
    erzeugten Paketen wird der Workflow automatisch mit dem Repository verbunden.
 4. Nach einer Sichtbarkeitskorrektur **nur die fehlgeschlagenen Jobs desselben
@@ -69,7 +69,7 @@ Ein Package-Admin prüft für **beide** Pakete in GitHub:
    unverändert:
 
    ```sh
-   gh run rerun RUN_ID --failed --repo levtos/mimir
+   gh run rerun RUN_ID --failed --repo levtos/wuschel
    ```
 
 Die Sichtbarkeit wird nicht durch einen undokumentierten API-Aufruf geändert.
@@ -93,7 +93,7 @@ Quellen:
   Entrypoint, installierte Python-Paketversion, Ports und Liveness-Healthcheck.
 
 Der Docker-Build-Kontext ist der **Repository-Root**, das Dockerfile
-`mimir/Dockerfile`. Er umfasst Backend/Lockfile, Frontend, Migrationen
+`wuschel/Dockerfile`. Er umfasst Backend/Lockfile, Frontend, Migrationen
 und rootfs. Der Supervisor zieht bei gesetztem `image:` das fertige Image;
 er baut diesen Repository-Checkout nicht lokal. Dockerfile-Buildargumente sind
 `BUILD_VERSION`, `BUILD_ARCH` und `SOURCE_REVISION`. Die ersten beiden Namen

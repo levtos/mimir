@@ -21,7 +21,7 @@ export function planManual(config: JsonObject, name: string, schema: FieldSchema
     dependency_id: dep.dependency_id!, physical_source_key: uniqueName('manual.angabe', sources.map(item => str(item.physical_source_key))), value_schema: schema,
     freshness: seconds === null ? { mode: 'event_stateful', future_tolerance_s: 0 } : { mode: 'periodic_ttl', interval_s: seconds, future_tolerance_s: 0 } });
   bindings.push({ binding_id: uniqueName('binding.angabe', bindings.map(item => str(item.binding_id))), source_id: sourceId, adapter: { kind: 'manual' } });
-  return { config: { ...next, config_schema_version: 2, sources, bindings, dependencies }, sourceIndex: sources.length - 1 };
+  return { config: { ...next, config_schema_version: Math.max(2, Number(next.config_schema_version ?? 1)), sources, bindings, dependencies }, sourceIndex: sources.length - 1 };
 }
 
 export function ManualSourceDialog({ open, onOpenChange, onAdded }: { open: boolean; onOpenChange: (open: boolean) => void; onAdded: (index: number) => void }) {

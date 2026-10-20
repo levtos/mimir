@@ -1,0 +1,58 @@
+configuration:
+  postgres_host:
+    name: "Datenbank-Host"
+    description: "Zertifizierter Hostname deiner PostgreSQL-Datenbank. Er muss zum Zertifikat passen."
+  postgres_port:
+    name: "Datenbank-Port"
+    description: "Port deiner PostgreSQL-Datenbank, normalerweise 5432."
+  postgres_database:
+    name: "Datenbankname"
+    description: "Name der eigenen Wuschel-Datenbank."
+  postgres_user:
+    name: "Datenbank-Benutzer"
+    description: "Eigene Rolle für Wuschel, ohne Administratorrechte."
+  postgres_password:
+    name: "Datenbank-Passwort"
+    description: "Passwort der Wuschel-Rolle. Gib es hier selbst ein und teile es nicht in Nachweisen."
+  postgres_sslmode:
+    name: "Datenbank-Verschlüsselung"
+    description: "verify-full prüft Verschlüsselung, Zertifikat und Hostnamen. require prüft den Hostnamen nicht; disable schaltet TLS aus. Für deinen Betrieb gilt verify-full."
+  postgres_ca:
+    name: "Datenbank-Zertifikat"
+    description: "Pfad zur öffentlichen CA-Datei unter /ssl, mit der Wuschel den Datenbankserver prüft. Kein privater Schlüssel."
+  installation_label:
+    name: "Name dieser Installation"
+    description: "Freier Anzeigename, damit du deine Installation erkennst. Keine technische Kennung."
+  initialize_empty_database:
+    name: "Leere Datenbank erstmalig einrichten"
+    description: "Nur für den ersten Start mit neuer leerer Datenbank einschalten. Danach wieder ausschalten."
+  adopt_installation_id:
+    name: "Vorhandene Installationskennung übernehmen"
+    description: "Nur für einen ausdrücklich geplanten Wiederherstellungsfall. Bei der neuen Wuschel-Installation leer lassen."
+  mqtt_mode:
+    name: "MQTT-Modus"
+    description: "disabled = ausgeschaltet; supervisor = Mosquitto-App in Home Assistant, Zugangsdaten automatisch; external = eigener Broker mit den folgenden Daten. Die Auswahl zeigt diese Werte unverändert."
+  mqtt_host:
+    name: "MQTT-Host"
+    description: "Hostname deines eigenen Brokers; nur bei external verwendet."
+  mqtt_port:
+    name: "MQTT-Port"
+    description: "Port deines eigenen Brokers; nur bei external verwendet."
+  mqtt_username:
+    name: "MQTT-Benutzer"
+    description: "Benutzer deines eigenen Brokers; nur bei external verwendet."
+  mqtt_password:
+    name: "MQTT-Passwort"
+    description: "Passwort deines eigenen Brokers; nur bei external verwendet."
+  mqtt_tls:
+    name: "MQTT verschlüsseln"
+    description: "TLS für deinen eigenen Broker einschalten. Der Hostname muss zum Zertifikat passen."
+  mqtt_ca:
+    name: "MQTT-Zertifikat"
+    description: "Optionaler Pfad zur öffentlichen CA-Datei deines Brokers; kein privater Schlüssel."
+  log_level:
+    name: "Umfang des Protokolls"
+    description: "INFO für den normalen Betrieb; DEBUG nur gezielt zur Fehlersuche. Zugangsdaten werden nie protokolliert."
+  log_format:
+    name: "Format des Protokolls"
+    description: "text ist gut lesbar; json ist für die technische Auswertung gedacht."

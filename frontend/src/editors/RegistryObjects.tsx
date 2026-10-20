@@ -431,15 +431,25 @@ export function CatalogEditor({ value, onChange, pointer }: { value: JsonObject;
   const entries = Object.entries(asObject(value.entries));
   const setEntries = (next: [string, Json][]) => onChange({ ...value, entries: Object.fromEntries(next) });
   const keys = new Set(entries.map(([k]) => k));
+  const kindField = <Fld label={uiText('alpha10.catalog.kind')} pointer={join(pointer, 'kind')}>{p => <Select {...p} value={str(value.kind)} onChange={e => {
+    if (e.target.value === 'managed') onChange({ catalog_id: value.catalog_id ?? '', version: value.version ?? 1, kind: 'managed', identity_rule: { version: 1, fields: ['scope', 'media_type', 'signal_type', 'normalized_key'], normalizer: 'normalize_key' }, classification_schema: { type: 'enum', values: ['other'] }, unassigned_value: 'other', master_depth: 1 });
+    else onChange({ catalog_id: value.catalog_id ?? '', version: value.version ?? 1, kind: 'map', entries: {} });
+  }}><option value="map">{uiText('alpha10.catalog.inline')}</option><option value="managed">{uiText('alpha10.catalog.managed')}</option></Select>}</Fld>;
+  if (value.kind === 'managed') return <div className="space-y-4">
+    <Fld label={uiText('editors.RegistryObjects.katalog_id_e6aea3')} pointer={join(pointer, 'catalog_id')}>{p => <Input {...p} value={str(value.catalog_id)} onChange={e => set({ catalog_id: e.target.value })} />}</Fld>
+    {kindField}
+    <NumberField label={uiText('editors.RegistryObjects.version_dd1679')} pointer={join(pointer, 'version')} min={1} step={1} value={Number(value.version ?? 1)} onChange={n => set({ version: Math.max(1, Math.trunc(n)) })} />
+    <Fld label={uiText('alpha10.catalog.classes')} pointer={join(pointer, 'classification_schema')}>{p => <Textarea {...p} value={asArray(asObject(value.classification_schema).values).map(str).join('\n')} onChange={e => set({ classification_schema: { type: 'enum', values: e.target.value.split('\n') } })} />}</Fld>
+    <Fld label={uiText('alpha10.catalog.default')} pointer={join(pointer, 'unassigned_value')}>{p => <Select {...p} value={str(value.unassigned_value)} onChange={e => set({ unassigned_value: e.target.value })}>{asArray(asObject(value.classification_schema).values).map(str).map(name => <option key={name} value={name}>{name}</option>)}</Select>}</Fld>
+    <p className="text-sm text-muted">{uiText('alpha10.catalog.definitionHelp')}</p>
+  </div>;
   return (
     <div className="flex flex-col gap-4">
       <div className="grid gap-3 sm:grid-cols-3">
         <Fld label={uiText("editors.RegistryObjects.katalog_id_e6aea3")} pointer={join(pointer, 'catalog_id')}>
           {(p) => <Input {...p} value={str(value.catalog_id)} onChange={(e) => set({ catalog_id: e.target.value })} />}
         </Fld>
-        <Fld label={uiText("editors.RegistryObjects.art_75df35")} pointer={join(pointer, 'kind')}>
-          {(p) => <Input {...p} readOnly disabled value="map" />}
-        </Fld>
+        {kindField}
         <NumberField label={uiText("editors.RegistryObjects.version_dd1679")} pointer={join(pointer, 'version')} min={1} step={1} value={Number(value.version ?? 1)} onChange={(n) => set({ version: Math.max(1, Math.trunc(n)) })} />
       </div>
       <SectionTitle

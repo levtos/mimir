@@ -1,5 +1,9 @@
 # ADR 0008 — Mimir, Bifröst und neue Installation
 
+**Fortschreibung Alpha 10:** [ADR 0022](0022-wuschel-traber-naming.md) ersetzt
+diese Entscheidung für neue Wuschel-/Traber-Installationen einschließlich der
+damaligen Slug-/Modulnamenplanung. Die folgenden Alpha-8-Belege bleiben historisch.
+
 Datum: 17.10.2026. **Benni beschließt neuen Slug jetzt in Alpha 8, erste Version
 `1.0.0a8`**. Technische Umstellung: Claude-Review freigegeben, Umsetzung A2.
 Bezug: [#24](https://github.com/Levtos/core_contract_app/issues/24),

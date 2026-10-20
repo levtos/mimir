@@ -7,11 +7,26 @@ on:
 permissions:
   contents: read
 jobs:
+  herd-assets:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: levtos/control
+          ref: 70b6e83b26a930632c7b2430fb6d5b955ec63158
+          path: herd-originals
+          sparse-checkout: assets/herde
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          python-version: '3.14.5'
+      - run: uv sync --frozen
+      - run: uv run python dev/verify_herd_rebuild.py herd-originals/assets/herde
   platform:
     runs-on: ubuntu-24.04
     services:
       postgres:
-        image: postgres:17-bookworm
+        image: postgres:18-bookworm
         env:
           POSTGRES_USER: core_contracts_test
           POSTGRES_PASSWORD: ephemeral-test-only
@@ -91,7 +106,7 @@ jobs:
         working-directory: frontend
       - name: Workbench end-to-end
         run: |
-          port="${MIMIR_E2E_PORT:-8123}"
+          port="${WUSCHEL_E2E_PORT:-8123}"
           .venv/bin/python dev/workbench_demo.py --feed --interval 1 --port "$port" > /tmp/workbench-demo.log 2>&1 &
           engine_pid=$!
           cleanup() {
@@ -109,7 +124,7 @@ jobs:
             sleep 1
           done
           test "$ready" = true
-          MIMIR_E2E_URL="http://127.0.0.1:$port" npm --prefix frontend run test:e2e
+          WUSCHEL_E2E_URL="http://127.0.0.1:$port" npm --prefix frontend run test:e2e
       - name: Engine log
         if: failure()
         run: tail -n 80 /tmp/workbench-demo.log
@@ -146,7 +161,7 @@ jobs:
       - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
-          file: mimir/Dockerfile
+          file: wuschel/Dockerfile
           platforms: ${{ matrix.platform }}
           build-args: |
             BUILD_VERSION=${{ steps.package.outputs.version }}

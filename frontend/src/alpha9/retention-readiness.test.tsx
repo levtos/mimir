@@ -43,10 +43,10 @@ it('shows database-dependent and unrecognized failed conditions as uncheckable w
 });
 
 it('derives Alpha and Beta from the actual program version and adds no stage to other versions', () => {
-  expect(programVersion('1.0.0a9')).toBe('Mimir 1.0.0a9 (Alpha 9)');
-  expect(programVersion('1.0.0b1')).toBe('Mimir 1.0.0b1 (Beta 1)');
-  expect(programVersion('1.0.0')).toBe('Mimir 1.0.0');
-  expect(programVersion('1.0.0rc1')).toBe('Mimir 1.0.0rc1');
+  expect(programVersion('1.0.0a9')).toBe('Wuschel 1.0.0a9 (Alpha 9)');
+  expect(programVersion('1.0.0b1')).toBe('Wuschel 1.0.0b1 (Beta 1)');
+  expect(programVersion('1.0.0')).toBe('Wuschel 1.0.0');
+  expect(programVersion('1.0.0rc1')).toBe('Wuschel 1.0.0rc1');
 });
 
 it('offers 7/730 without saving on open and opens the existing draft dialog before editing', async () => {

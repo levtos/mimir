@@ -128,7 +128,7 @@ def plan_notices(
                 + "\n\n"
                 + "\n".join(lines)
                 + (
-                    f"\n\n[Mimir](/hassio/ingress/{ingress_slug}/#/?axis={axis})"
+                    f"\n\n[Wuschel](/hassio/ingress/{ingress_slug}/#/?axis={axis})"
                     if ingress_slug
                     else ""
                 ),
@@ -145,7 +145,7 @@ def plan_notices(
             "digest": digest,
             "revision": state.active_revision,
             "operation": "problem_notice_put" if digest else "problem_notice_remove",
-            "target_ids": [f"mimir_{installation_id}_{axis}"],
+            "target_ids": [f"wuschel_{installation_id}_{axis}"],
             "arguments": arguments,
             "status": "planned",
             "created_at": now.isoformat(),

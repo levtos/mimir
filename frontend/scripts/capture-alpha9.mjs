@@ -4,7 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import de from '../src/i18n/de.json' with { type: 'json' };
 
-const base = process.env.MIMIR_REVIEW_URL;
+const base = process.env.WUSCHEL_REVIEW_URL;
 if (!base || new URL(base).hostname !== '127.0.0.1') throw new Error('Only the isolated loopback harness is allowed');
 const output = resolve('../docs/alpha9/bilder');
 await mkdir(output, { recursive: true });
@@ -65,7 +65,7 @@ try {
   await shot('06-aufbewahrung.png', 'Aufbewahrung als Vorschlag 7 / 730 über Entwurf');
 
   await go('/settings/system', 'System');
-  await page.getByText('Mimir 1.0.0a9 (Alpha 9)', { exact: true }).waitFor();
+  await page.getByText('Wuschel 1.0.0a9 (Alpha 9)', { exact: true }).waitFor();
   await page.getByText('Aufbewahrung fehlt', { exact: true }).waitFor();
   await shot('07-systemstatus.png', 'Alle offenen Voraussetzungen und dynamische Programmversion');
 

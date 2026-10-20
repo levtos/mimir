@@ -66,6 +66,7 @@ const OP_LABELS: Record<string, string> = {
   or: uiText("editors.RuleEditor.oder_43e406"),
   not: uiText("editors.RuleEditor.nicht_774d65"),
   compare: uiText("editors.RuleEditor.vergleich_79a63c"),
+  managed_catalog_lookup: uiText('alpha10.catalog.lookup'),
   map: uiText("editors.RuleEditor.zuordnung_map_5ecf05"),
   first_match: uiText("editors.RuleEditor.erster_treffer_e8c4e8"),
   bucket: uiText("editors.RuleEditor.hysterese_bucket_688e48"),
@@ -291,6 +292,13 @@ function Body({ value, onChange, pointer, depth }: { value: Rule; onChange: (nex
   };
 
   switch (value.op) {
+    case 'managed_catalog_lookup': return <>
+      <Fld label={uiText('alpha10.catalog.catalog')} pointer={join(pointer, 'catalog_id')}>{p => <Input {...p} value={str(value.catalog_id)} onChange={e => set({ catalog_id: e.target.value })} />}</Fld>
+      <NumberField label={uiText('editors.RegistryObjects.version_dd1679')} pointer={join(pointer, 'definition_version')} value={Number(value.definition_version ?? 1)} min={1} step={1} onChange={n => set({ definition_version: Math.max(1, Math.trunc(n)) })} />
+      <p className="text-sm text-muted">{uiText('alpha10.catalog.languageHelp')}</p>
+      {['scope', 'media_type', 'signal_type', 'key'].map(name => <Child key={name} parent={value} pointer={pointer} depth={depth} keyPath={[name]} label={uiText(`alpha10.catalog.field.${name}`)} onChange={onChange} />)}
+      <FieldSchemaEditor pointer={join(pointer, 'schema')} value={asObject(value.schema) as FieldSchema} onChange={next => set({ schema: next })} />
+    </>;
     case 'input': {
       const names = ctx.inputs.map((i) => i.name);
       const current = str(value.name);

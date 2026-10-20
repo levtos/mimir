@@ -1,0 +1,58 @@
+configuration:
+  postgres_host:
+    name: "Database host"
+    description: "Certified PostgreSQL hostname; must match the certificate."
+  postgres_port:
+    name: "Database port"
+    description: "PostgreSQL port, usually 5432."
+  postgres_database:
+    name: "Database name"
+    description: "Name of the dedicated Wuschel database."
+  postgres_user:
+    name: "Database user"
+    description: "Dedicated Wuschel role without administrator privileges."
+  postgres_password:
+    name: "Database password"
+    description: "Enter the Wuschel role password here; never include it in evidence."
+  postgres_sslmode:
+    name: "Database TLS mode"
+    description: "verify-full verifies TLS, certificate and hostname; require skips hostname verification; disable turns TLS off. Use verify-full for this installation."
+  postgres_ca:
+    name: "Database CA certificate"
+    description: "Path to the public CA file under /ssl used to verify the server. Never a private key."
+  installation_label:
+    name: "Installation label"
+    description: "A display name to recognize this installation, not its identifier."
+  initialize_empty_database:
+    name: "Initialize empty database"
+    description: "Enable only for the first start with a new empty database, then disable."
+  adopt_installation_id:
+    name: "Adopt installation ID"
+    description: "Only for an explicitly planned recovery. Leave empty for a new Wuschel installation."
+  mqtt_mode:
+    name: "MQTT mode"
+    description: "disabled = off; supervisor = Home Assistant Mosquitto app with automatic credentials; external = your own broker using the fields below. The selector displays these values unchanged."
+  mqtt_host:
+    name: "MQTT host"
+    description: "Hostname of your own broker; used only in external mode."
+  mqtt_port:
+    name: "MQTT port"
+    description: "Port of your own broker; used only in external mode."
+  mqtt_username:
+    name: "MQTT username"
+    description: "Username for your own broker; used only in external mode."
+  mqtt_password:
+    name: "MQTT password"
+    description: "Password for your own broker; used only in external mode."
+  mqtt_tls:
+    name: "MQTT TLS"
+    description: "Enable TLS for your own broker; its hostname must match the certificate."
+  mqtt_ca:
+    name: "MQTT CA certificate"
+    description: "Optional path to your broker's public CA file, never a private key."
+  log_level:
+    name: "Log level"
+    description: "Use INFO normally and DEBUG only for focused diagnostics. Credentials are never logged."
+  log_format:
+    name: "Log format"
+    description: "text is human readable; json is intended for technical processing."

@@ -165,7 +165,7 @@ export default function DefinitionsPage() {
                 setBusy(true); setCreationError('');
                 try {
                   const id = fullId; const object = { kind: 'template' as const, id };
-                  await doc.editAndSave((c) => ({ ...c, fingerprint_version: 2, definitions: [...asArray(c.definitions), { ...newDefinition(id, 1), ...(name.trim() ? { display_name: name.trim() } : {}) }] }), [{ object, category, room: NO_ROOM, expected_editorial_version: metadata.item(object).editorial_version }]);
+                  await doc.editAndSave((c) => ({ ...c, fingerprint_version: Math.max(2, Number(c.fingerprint_version ?? 1)), definitions: [...asArray(c.definitions), { ...newDefinition(id, 1), ...(name.trim() ? { display_name: name.trim() } : {}) }] }), [{ object, category, room: NO_ROOM, expected_editorial_version: metadata.item(object).editorial_version }]);
                   setCreating(false); navigate(`/templates/details/${encodeURIComponent(id)}/1`);
                 } catch (failure) { setCreationError(describeError(failure)); }
                 finally { setBusy(false); }
@@ -180,7 +180,7 @@ export default function DefinitionsPage() {
           <CategorySelect value={category} onChange={value => setCategory(value || 'other')} />
           {creationError && <p role="alert" className="text-sm text-bad">{creationError}</p>}
           <p className="text-sm text-muted">{uiText('alpha7.template.initial')}</p>
-          <Collapsible title={uiText('alpha7.contract.advanced')}>
+          <Collapsible title={uiText('alpha7.device.advanced')}>
             <Field label={uiText("features.contracts.DefinitionsPage.typ_id_b7db41")} hint={uiText('alpha7.template.prefix')} errors={typeId && exists ? [{ code: 'duplicate_identity', message: uiText("features.contracts.DefinitionsPage.diese_typ_id_existiert_bereits_fur_anderungen_ei_01c137") }] : typeId && !validId ? [{ code: 'schema.pattern', message: ID_HINT }] : []}>
               {(p) => <Input {...p} maxLength={ID_LIMIT} value={typeId} placeholder={fullId} title={ID_HINT} onChange={(e) => setTypeId(e.target.value)} />}
             </Field>

@@ -56,6 +56,10 @@ def map_key(value: Any) -> str:
 
 
 def rule_children(rule: dm.Rule) -> list[tuple[str, dm.Rule]]:
+    if isinstance(rule, dm.ManagedCatalogRule):
+        return [
+            (name, getattr(rule, name)) for name in ("scope", "media_type", "signal_type", "key")
+        ]
     if isinstance(rule, dm.ConfigurationHintRule):
         return [("arg", rule.arg), ("when", rule.when)]
     if isinstance(rule, dm.FormulaRule):
@@ -290,6 +294,14 @@ def check_definition(definition: dm.DeclarativeDefinition) -> None:
             }:
                 raise ValueError("unordered_comparison")
             return scalar("bool")
+        if isinstance(rule, dm.ManagedCatalogRule):
+            if definition.language_version != 4:
+                raise ValueError("language_version_4_required")
+            for arg in args:
+                require(arg, scalar("text"))
+            if rule.field_schema.type != "enum" or not rule.field_schema.value_catalog:
+                raise ValueError("catalog_classification_schema")
+            return rule.field_schema
         if isinstance(rule, dm.MapRule):
             if args[0].type == "object":
                 raise ValueError("map_requires_scalar")
@@ -446,8 +458,20 @@ class Evaluation:
                     ReasonCode.INVALID_VALUE, declaration.name, now
                 )
         self.memo: dict[str, FieldValue] = {}
+        self.machine_reads: list[FieldValue] = []
+        if context is not None:
+            context.node.pop("catalog_lookups", None)
         self.trace: list[dict[str, Any]] = []
         self.cost = 0
+
+    def machine_evidence(self, value: FieldValue) -> None:
+        from .managed_catalog import dependencies, suspend_machine
+
+        if self.context is not None:
+            slot = self.context.node.setdefault("catalog_machine", {})
+            self.machine_reads.append(value)
+            if dependencies(slot, [value]):
+                suspend_machine(self.context.node)
 
     def evaluate(self, rule: dm.Rule) -> FieldValue:
         self.cost += 1
@@ -498,6 +522,7 @@ class Evaluation:
 
                 def reinitialize(ctx: Context) -> bool:
                     condition = self.evaluate(reinitialize_rule)
+                    self.machine_evidence(condition)
                     allowed = (
                         condition.status == "valid"
                         and condition.value is True
@@ -544,6 +569,7 @@ class Evaluation:
                             and transition.event == self.context.override.trigger
                         ):
                             guard = self.evaluate(transition.guard)
+                            self.machine_evidence(guard)
                             self.trace.append(
                                 {
                                     "op": "guard",
@@ -554,13 +580,37 @@ class Evaluation:
                                 }
                             )
                             break
+                before_episode = (
+                    self.context.node.get("machine")
+                    or self.context.node.get("catalog_machine_pending", {})
+                ).get("episode_id")
                 self.memo["$machine"] = evaluate_machine(
                     self.context,
                     compile_machine(self.definition, evaluation=self),
                     reinitialize=reinitialize,
                 )
+                slot = self.context.node.setdefault("catalog_machine", {})
+                after_episode = self.context.node.get("machine", {}).get("episode_id")
+                if after_episode and after_episode != before_episode:
+                    from .managed_catalog import dependencies
+
+                    slot.clear()
+                    dependencies(slot, self.machine_reads)
+                refs = tuple(
+                    f"{key}:{digest}"
+                    for key, digest in slot.get("catalog_dependencies", {}).items()
+                )
+                value = self.memo["$machine"]
+                self.memo["$machine"] = value.model_copy(
+                    update={"evidence": tuple(dict.fromkeys((*value.evidence, *refs)))}
+                )
             return self.memo["$machine"]
         args = [self.evaluate(child) for child in children(rule)]
+        if isinstance(rule, dm.ManagedCatalogRule):
+            from .managed_catalog import lookup
+
+            assert self.context is not None
+            return lookup(self.context, rule, args)
         if isinstance(rule, dm.KnownAutomaticRule):
             return derive(
                 bool(args[0].attribution and args[0].attribution.kind == "known_automatic"),
@@ -666,6 +716,11 @@ class Evaluation:
         assert self.context is not None
         if isinstance(rule, dm.BucketRule):
             key = f"{self.context.contract.contract_id}:{rule.id}"
+            from .managed_catalog import dependencies
+
+            slot = self.context.node.setdefault("catalog_buckets", {}).setdefault(rule.id, {})
+            if dependencies(slot, args):
+                self.context.latches.pop(key, None)
             # G6: hysteresis is volatile, including after database recovery. Remove
             # pre-review Alpha-4 context without touching other temporal nodes.
             self.context.node.get("rules", {}).pop(rule.id, None)
@@ -729,6 +784,7 @@ def compile_machine(
                 # errors and the command transaction/commit stay outside it.
                 raise GuardEvaluationError("evaluation_error") from error
             if evaluation:
+                evaluation.machine_evidence(value)
                 evaluation.trace.append(
                     {
                         "op": "guard",
@@ -747,6 +803,8 @@ def compile_machine(
             value = (
                 evaluation or Evaluation(definition, inputs, now, parameters=parameters)
             ).evaluate(rule)
+            if evaluation:
+                evaluation.machine_evidence(value)
             return (
                 value.status == "valid"
                 and value.quality == "healthy"

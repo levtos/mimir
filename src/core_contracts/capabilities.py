@@ -172,7 +172,7 @@ def configuration_schema() -> dict[str, Any]:
             "if": {"required": ["definitions"], "properties": {"definitions": {"minItems": 1}}},
             "then": {
                 "required": ["fingerprint_version"],
-                "properties": {"fingerprint_version": {"const": 2}},
+                "properties": {"fingerprint_version": {"enum": [2, 3]}},
             },
         }
     ]
@@ -294,13 +294,19 @@ def enrich_definition_schema(schema: dict[str, Any]) -> dict[str, Any]:
 def capabilities(config: RegistryConfig | None, base: TypeRegistry) -> dict[str, Any]:
     return {
         "capability_version": 1,
-        "language_versions": [1, 2, 3],
+        "language_versions": [1, 2, 3, 4],
         "machine_deadline_v2": True,
         "api_protocol": 1,
         "config_schema_version": 1,
-        "config_schema_versions": [1, 2],
+        "config_schema_versions": [1, 2, 3],
         "bridge_protocol_versions": [1, 2],
-        "fingerprint_versions": [1, 2],
+        "fingerprint_versions": [1, 2, 3],
+        "managed_catalog": {
+            "language_version": 4,
+            "fingerprint_version": 3,
+            "write_limit": 100,
+            "page_limit": 100,
+        },
         "evidence_reference_versions": [1, 2],
         "metadata_access": "authenticated_consumer_or_admin",
         "history": {

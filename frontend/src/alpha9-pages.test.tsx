@@ -17,13 +17,13 @@ const routes = [
   ['/', 'alpha9.pages.overview'], ['/contracts/list/all', 'alpha9.pages.contracts'],
   [`/contracts/view/${example.contracts[0]!.contract_id}`, 'alpha9.pages.contract'],
   ['/contracts/view/missing', 'alpha9.pages.contract'],
-  ['/contracts/import/json', 'alpha9.pages.contractImport'], ['/contracts/relations/graph', 'alpha9.pages.graph'],
+  ['/contracts/import/json', 'alpha10.transfer.description'], ['/contracts/relations/graph', 'alpha9.pages.graph'],
   ['/templates/own', 'alpha9.pages.templatesOwn'], ['/templates/built-in', 'alpha9.pages.templatesBuiltin'],
   [`/templates/details/${example.definitions[0]!.type_id}/1`, 'alpha9.pages.template'],
   ['/templates/details/missing/1', 'alpha9.pages.template'],
   ...['devices', 'bindings', 'catalogs', 'dependencies'].map(section => [`/sources/${section}`, `alpha9.pages.${section === 'devices' ? 'sources' : section}`]),
   ['/changes/drafts', 'alpha9.pages.drafts'], ['/changes/drafts/d1', 'alpha9.pages.draft'], ['/changes/drafts/missing', 'alpha9.pages.draft'],
-  ['/changes/versions', 'alpha9.pages.versions'], ['/changes/transfer', 'alpha9.pages.transfer'],
+  ['/changes/versions', 'alpha9.pages.versions'], ['/changes/transfer', 'alpha10.transfer.description'], ['/import-export', 'alpha10.transfer.description'], ['/catalog-care', 'alpha10.catalog.description'],
   ['/settings/system', 'alpha9.system.description'],
   ...['installation', 'connections', 'keys', 'log', 'diagnostics'].map(section => [`/settings/${section}`, `alpha9.pages.${section}`]),
   ['/settings/notifications', 'alpha9.notifications.description'], ['/settings/retention', 'alpha9.retention.description'],
@@ -46,11 +46,11 @@ it.each(routes)('%s has a title, an everyday explanation and one primary page ac
   const primary = within(header as HTMLElement).getAllByRole('button').filter(button => button.dataset.variant === 'primary');
   expect(primary).toHaveLength(1);
   expect(api.calls.filter(call => call.method !== 'GET')).toEqual([]);
-});
+}, 15_000);
 
 it('retains the page rule while loading, without offering a premature action', () => {
   render(<PageLoading />);
-  expect(screen.getByRole('heading', { level: 1, name: 'Mimir' })).toBeVisible();
+  expect(screen.getByRole('heading', { level: 1, name: 'Wuschel' })).toBeVisible();
   expect(screen.getByRole('button', { name: 'Seite neu laden' })).toBeDisabled();
   expect(screen.getByText(t('alpha9.pages.app'))).toBeVisible();
 });

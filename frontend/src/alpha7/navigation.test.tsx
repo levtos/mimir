@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { Workbench, workbenchRoutes } from '@/Workbench';
 import { NAVIGATION, legacyTarget } from '@/lib/navigation';
 import { emptyRegistry } from '@/features/authoring/model';
-import { installFakeApi } from '../../test/fakeApi';
+import { installFakeApi, makeDraft, reply } from '../../test/fakeApi';
 import { idleLive } from '../../test/harness';
 
 function app(hash: string) {
@@ -29,6 +29,8 @@ describe('P1: separate module routes and retained links', () => {
   });
   it.each([
     ['/contracts', '', '/contracts/list/all'],
+    ['/contracts/import/json', '?source=backup', '/import-export?source=backup'],
+    ['/changes/transfer', '?draft=example', '/import-export?draft=example'],
     ['/contracts/select/contract', '?filter=healthy', '/contracts/list/all?filter=healthy'],
     ['/contracts/mine', '', '/contracts/view/mine'],
     ['/contracts/detail', '', '/contracts/view/detail'],
@@ -68,25 +70,25 @@ describe('P1: separate module routes and retained links', () => {
     expect(within(navigation).queryByRole('link', { name: 'Vertrag' })).not.toBeInTheDocument();
     if (hash.includes('select')) await waitFor(() => expect(window.location.hash).toBe('#/contracts/list/all'));
   });
-  it.each(['text', 'file'])('imports %s and validates on its own page without activating or changing the route', async mode => {
+  it('previews a file before staging its own draft, preserving the active configuration', async () => {
     const user = userEvent.setup();
-    const fake = installFakeApi(); app('#/contracts/import/json');
-    await screen.findByRole('heading', { name: 'Vertrag importieren', level: 1 });
-    if (mode === 'file') {
-      expect(screen.getByRole('button', { name: 'Datei auswählen' })).toBeVisible();
-      expect(screen.getByText('Keine Datei ausgewählt')).toBeVisible();
-      const file = new File([JSON.stringify(emptyRegistry())], 'vertraege.json', { type: 'application/json' });
-      Object.defineProperty(file, 'text', { value: async () => JSON.stringify(emptyRegistry()) });
-      await user.upload(screen.getByLabelText("Datei auswählen"), file);
-      expect(screen.getByText('vertraege.json')).toBeVisible();
-    } else {
-      await user.click(screen.getByLabelText("Oder gespeicherten Text einfügen"));
-      await user.paste(JSON.stringify(emptyRegistry()));
-    }
-    await user.click(screen.getByRole('button', { name: 'Als Entwurf einlesen und prüfen' }));
-    await screen.findByText('Prüfung abgeschlossen: keine Fehler. Noch gelten diese Änderungen nicht.');
+    const fake = installFakeApi();
+    fake.routes.push({ match: /^portable\/preview$/, method: 'POST', respond: () => reply(200, { plan_digest: 'synthetic', added: 0, reused: 0, conflicts: [], unresolved: [], editorial_versions: {}, package: { editorial: [] } }) });
+    fake.routes.push({ match: /^portable\/stage$/, method: 'POST', respond: () => { const draft = makeDraft('imported', emptyRegistry()); fake.drafts.set(draft.draft_id, draft); return reply(200, draft); } });
+    app('#/contracts/import/json?source=backup');
+    await screen.findByRole('heading', { name: 'Import & Export', level: 1 });
+    expect(window.location.hash).toBe('#/import-export?source=backup');
+    const text = JSON.stringify(emptyRegistry());
+    const file = new File([text], 'vertraege.json', { type: 'application/json' });
+    Object.defineProperty(file, 'text', { value: async () => text });
+    await user.upload(screen.getByLabelText('Datei auswählen'), file);
+    await user.click(screen.getByRole('button', { name: 'Datei prüfen und Vorschau anzeigen' }));
+    await screen.findByText('0 neue Objekte · 0 unverändert · 0 Konflikte');
+    expect(fake.drafts.size).toBe(0);
+    expect(fake.calls.find(call => call.path === 'portable/preview')?.body).toMatchObject({ package_text: text });
+    await user.click(screen.getByRole('button', { name: 'Als Entwurf einlesen' }));
+    await waitFor(() => expect(window.location.hash).toBe('#/changes/drafts/imported'));
     expect(fake.drafts.size).toBe(1);
     expect(fake.revisions).toHaveLength(0);
-    expect(window.location.hash).toBe('#/contracts/import/json');
   });
 });

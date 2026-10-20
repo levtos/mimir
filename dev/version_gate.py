@@ -93,13 +93,13 @@ def main() -> None:
         sha, ref = line.split()
         if git(ROOT, "rev-parse", ref).strip() != sha:
             raise SystemExit(f"Tag-Snapshot stimmt nicht mit origin überein: {ref}")
-    app = yaml.safe_load((ROOT / "mimir/config.yaml").read_text(encoding="utf-8"))
+    app = yaml.safe_load((ROOT / "wuschel/config.yaml").read_text(encoding="utf-8"))
     candidate = str(app["version"])
     report = compare_tags(ROOT, candidate, app["slug"], tags)
     versions = [
         tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"],
         json.loads((ROOT / "frontend/package.json").read_text(encoding="utf-8"))["version"],
-        json.loads((ROOT / "custom_components/bifrost/manifest.json").read_text(encoding="utf-8"))[
+        json.loads((ROOT / "custom_components/traber/manifest.json").read_text(encoding="utf-8"))[
             "version"
         ],
     ]

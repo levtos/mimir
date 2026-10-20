@@ -126,7 +126,7 @@ export default function DraftPage() {
               {validation.state === 'done' && !validation.stale && validation.result?.diff && validation.result.valid ? <DiffView diff={validation.result.diff} against={uiText("features.registry.DraftPage.die_aktive_revision_ccaa57")} /> : <p className="text-sm text-muted">{validation.issues.length ? uiText("features.registry.DraftPage.erst_nach_korrektur_der_fehler_verfugbar_bd3e1e") : uiText("features.registry.DraftPage.wird_nach_der_validierung_angezeigt_0f660e")}</p>}
             </div>
           </Panel>
-          </LayoutPanel><LayoutPanel id="json" title={uiText("features.registry.DraftPage.json_experte_7a839f")} span={2}><Collapsible title={uiText('alpha7.draft.advanced')}><KeyValue items={[{ label: uiText('alpha7.draft.identifier'), value: draft.draft_id }, { label: uiText("features.registry.DraftPage.fingerprint_version_e46d72"), value: String(config.fingerprint_version ?? 1) }]} /><JsonExpert /></Collapsible></LayoutPanel>
+          </LayoutPanel><LayoutPanel id="json" title={uiText("features.registry.DraftPage.json_experte_7a839f")} span={2}><Collapsible title={uiText('alpha10.technical')}><p className="mb-2 text-sm text-muted">{uiText('alpha10.checksumHelp')}</p><KeyValue items={[{ label: uiText('alpha7.draft.identifier'), value: draft.draft_id }, { label: uiText("features.registry.DraftPage.fingerprint_version_e46d72"), value: String(config.fingerprint_version ?? 1) }]} /><JsonExpert /></Collapsible></LayoutPanel>
           <LayoutPanel id="name" title={uiText("features.registry.DraftPage.draft_name_026ddb")} span={1}>
           <Panel>
             <PanelHeader title={uiText("features.registry.DraftPage.name_dcd1d5")} />

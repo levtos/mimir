@@ -9,6 +9,7 @@ from typing import Annotated, Any, Literal, Self
 from pydantic import Field, model_validator
 
 from .adapters import AdapterConfig
+from .catalog_models import ManagedCatalog
 from .declarative_models import MAX_DEFINITIONS, DeclarativeDefinition
 from .evidence import Freshness
 from .ha_context import ContextProducer
@@ -160,8 +161,8 @@ class Catalog(Model):
 
 
 class RegistryConfig(Model):
-    config_schema_version: Literal[1, 2]
-    fingerprint_version: Literal[1, 2] = 1
+    config_schema_version: Literal[1, 2, 3]
+    fingerprint_version: Literal[1, 2, 3] = 1
     history_retention: RetentionPolicy | None = Field(
         default=None, exclude_if=lambda value: value is None
     )
@@ -169,7 +170,7 @@ class RegistryConfig(Model):
     sources: tuple[Source, ...]
     bindings: tuple[Binding, ...]
     contracts: tuple[Contract, ...]
-    catalogs: tuple[Catalog, ...]
+    catalogs: tuple[Annotated[Catalog | ManagedCatalog, Field(discriminator="kind")], ...]
     definitions: tuple[DeclarativeDefinition, ...] = Field(default=(), max_length=MAX_DEFINITIONS)
     notifications: Notifications | None = Field(
         default=None, exclude_if=lambda value: value is None
@@ -177,6 +178,11 @@ class RegistryConfig(Model):
 
     @model_validator(mode="after")
     def versioned_capabilities(self) -> Self:
+        if (
+            any(isinstance(c, ManagedCatalog) for c in self.catalogs)
+            or any(d.language_version == 4 for d in self.definitions)
+        ) and (self.config_schema_version != 3 or self.fingerprint_version != 3):
+            raise ValueError("registry_schema_3_required")
         if len({producer.producer_id for producer in self.context_producers}) != len(
             self.context_producers
         ):
@@ -189,7 +195,7 @@ class RegistryConfig(Model):
             or bool(self.context_producers)
             or any(binding.refresh is not None for binding in self.bindings)
             or any(contract.refresh_plan is not None for contract in self.contracts)
-            or any(definition.language_version == 3 for definition in self.definitions)
+            or any(definition.language_version >= 3 for definition in self.definitions)
             or any(b.adapter.kind in {"ha_calendar", "manual"} for b in self.bindings)
         ):
             raise ValueError("registry_schema_2_required")
@@ -384,7 +390,7 @@ def fingerprints(config: RegistryConfig, types: TypeRegistry) -> dict[str, str]:
     @cache
     def monitored_fingerprint(key: str) -> str:
         dependency = dependencies[sources[key].dependency_id]
-        if config.fingerprint_version == 2:
+        if config.fingerprint_version >= 2:
             liveness = sources[key].freshness.liveness_source
             sensor_profile = sources[key].sensor_profile
             sensor_reference = sensor_profile.stuck.reference if sensor_profile else None
@@ -426,7 +432,7 @@ def fingerprints(config: RegistryConfig, types: TypeRegistry) -> dict[str, str]:
             }
         result[contract.contract_id] = semantic_fingerprint(
             {
-                **({"fingerprint_version": 2} if config.fingerprint_version == 2 else {}),
+                **({"fingerprint_version": 2} if config.fingerprint_version >= 2 else {}),
                 "definition": description,
                 "contract": contract.model_dump(mode="json", exclude={"enabled"}),
                 "inputs": [result[resolve_ref(i.ref, config)[0]] for i in contract.inputs],

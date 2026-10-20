@@ -1,79 +1,61 @@
 import { useState } from 'react';
-import { useLocation } from 'react-router';
+import { useNavigate } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { t } from '@/i18n';
 import { Button } from '@/components/ui/button';
-import { Field, FileInput, Input, Select, Textarea } from '@/components/ui/form';
+import { Field, FileInput, Input, Select } from '@/components/ui/form';
 import { Dialog } from '@/components/ui/dialog';
 import { Notice, PageHeader, Panel, PanelHeader } from '@/components/ui/layout';
-import { downloadText, exportRegistry, parseRegistryJson } from '@/features/authoring/importExport';
+import { downloadText } from '@/features/authoring/importExport';
 import { useWorkingDocument } from '@/features/authoring/WorkingDocument';
-import { ReviewDraftButton } from '@/features/authoring/DraftBar';
-import { api, ApiError, describeError, type Issue } from '@/lib/api';
-import { useActiveExport, useDraftMutations, useDrafts } from '@/lib/queries';
-import type { Draft, ValidationResult } from '@/lib/types';
-import { IssueList } from './IssueList';
+import { api, describeError } from '@/lib/api';
+import { useActiveRevision } from '@/lib/queries';
+import type { Draft } from '@/lib/types';
+
+interface Preview { catalog_entries?: number; editorial_entries?: number; plan_digest: string; added: number; reused: number; conflicts: string[]; unresolved: string[]; editorial_versions: Record<string, number>; package: { editorial: { object: { kind: string; id: string }; category: string; room: { name: string } }[] } }
+type Resolution = 'keep' | { new_id: string };
 
 export default function ImportExportPage() {
-  const contractImport = useLocation().pathname.startsWith('/contracts/');
-  const active = useActiveExport();
-  const drafts = useDrafts();
-  const { create } = useDraftMutations();
-  const doc = useWorkingDocument();
-  const [text, setText] = useState('');
-  const [name, setName] = useState('');
-  const [error, setError] = useState('');
-  const [imported, setImported] = useState<Draft | null>(null);
-  const [checked, setChecked] = useState(false);
-  const [issues, setIssues] = useState<Issue[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [backingUp, setBackingUp] = useState(false);
-  const [exportScope, setExportScope] = useState<'active' | 'draft'>('active');
-  const atLimit = (drafts.data?.length ?? 0) >= 100;
-  const changeText = (next: string) => { setText(next); setError(''); setImported(null); setChecked(false); setIssues([]); };
-  const submit = async () => {
-    const parsed = parseRegistryJson(text);
-    if (!parsed.ok) return setError(parsed.error);
-    setBusy(true); setError(''); setChecked(false); setIssues([]);
-    try {
-      const display = name.trim() || parsed.display_name || t('alpha7.draft.defaultName', { date: new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin' }) });
-      const draft = await create.mutateAsync({ config: parsed.config, display_name: display.slice(0, 256) });
-      setImported(draft);
-      doc.requestOpen(draft);
-      try {
-        const result = await api<ValidationResult>(`registry/drafts/${encodeURIComponent(draft.draft_id)}/validate`, { method: 'POST', body: {} });
-        setIssues(result.issues ?? []); setChecked(true);
-      } catch (failure) {
-        if (!(failure instanceof ApiError) || failure.kind !== 'validation') throw failure;
-        setIssues(failure.issues); setChecked(true);
-      }
-    } catch (failure) { setError(describeError(failure)); }
-    finally { setBusy(false); }
-  };
-  const disabledReason = busy ? t('alpha7.import.checking') : atLimit ? t('alpha7.import.limit') : !text.trim() ? t('alpha7.import.empty') : '';
+  const active = useActiveRevision(); const doc = useWorkingDocument(); const cache = useQueryClient(); const navigate = useNavigate();
+  const [fileText, setFileText] = useState(''); const [filename, setFilename] = useState('');
+  const [preview, setPreview] = useState<Preview | null>(null); const [resolutions, setResolutions] = useState<Record<string, Resolution>>({});
+  const [editorialChoices, setEditorialChoices] = useState<Record<string, string>>({}); const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false); const [backingUp, setBackingUp] = useState(false); const [scope, setScope] = useState('active');
+  const [requestId, setRequestId] = useState(''); const [stale, setStale] = useState(false);
+  const isContract = (() => { try { return JSON.parse(fileText).scope === 'contract'; } catch { return false; } })();
+  const targetUnavailable = isContract && (!doc.draft || doc.dirty);
+  const body = () => ({ package_text: fileText, resolutions, editorial_choices: editorialChoices, ...(isContract && doc.draft ? { target_draft_id: doc.draft.draft_id, target_draft_version: doc.draft.draft_version } : {}) });
+  const check = async () => { setBusy(true); setError(''); try { setPreview(await api<Preview>('portable/preview', { method: 'POST', body: body() })); setRequestId(crypto.randomUUID()); setStale(false); } catch (failure) { setError(describeError(failure)); } finally { setBusy(false); } };
+  const save = async () => { if (!preview) return; setBusy(true); setError(''); try {
+    const draft = await api<Draft>('portable/stage', { method: 'POST', body: { ...body(), plan_digest: preview.plan_digest, request_id: requestId } });
+    await cache.invalidateQueries({ queryKey: ['registry', 'drafts'] }); if (draft.draft_id === doc.draft?.draft_id) doc.open(draft, { reload: true }); else doc.requestOpen(draft); navigate(`/changes/drafts/${encodeURIComponent(draft.draft_id)}`);
+  } catch (failure) { setError(describeError(failure)); } finally { setBusy(false); } };
+  const backup = async () => { setBusy(true); setError(''); try {
+    const data = await api<unknown>('portable/export', { method: 'POST', body: { expected_active_revision: active.data?.revision ?? 0,
+      ...(scope === 'draft' && doc.draft ? { draft_id: doc.draft.draft_id, draft_version: doc.draft.draft_version } : {}) } });
+    downloadText(`wuschel-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(data, null, 2)); setBackingUp(false);
+  } catch (failure) { setError(describeError(failure)); } finally { setBusy(false); } };
   return <>
-    <PageHeader title={t(contractImport ? 'alpha7.nav.contractImport' : 'alpha7.nav.transfer')} description={t(contractImport ? 'alpha9.pages.contractImport' : 'alpha9.pages.transfer')} actions={contractImport ? <Button variant="primary" disabled={busy || atLimit} disabledReason={disabledReason} onClick={() => text.trim() ? void submit() : document.querySelector<HTMLInputElement>('input[data-import-file]')?.click()}>{t('alpha9.actions.readFile')}</Button> : <Button variant="primary" disabled={!active.data && !doc.config} disabledReason={t('alpha9.export.noConfiguration')} onClick={() => { setExportScope(active.data ? 'active' : 'draft'); setBackingUp(true); }}>{t('alpha9.actions.backup')}</Button>} />
-    <Panel><PanelHeader title={t('alpha7.import.title')} /><div className="flex flex-col gap-4 p-5">
-      <Field label={t('alpha7.import.file')}>{props => <FileInput {...props} data-import-file accept="application/json,.json" disabled={busy} onChange={async event => { const file = event.target.files?.[0]; if (file) changeText(await file.text()); }} />}</Field>
-      <Field label={t('alpha7.import.text')}>{props => <Textarea {...props} rows={9} spellCheck={false} disabled={busy} value={text} onChange={event => changeText(event.target.value)} />}</Field>
-      <Field label={t('alpha7.import.name')}>{props => <Input {...props} maxLength={256} value={name} onChange={event => setName(event.target.value)} />}</Field>
-      <p className="text-sm text-muted">{t('alpha7.draft.explanation')}</p>
-      <div><Button disabled={!!disabledReason} onClick={() => void submit()}>{t('alpha7.import.start')}</Button>{disabledReason && <p className="mt-2 text-sm text-muted">{disabledReason}</p>}</div>
+    <PageHeader title={t('alpha10.transfer.title')} description={t('alpha10.transfer.description')} actions={<Button variant="primary" disabled={!active.data && !doc.draft} onClick={() => { setScope(active.data ? 'active' : 'draft'); setBackingUp(true); }}>{t('alpha9.actions.backup')}</Button>} />
+    <Notice tone="info">{t('alpha10.transfer.history')}</Notice>
+    <Panel className="mt-5"><PanelHeader title={t('alpha10.transfer.read')} /><div className="space-y-4 p-5">
+      <Field label={t('alpha7.import.file')}>{p => <FileInput {...p} accept="application/json,.json" disabled={busy} onChange={async e => { const file = e.target.files?.[0]; if (!file) return; setPreview(null); setError(''); setResolutions({}); setEditorialChoices({}); setFilename(file.name); if (file.size > 50 * 1024 * 1024) { setError(t('alpha10.transfer.tooLarge')); setFileText(''); return; } setFileText(await file.text()); }} />}</Field>
+      <p className="text-sm text-muted">{filename || t('alpha10.transfer.choose')}</p>
+      <Button disabled={!fileText || busy || targetUnavailable} onClick={() => void check()}>{t('alpha10.transfer.preview')}</Button>
+      {isContract && <Notice tone="info">{doc.draft ? t('alpha10.transfer.target', { name: doc.displayName || doc.draft.draft_id }) : t('alpha10.transfer.targetRequired')}{!doc.draft && <Button onClick={() => void doc.ensureDraft().catch(failure => setError(describeError(failure)))}>{t('alpha10.transfer.createTarget')}</Button>}{doc.dirty && <p>{t('alpha10.transfer.targetSave')}</p>}</Notice>}
       {error && <Notice tone="bad">{error}</Notice>}
-      {checked && imported && <section aria-live="polite" className="space-y-4">
-        <p role="status" className="text-sm">{issues.length ? t('alpha7.import.errors', { count: issues.length }) : t('alpha7.import.valid')}</p>
-        <IssueList issues={issues} config={imported.config} />
-        {issues.length === 0 && doc.draft?.draft_id === imported.draft_id ? <ReviewDraftButton variant="secondary">{t('alpha7.import.review')}</ReviewDraftButton> : <Button disabled>{t('alpha7.import.review')}</Button>}
-        {issues.length > 0 && <p className="text-sm text-muted">{t('alpha7.import.fix')}</p>}
-        {doc.draft?.draft_id !== imported.draft_id && <p className="text-sm text-muted">{t('alpha7.import.openFirst')}</p>}
+      {preview && <section className="space-y-4" aria-live="polite">
+        <p>{t('alpha10.transfer.counts', { added: preview.added, reused: preview.reused, conflicts: preview.conflicts.length })}</p>
+        <p>{t('alpha10.transfer.contents', { n: preview.catalog_entries ?? 0, metadata: preview.editorial_entries ?? 0 })}</p>
+        <Notice tone="warn">{t('alpha10.transfer.addresses')}</Notice>
+        {preview.conflicts.map(key => <div key={key} className="space-y-2 rounded-lg border border-line p-3"><p className="break-all text-sm">{key}</p><Field label={t('alpha10.transfer.collision')}>{p => <Select {...p} value={resolutions[key] === 'keep' ? 'keep' : typeof resolutions[key] === 'object' ? 'new' : ''} onChange={e => { setResolutions(previous => ({ ...previous, [key]: e.target.value === 'keep' ? 'keep' : { new_id: '' } })); setStale(true); }}><option value="">{t('alpha10.transfer.decide')}</option><option value="keep">{t('alpha10.transfer.keep')}</option>{!key.startsWith('catalog-entry:') && <option value="new">{t('alpha10.transfer.new')}</option>}</Select>}</Field>{typeof resolutions[key] === 'object' && <Field label={t('alpha10.transfer.newId')}>{p => <Input {...p} value={(resolutions[key] as { new_id: string }).new_id} onChange={e => { setResolutions(previous => ({ ...previous, [key]: { new_id: e.target.value } })); setStale(true); }} />}</Field>}</div>)}
+        {preview.package.editorial.map(row => { const key = `${row.object.kind}:${row.object.id}`; return <div key={key} className="rounded-lg border border-line p-3"><p>{row.object.id} · {row.category} · {row.room.name}</p>{preview.editorial_versions[key] ? <Field label={t('alpha10.transfer.metadata')}>{p => <Select {...p} value={editorialChoices[key] ?? 'keep'} onChange={e => { setEditorialChoices(previous => ({ ...previous, [key]: e.target.value })); setStale(true); }}><option value="keep">{t('alpha10.transfer.keepMetadata')}</option><option value="file">{t('alpha10.transfer.fileMetadata')}</option></Select>}</Field> : <p>{t('alpha10.transfer.newMetadata')}</p>}</div>; })}
+        {(preview.package as { legacy?: boolean }).legacy && <Notice tone="info">{t('alpha10.transfer.legacy')}</Notice>}<p className="text-sm text-muted">{t('alpha10.transfer.draftHelp')}</p><Button disabled={busy || stale || targetUnavailable || preview.unresolved.length > 0} onClick={() => void save()}>{t('alpha10.transfer.stage')}</Button>
       </section>}
     </div></Panel>
-    {!contractImport && <Panel className="mt-5"><PanelHeader title={t('alpha7.export.title')} /><div className="flex flex-col items-start gap-3 p-5">
-      <Button disabled={!active.data} onClick={() => active.data && downloadText(`mimir-${new Date().toISOString().slice(0, 10)}.json`, exportRegistry(active.data))}>{t('alpha7.export.active')}</Button>
-      {!active.data && <p className="text-sm text-muted">{t('alpha7.export.noActive')}</p>}
-      {doc.config && <Button onClick={() => downloadText(`mimir-entwurf-${new Date().toISOString().slice(0, 10)}.json`, exportRegistry(doc.config!))}>{t('alpha7.export.draft')}</Button>}
-    </div></Panel>}
-    <Dialog open={backingUp} onOpenChange={setBackingUp} title={t('alpha9.actions.backup')} footer={<Button variant="primary" disabled={exportScope === 'active' ? !active.data : !doc.config} onClick={() => { const config = exportScope === 'active' ? active.data : doc.config; if (config) { downloadText(`mimir-${exportScope === 'draft' ? 'entwurf-' : ''}${new Date().toISOString().slice(0, 10)}.json`, exportRegistry(config)); setBackingUp(false); } }}>{t('alpha9.export.saveFile')}</Button>}>
-      <Field label={t('alpha9.export.scope')}>{props => <Select {...props} value={exportScope} onChange={event => setExportScope(event.target.value as typeof exportScope)}><option value="active" disabled={!active.data}>{t('alpha7.export.active')}</option><option value="draft" disabled={!doc.config}>{t('alpha7.export.draft')}</option></Select>}</Field>
+    <Dialog open={backingUp} onOpenChange={setBackingUp} title={t('alpha9.actions.backup')} footer={<Button variant="primary" disabled={busy || (scope === 'draft' && !!doc.dirty)} onClick={() => void backup()}>{t('alpha9.export.saveFile')}</Button>}>
+      <Field label={t('alpha9.export.scope')}>{p => <Select {...p} value={scope} onChange={e => setScope(e.target.value)}><option value="active" disabled={!active.data}>{t('alpha7.export.active')}</option><option value="draft" disabled={!doc.draft}>{t('alpha7.export.draft')}</option></Select>}</Field>
+      <p className="mt-3 text-sm">{t('alpha10.transfer.savedOnly')}</p><p className="mt-3 text-sm">{t('alpha10.transfer.history')}</p>
     </Dialog>
   </>;
 }

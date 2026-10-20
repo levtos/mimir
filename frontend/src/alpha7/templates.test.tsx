@@ -64,7 +64,7 @@ it('shows only a constant value until its advanced schema is opened', async () =
   rule({ op: 'literal', schema: { type: 'bool', required: true, physical_state: false }, value: false }, value => { current = value; });
   expect(screen.queryByLabelText('Typ')).not.toBeInTheDocument();
   expect(screen.getByLabelText('Wert')).toBeVisible();
-  await user.click(screen.getByRole('button', { name: 'Erweitert: Werteart' }));
+  await user.click(screen.getByRole('button', { name: 'Technische Details: Werteart' }));
   await user.selectOptions(screen.getByLabelText('Typ'), 'number');
   expect(current).toMatchObject({ schema: { type: 'number' }, value: 0 });
 });
@@ -72,7 +72,7 @@ it('shows only a constant value until its advanced schema is opened', async () =
 it('keeps read-only rule details and advanced schemas accessible by mouse and keyboard without enabling edits', async () => {
   const changed = vi.fn();
   wrap(<fieldset disabled><RuleEnvProvider value={{ ctx: ruleContext(newDefinition('test.einfach', 1), false), caps, locked: true }}><RuleEditor value={{ op: 'literal', schema: { type: 'bool', required: true, physical_state: false }, value: false }} onChange={changed} pointer="/outputs/value" /></RuleEnvProvider></fieldset>);
-  const advanced = screen.getByRole('button', { name: 'Erweitert: Werteart' });
+  const advanced = screen.getByRole('button', { name: 'Technische Details: Werteart' });
   // user-event treats non-form controls inside a disabled fieldset as disabled too.
   // Native browser coverage checks this view action separately.
   fireEvent.click(advanced);

@@ -1,0 +1,45 @@
+{
+  "bytes": 2676874,
+  "sha256": "175b94146373e9db638e925fe9c86905236036691f463096ee1f3ea10a564753",
+  "summary": {
+    "input_rows": 3181,
+    "outcomes": {
+      "class_mapping_required": 3119,
+      "hidden_decision_required": 56,
+      "variant_decision_required": 6
+    },
+    "classified_rows": 3181,
+    "classes_by_media": {
+      "game": {
+        "0": 5,
+        "1": 3,
+        "2": 1,
+        "3": 1
+      },
+      "music": {
+        "0": 3073,
+        "1": 30
+      },
+      "video": {
+        "0": 3,
+        "1": 65
+      }
+    },
+    "variants": 568,
+    "variant_class_conflicts": 6,
+    "hidden": 56,
+    "app_entries": 3,
+    "normalization_collisions": 0,
+    "normalization_changes": 1775,
+    "context_overrides": 0,
+    "rejected": 0,
+    "contexts": 3185,
+    "source_apps": 2
+  },
+  "applied": false,
+  "local_parser_probe": {
+    "elapsed_seconds": 0.335,
+    "python_peak_bytes": 13383351,
+    "database_transaction_measured": false
+  }
+}

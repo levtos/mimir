@@ -76,8 +76,8 @@ class ConnectRequest(Model):
 class ProvisionRequest(Model):
     host: str
     port: int = 5432
-    database: str = "core_contracts_app"
-    user: str = "core_contracts_app"
+    database: str = "wuschel"
+    user: str = "wuschel_app"
     sslmode: Literal["verify-full", "require", "disable"] = "verify-full"
     ca: str = ""
 
@@ -93,16 +93,16 @@ async def configure_bridge(token: str) -> dict[str, Any]:
     base = "http://supervisor/core/api/config/config_entries"
     headers = {"Authorization": "Bearer " + token}
     async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as session:
-        async with session.get(base + "/entry?domain=bifrost", headers=headers) as response:
+        async with session.get(base + "/entry?domain=traber", headers=headers) as response:
             if response.status != 200:
                 raise ValueError("ha_unavailable")
             entries = await response.json()
         if not isinstance(entries, list):
             raise ValueError("ha_unavailable")
-        if any(entry.get("domain") == "bifrost" for entry in entries):
+        if any(entry.get("domain") == "traber" for entry in entries):
             return {"created": False, "state": "existing_entry"}
         async with session.post(
-            base + "/flow", headers=headers, json={"handler": "bifrost"}
+            base + "/flow", headers=headers, json={"handler": "traber"}
         ) as response:
             if response.status != 200:
                 raise ValueError("bridge_not_discovered")
@@ -110,7 +110,7 @@ async def configure_bridge(token: str) -> dict[str, Any]:
         if flow.get("type") == "abort":
             return {"created": False, "state": "existing_entry_or_aborted"}
         if (
-            flow.get("handler") != "bifrost"
+            flow.get("handler") != "traber"
             or flow.get("type") != "form"
             or flow.get("step_id") != "user"
             or flow.get("data_schema") != []
@@ -123,7 +123,7 @@ async def configure_bridge(token: str) -> dict[str, Any]:
             if response.status != 200:
                 raise ValueError("bridge_configuration_failed")
             result = await response.json()
-        if result.get("type") != "create_entry" or result.get("handler") != "bifrost":
+        if result.get("type") != "create_entry" or result.get("handler") != "traber":
             raise ValueError("bridge_configuration_failed")
         return {"created": True, "state": "configuration_created"}
 
@@ -211,7 +211,7 @@ async def bridge_status(token: str) -> dict[str, Any]:
                 await socket.send_json({"type": "auth", "access_token": token})
                 if (await socket.receive_json()).get("type") != "auth_ok":
                     return {"state": "authorization_failed", "release_blocker": True}
-                await socket.send_json({"id": 1, "type": "bifrost/info"})
+                await socket.send_json({"id": 1, "type": "traber/info"})
                 result = await socket.receive_json()
                 if result.get("success"):
                     info = result["result"]
@@ -219,7 +219,7 @@ async def bridge_status(token: str) -> dict[str, Any]:
                     compatible = info.get("protocol_version") == 1
                     if compatible:
                         await socket.send_json(
-                            {"id": 2, "type": "bifrost/negotiate", "supported_versions": [2, 1]}
+                            {"id": 2, "type": "traber/negotiate", "supported_versions": [2, 1]}
                         )
                         negotiation = await socket.receive_json()
                         if negotiation.get("success"):
@@ -242,7 +242,7 @@ async def bridge_status(token: str) -> dict[str, Any]:
                     known = await response.json() if response.status == 200 else None
                 if known is None:
                     return {"state": "unavailable", "release_blocker": True}
-                if "bifrost" in known:
+                if "traber" in known:
                     state = "installed_not_configured"
                 else:
                     # This API cannot see unscanned files. Never claim filesystem absence.

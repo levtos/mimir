@@ -24,6 +24,65 @@ pytestmark = pytest.mark.postgres
 MIGRATIONS = Path(__file__).resolve().parents[1] / "migrations"
 
 
+async def test_alpha10_catalog_and_import_survive_reopen_with_atomic_history(database, config):
+    from .test_managed_catalog import change, configured, request
+    from .test_portable import export, plan, stage
+
+    store = PostgresStore(database, MIGRATIONS, tls=False)
+    await store.open()
+    runtime = Runtime(store, FakeClock(NOW), type_registry())
+    await runtime.start()
+    try:
+        await activate(runtime, configured(config))
+        body = request(runtime)
+        saved = await runtime.submit("catalog_write", {"request": body})
+        # Dedicated history readers must exceed both generic limits (100/1000).
+        for start in range(0, 1100, 100):
+            await runtime.submit(
+                "catalog_write",
+                {
+                    "request": request(
+                        runtime,
+                        [change(f"Synthetic {i}") for i in range(start, start + 100)],
+                        start // 100 + 1,
+                    )
+                },
+            )
+        package = await export(runtime)
+        preview = await plan(runtime, package)
+        imported = await stage(runtime, package, preview)
+        await runtime.submit("activate", {**imported, "expected_active_revision": 1})
+    finally:
+        await runtime.stop()
+        await store.close()
+    reopened = PostgresStore(database, MIGRATIONS, tls=False)
+    await reopened.open()
+    restarted = Runtime(reopened, FakeClock(NOW), type_registry())
+    await restarted.start()
+    try:
+        assert await restarted.submit("catalog_write", {"request": body}) == saved
+        catalog_key = next(iter(restarted.state.tables["catalog_head"]))
+        assert len(await reopened.catalog_revisions(catalog_key, 13)) == 12
+        assert [row["revision"] for row in await reopened.catalog_revisions(catalog_key, 7)] == [
+            6,
+            5,
+            4,
+            3,
+            2,
+            1,
+        ]
+        assert len(await reopened.managed_entries(catalog_key, 12)) == 1101
+        historical = await restarted.submit(
+            "catalog_revision",
+            {"catalog_id": "example.titles", "definition_version": 1, "revision": 12},
+        )
+        assert historical["total"] == 1101
+        assert (await export(restarted))["catalog_contents"] == package["catalog_contents"]
+    finally:
+        await restarted.stop()
+        await reopened.close()
+
+
 async def test_alpha9_editorial_reopen_and_rollback_keep_current_room(database, config):
     from .test_alpha9_editorial import request, save
 

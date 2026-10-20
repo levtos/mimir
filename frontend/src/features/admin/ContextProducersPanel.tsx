@@ -17,7 +17,7 @@ export function ContextProducersPanel() {
     <p className="text-sm text-muted">{t('alpha8.parameters.draftHint')}</p>
     <Collapsible title={t('alpha7.device.advanced')}><fieldset disabled={!source.editable}>
       {root && <SchemaForm root={root} node={asObject(root.properties).context_producers} value={source.config?.context_producers ?? []} pointer="/context_producers" label={t('alpha9.context.automatic')} onChange={value => {
-        if (Array.isArray(value)) doc.edit(current => ({ ...current, config_schema_version: 2, context_producers: value }));
+        if (Array.isArray(value)) doc.edit(current => ({ ...current, config_schema_version: Math.max(2, Number(current.config_schema_version ?? 1)), context_producers: value }));
       }} />}
     </fieldset></Collapsible>
   </div></Panel>;

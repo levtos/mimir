@@ -1,11 +1,11 @@
 [project]
-name = "core-contracts-platform"
-version = "1.0.0a9"
+name = "wuschel"
+version = "1.0.0a10"
 requires-python = ">=3.14,<3.15"
 dependencies = ["aiohttp>=3.13,<4", "asyncpg>=0.32,<0.33", "pydantic>=2.12,<3", "aiomqtt>=2.5,<3", "tzdata==2026.2"]
 
 [project.scripts]
-core-contracts = "core_contracts.app:main"
+wuschel = "core_contracts.app:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -15,7 +15,19 @@ build-backend = "hatchling.build"
 packages = ["src/core_contracts"]
 
 [dependency-groups]
-dev = ["pytest>=9", "pytest-asyncio>=1.3", "pytest-aiohttp>=1.1", "ruff>=0.14", "mypy>=1.19", "asyncpg-stubs>=0.31", "pyyaml>=6", "types-PyYAML>=6", "awesomeversion==25.8.0"]
+dev = [
+    "pytest>=9",
+    "pytest-asyncio>=1.3",
+    "pytest-aiohttp>=1.1",
+    "ruff>=0.14",
+    "mypy>=1.19",
+    "asyncpg-stubs>=0.31",
+    "pyyaml>=6",
+    "types-PyYAML>=6",
+    "awesomeversion==25.8.0",
+    "pillow==12.1.1",
+    "numpy==2.4.2",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

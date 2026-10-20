@@ -1,0 +1,1217 @@
+{
+  "source_repository": "Levtos/control",
+  "source_revision": "70b6e83b26a930632c7b2430fb6d5b955ec63158",
+  "tools": {
+    "pillow": "12.1.1",
+    "numpy": "2.4.2",
+    "libwebp": "1.6.0"
+  },
+  "filter": "linear RGB, premultiplied alpha, Lanczos",
+  "figures": {
+    "wuschel": {
+      "crop": [
+        0,
+        8,
+        1014,
+        1536
+      ],
+      "source_hoof_anchor_y": 1498,
+      "hoof_anchor_alpha_threshold": 8,
+      "trailing_low_alpha_pixels": 37,
+      "bottom_margin_exception": "Alpha 1..7 retained below visible hoof",
+      "canvas": [
+        1024,
+        1536
+      ],
+      "placement": [
+        48,
+        123
+      ],
+      "baseline_exclusive": 1488,
+      "minimum_margin": 48
+    },
+    "traber": {
+      "crop": [
+        0,
+        5,
+        1016,
+        1536
+      ],
+      "source_hoof_anchor_y": 1471,
+      "hoof_anchor_alpha_threshold": 8,
+      "trailing_low_alpha_pixels": 64,
+      "bottom_margin_exception": "Alpha 1..7 retained below visible hoof",
+      "canvas": [
+        1024,
+        1536
+      ],
+      "placement": [
+        139,
+        411
+      ],
+      "baseline_exclusive": 1488,
+      "minimum_margin": 48
+    },
+    "schnueffel": {
+      "crop": [
+        0,
+        17,
+        1024,
+        1536
+      ],
+      "source_hoof_anchor_y": 1486,
+      "hoof_anchor_alpha_threshold": 8,
+      "trailing_low_alpha_pixels": 49,
+      "bottom_margin_exception": "Alpha 1..7 retained below visible hoof",
+      "canvas": [
+        1024,
+        1536
+      ],
+      "placement": [
+        48,
+        156
+      ],
+      "baseline_exclusive": 1488,
+      "minimum_margin": 48
+    },
+    "kuschel": {
+      "crop": [
+        0,
+        0,
+        996,
+        1536
+      ],
+      "source_hoof_anchor_y": 1513,
+      "hoof_anchor_alpha_threshold": 8,
+      "trailing_low_alpha_pixels": 22,
+      "bottom_margin_exception": "Alpha 1..7 retained below visible hoof",
+      "canvas": [
+        1024,
+        1536
+      ],
+      "placement": [
+        48,
+        77
+      ],
+      "baseline_exclusive": 1488,
+      "minimum_margin": 48
+    },
+    "funkel": {
+      "crop": [
+        0,
+        0,
+        1018,
+        1520
+      ],
+      "source_hoof_anchor_y": 1514,
+      "hoof_anchor_alpha_threshold": 8,
+      "trailing_low_alpha_pixels": 5,
+      "bottom_margin_exception": "Alpha 1..7 retained below visible hoof",
+      "canvas": [
+        1024,
+        1536
+      ],
+      "placement": [
+        48,
+        107
+      ],
+      "baseline_exclusive": 1488,
+      "minimum_margin": 48
+    },
+    "blinzel": {
+      "crop": [
+        33,
+        11,
+        1010,
+        1536
+      ],
+      "source_hoof_anchor_y": 1512,
+      "hoof_anchor_alpha_threshold": 8,
+      "trailing_low_alpha_pixels": 23,
+      "bottom_margin_exception": "Alpha 1..7 retained below visible hoof",
+      "canvas": [
+        1024,
+        1536
+      ],
+      "placement": [
+        48,
+        61
+      ],
+      "baseline_exclusive": 1488,
+      "minimum_margin": 48
+    },
+    "schlummer": {
+      "crop": [
+        0,
+        5,
+        1010,
+        1505
+      ],
+      "source_hoof_anchor_y": 1500,
+      "hoof_anchor_alpha_threshold": 8,
+      "trailing_low_alpha_pixels": 4,
+      "bottom_margin_exception": "Alpha 1..7 retained below visible hoof",
+      "canvas": [
+        1024,
+        1536
+      ],
+      "placement": [
+        48,
+        113
+      ],
+      "baseline_exclusive": 1488,
+      "minimum_margin": 48
+    },
+    "traeller": {
+      "crop": [
+        0,
+        0,
+        970,
+        1500
+      ],
+      "source_hoof_anchor_y": 1493,
+      "hoof_anchor_alpha_threshold": 8,
+      "trailing_low_alpha_pixels": 6,
+      "bottom_margin_exception": "Alpha 1..7 retained below visible hoof",
+      "canvas": [
+        1024,
+        1536
+      ],
+      "placement": [
+        48,
+        59
+      ],
+      "baseline_exclusive": 1488,
+      "minimum_margin": 48
+    },
+    "pfoertchen": {
+      "crop": [
+        0,
+        5,
+        1010,
+        1536
+      ],
+      "source_hoof_anchor_y": 1517,
+      "hoof_anchor_alpha_threshold": 8,
+      "trailing_low_alpha_pixels": 18,
+      "bottom_margin_exception": "Alpha 1..7 retained below visible hoof",
+      "canvas": [
+        1024,
+        1536
+      ],
+      "placement": [
+        48,
+        98
+      ],
+      "baseline_exclusive": 1488,
+      "minimum_margin": 48
+    }
+  },
+  "files": {
+    "wuschel-figur-512.webp": {
+      "size": [
+        512,
+        768
+      ],
+      "bytes": 41192,
+      "sha256": "318bf1af751aefc3c9bc8f059c3f7b006a0a7cf4448bf7899468f11005e38a82",
+      "quality": 82,
+      "method": 6,
+      "alpha_quality": 100,
+      "lossless_alpha_verified": true,
+      "lossless_rgb": false,
+      "exact": true,
+      "budget_bytes": 150000
+    },
+    "wuschel-figur-1024.webp": {
+      "size": [
+        1024,
+        1536
+      ],
+      "bytes": 121914,
+      "sha256": "913d34dd057ce2d2a1e6bbad1d8c8af4c14835d305b0f9ff405993ef511f4713",
+      "quality": 82,
+      "method": 6,
+      "alpha_quality": 100,
+      "lossless_alpha_verified": true,
+      "lossless_rgb": false,
+      "exact": true,
+      "budget_bytes": 400000
+    },
+    "wuschel-icon-16.png": {
+      "size": [
+        16,
+        16
+      ],
+      "bytes": 832,
+      "sha256": "cb7d01beb4993f107df9ddfc14606d6b4a0f305b60845348a1be16684ed1c879",
+      "lossless": true,
+      "source_crop": [
+        420,
+        355,
+        840,
+        775
+      ]
+    },
+    "wuschel-icon-32.png": {
+      "size": [
+        32,
+        32
+      ],
+      "bytes": 2183,
+      "sha256": "925375526afa1d0ceaa24c08f10119f8421ed661b6b85f8bacf2bd954fa29942",
+      "lossless": true
+    },
+    "wuschel-icon-64.png": {
+      "size": [
+        64,
+        64
+      ],
+      "bytes": 5782,
+      "sha256": "266c80a96ad2d94de8cedfdc141e4b1ab89e8b778f5c350e6afc5161990097c4",
+      "lossless": true
+    },
+    "wuschel-icon-128.png": {
+      "size": [
+        128,
+        128
+      ],
+      "bytes": 16692,
+      "sha256": "29c7feea16f1ddc454c48de9b61f92a87409897fcd230d3da63a09f9624ab0c8",
+      "lossless": true
+    },
+    "wuschel-icon-180.png": {
+      "size": [
+        180,
+        180
+      ],
+      "bytes": 29740,
+      "sha256": "44d7918ffd7a934824c641c797243d70f4af43b14bd5890352d68852be46ed5c",
+      "lossless": true
+    },
+    "wuschel-icon-256.png": {
+      "size": [
+        256,
+        256
+      ],
+      "bytes": 60821,
+      "sha256": "52bd1eaf85fdb873bf4a993f39c5c6528d501be73719ce0a1c9c08bc46d14fcd",
+      "lossless": true
+    },
+    "wuschel-icon-512.png": {
+      "size": [
+        512,
+        512
+      ],
+      "bytes": 226826,
+      "sha256": "c8e53cf3b0814b38de020990d1d766e73d1fe35a5084b975f65fed383e2e140b",
+      "lossless": true
+    },
+    "wuschel-logo-1.png": {
+      "size": [
+        250,
+        100
+      ],
+      "bytes": 12141,
+      "sha256": "f29211d46ba2f481d5816b5aaaa086b5356582dbcd5a44b4378b458b0e1e84e5",
+      "lossless": true
+    },
+    "wuschel-logo-2.png": {
+      "size": [
+        500,
+        200
+      ],
+      "bytes": 40955,
+      "sha256": "c68e37a062c670ef037941495a31bc11022d713f2fb361f3042fbfbae15dcf04",
+      "lossless": true
+    },
+    "traber-figur-512.webp": {
+      "size": [
+        512,
+        768
+      ],
+      "bytes": 43334,
+      "sha256": "9a6fa82009b2a009608126485edc05e2323d315b9c4bb2465b07af86f2ee3ea3",
+      "quality": 82,
+      "method": 6,
+      "alpha_quality": 100,
+      "lossless_alpha_verified": true,
+      "lossless_rgb": false,
+      "exact": true,
+      "budget_bytes": 150000
+    },
+    "traber-figur-1024.webp": {
+      "size": [
+        1024,
+        1536
+      ],
+      "bytes": 121048,
+      "sha256": "a494a1433a3612599f18c52f208c2e8e9abfdce427389877ed200c1bf7fca7f2",
+      "quality": 82,
+      "method": 6,
+      "alpha_quality": 100,
+      "lossless_alpha_verified": true,
+      "lossless_rgb": false,
+      "exact": true,
+      "budget_bytes": 400000
+    },
+    "traber-icon-16.png": {
+      "size": [
+        16,
+        16
+      ],
+      "bytes": 828,
+      "sha256": "967f12fee91eb632fd969f81e7416017798d5a4e6fb31b81f35cb7249374a7ad",
+      "lossless": true
+    },
+    "traber-icon-32.png": {
+      "size": [
+        32,
+        32
+      ],
+      "bytes": 2248,
+      "sha256": "a7e7837e0aa039c44d1b98e5a8b4aea59a4f1752acbb3d53d8ffff5c97d098f9",
+      "lossless": true
+    },
+    "traber-icon-64.png": {
+      "size": [
+        64,
+        64
+      ],
+      "bytes": 6106,
+      "sha256": "5fc12024223866875b72299f28bd7c1d1b4abcab09ce44e14ade58d61fcdd6e0",
+      "lossless": true
+    },
+    "traber-icon-128.png": {
+      "size": [
+        128,
+        128
+      ],
+      "bytes": 17618,
+      "sha256": "dd552b1cd5d385af8e4a39eba4270459bb157572fe780000e98070a1e8b9f128",
+      "lossless": true
+    },
+    "traber-icon-180.png": {
+      "size": [
+        180,
+        180
+      ],
+      "bytes": 31660,
+      "sha256": "6848344042ca0e4b502002a811b40f43b222cbfece17eb1929738f63fa0a6e9a",
+      "lossless": true
+    },
+    "traber-icon-256.png": {
+      "size": [
+        256,
+        256
+      ],
+      "bytes": 64993,
+      "sha256": "a0e4130a3779d24e60607e0e6de90cc24d491d2bb4d4f3ae01bbd5dce3250db9",
+      "lossless": true
+    },
+    "traber-icon-512.png": {
+      "size": [
+        512,
+        512
+      ],
+      "bytes": 238776,
+      "sha256": "a4b9296c5461e10b98446d5eb25258ce3e5dc24d09e77d8c06d7752b27a499db",
+      "lossless": true
+    },
+    "traber-logo-1.png": {
+      "size": [
+        250,
+        100
+      ],
+      "bytes": 12631,
+      "sha256": "54022a9d07bc57224522d6008f3a51ed5f47cf6a582675b01cb392a1cded8dde",
+      "lossless": true
+    },
+    "traber-logo-2.png": {
+      "size": [
+        500,
+        200
+      ],
+      "bytes": 43652,
+      "sha256": "7f391f7e3529386a17561fe3c100008348787c4bb6cd2ac94383470b9852e056",
+      "lossless": true
+    },
+    "schnueffel-figur-512.webp": {
+      "size": [
+        512,
+        768
+      ],
+      "bytes": 54972,
+      "sha256": "c3c2ef2ba9f0e61bb1cb3b83f3016e2e1c306872520c87a637c13cb17f578a1c",
+      "quality": 82,
+      "method": 6,
+      "alpha_quality": 100,
+      "lossless_alpha_verified": true,
+      "lossless_rgb": false,
+      "exact": true,
+      "budget_bytes": 150000
+    },
+    "schnueffel-figur-1024.webp": {
+      "size": [
+        1024,
+        1536
+      ],
+      "bytes": 158084,
+      "sha256": "b4e03b68994e66c28d4a617cb8955b2b16cafdca65772429580755df34e76557",
+      "quality": 82,
+      "method": 6,
+      "alpha_quality": 100,
+      "lossless_alpha_verified": true,
+      "lossless_rgb": false,
+      "exact": true,
+      "budget_bytes": 400000
+    },
+    "schnueffel-icon-16.png": {
+      "size": [
+        16,
+        16
+      ],
+      "bytes": 849,
+      "sha256": "5239ea9cc7fc10ed8313347ac302f3dba18470332e13edf62a9ada3289e7fa89",
+      "lossless": true
+    },
+    "schnueffel-icon-32.png": {
+      "size": [
+        32,
+        32
+      ],
+      "bytes": 2348,
+      "sha256": "3482ae6669ac57e2b6e1d1353bb4f1e9180ee5d8751239f14abf5a317f0bc77b",
+      "lossless": true
+    },
+    "schnueffel-icon-64.png": {
+      "size": [
+        64,
+        64
+      ],
+      "bytes": 6698,
+      "sha256": "201a55b1316596f42b59ed7eb34c841c22342003ee16ff7853a27b15b66d3d20",
+      "lossless": true
+    },
+    "schnueffel-icon-128.png": {
+      "size": [
+        128,
+        128
+      ],
+      "bytes": 18795,
+      "sha256": "c4416a937d3b51666e2ff80789cb8d558d1149b391a7b3a61903ae3d4ed16422",
+      "lossless": true
+    },
+    "schnueffel-icon-180.png": {
+      "size": [
+        180,
+        180
+      ],
+      "bytes": 31923,
+      "sha256": "34072464891f54d572a4732514ad650029bb2775f3b63249fbb802fc3d686c61",
+      "lossless": true
+    },
+    "schnueffel-icon-256.png": {
+      "size": [
+        256,
+        256
+      ],
+      "bytes": 63568,
+      "sha256": "3f5484fc868aa8f460f4705ace0bfdff74c36b633a5e0b0384d20ee51f727076",
+      "lossless": true
+    },
+    "schnueffel-icon-512.png": {
+      "size": [
+        512,
+        512
+      ],
+      "bytes": 232493,
+      "sha256": "f866ebf292c5415e645d7208c4d0a584950895205d4fbeee336e543173a27ffc",
+      "lossless": true
+    },
+    "schnueffel-logo-1.png": {
+      "size": [
+        250,
+        100
+      ],
+      "bytes": 14041,
+      "sha256": "a34a82242d6eb1c3168fbb006d5a9ad5d992029b39c38deac9c5aa4a6cbfb7d6",
+      "lossless": true
+    },
+    "schnueffel-logo-2.png": {
+      "size": [
+        500,
+        200
+      ],
+      "bytes": 43882,
+      "sha256": "e8161bbe35c444742180a97143f053143aacf8b08bbae7d0efc1baa0759360e4",
+      "lossless": true
+    },
+    "kuschel-figur-512.webp": {
+      "size": [
+        512,
+        768
+      ],
+      "bytes": 44810,
+      "sha256": "645ff069fd7f825d6c1a956b0cc27593b955339bd6d2e834c24da3c1925a4f93",
+      "quality": 82,
+      "method": 6,
+      "alpha_quality": 100,
+      "lossless_alpha_verified": true,
+      "lossless_rgb": false,
+      "exact": true,
+      "budget_bytes": 150000
+    },
+    "kuschel-figur-1024.webp": {
+      "size": [
+        1024,
+        1536
+      ],
+      "bytes": 137524,
+      "sha256": "0a41a5d9726062701f7f5de1e32185c6dbedf46d35ce14e434451b7b166efb01",
+      "quality": 82,
+      "method": 6,
+      "alpha_quality": 100,
+      "lossless_alpha_verified": true,
+      "lossless_rgb": false,
+      "exact": true,
+      "budget_bytes": 400000
+    },
+    "kuschel-icon-16.png": {
+      "size": [
+        16,
+        16
+      ],
+      "bytes": 809,
+      "sha256": "0538e99ef027f03e1ac339f5720731bcfd1eac6edfd2b9254af8802600fea138",
+      "lossless": true
+    },
+    "kuschel-icon-32.png": {
+      "size": [
+        32,
+        32
+      ],
+      "bytes": 2420,
+      "sha256": "af47deff6a8e7cde20835dc62ac1727a001f1d8dabe5d39dca456b03c7085920",
+      "lossless": true
+    },
+    "kuschel-icon-64.png": {
+      "size": [
+        64,
+        64
+      ],
+      "bytes": 7231,
+      "sha256": "c90638cdcfb826fe2c28bef7a0e40bb037af56c8299fdffb703eed9c8b8f7b39",
+      "lossless": true
+    },
+    "kuschel-icon-128.png": {
+      "size": [
+        128,
+        128
+      ],
+      "bytes": 21011,
+      "sha256": "0fac7dfb0360bdf6de0877be165b2a61889192f35d6960b3a95363236cddfe5d",
+      "lossless": true
+    },
+    "kuschel-icon-180.png": {
+      "size": [
+        180,
+        180
+      ],
+      "bytes": 35732,
+      "sha256": "a24f479772523d16c413b10ad3634c860ae1be3cebbe3da9cc41f1916af5d709",
+      "lossless": true
+    },
+    "kuschel-icon-256.png": {
+      "size": [
+        256,
+        256
+      ],
+      "bytes": 69548,
+      "sha256": "49d88354b737ad4eba6e6366fbb9aa02af463d7707575c175a1b6b057b15933b",
+      "lossless": true
+    },
+    "kuschel-icon-512.png": {
+      "size": [
+        512,
+        512
+      ],
+      "bytes": 247605,
+      "sha256": "4102739f654e3c240faa70e4c50090a9ff1de38641f828cca69fc7c9768eba48",
+      "lossless": true
+    },
+    "kuschel-logo-1.png": {
+      "size": [
+        250,
+        100
+      ],
+      "bytes": 15369,
+      "sha256": "81c3a9058cb24d307bc1fdd860c6950ee373b8c7eb639ff48a3e8ffd91e42314",
+      "lossless": true
+    },
+    "kuschel-logo-2.png": {
+      "size": [
+        500,
+        200
+      ],
+      "bytes": 47821,
+      "sha256": "7613f442c2e9151a6b22f2b0897c3e28499eb78130b6fb62ae03c0f482b02263",
+      "lossless": true
+    },
+    "funkel-figur-512.webp": {
+      "size": [
+        512,
+        768
+      ],
+      "bytes": 56842,
+      "sha256": "d4238cdb0986f7a134005b00b5732212d6d344f4862eaa105dc427662fc33219",
+      "quality": 82,
+      "method": 6,
+      "alpha_quality": 100,
+      "lossless_alpha_verified": true,
+      "lossless_rgb": false,
+      "exact": true,
+      "budget_bytes": 150000
+    },
+    "funkel-figur-1024.webp": {
+      "size": [
+        1024,
+        1536
+      ],
+      "bytes": 171772,
+      "sha256": "ac1335ca5f7412df20089a35ce31362df0e1888a4b4ccf4d2751c95b6595f019",
+      "quality": 82,
+      "method": 6,
+      "alpha_quality": 100,
+      "lossless_alpha_verified": true,
+      "lossless_rgb": false,
+      "exact": true,
+      "budget_bytes": 400000
+    },
+    "funkel-icon-16.png": {
+      "size": [
+        16,
+        16
+      ],
+      "bytes": 793,
+      "sha256": "9e59bd326e9bc10fe8d7ea4e333796f7217d4a0337d6d5ad54b47e2244c08a9e",
+      "lossless": true
+    },
+    "funkel-icon-32.png": {
+      "size": [
+        32,
+        32
+      ],
+      "bytes": 2154,
+      "sha256": "078946165c43458612b177394cef40db2c9fb512734843c90c9c6683054a9581",
+      "lossless": true
+    },
+    "funkel-icon-64.png": {
+      "size": [
+        64,
+        64
+      ],
+      "bytes": 6079,
+      "sha256": "cf09dd11a76499a42a11427d7e06a897ed638a75a3e9f7bc42fd4b6ed91319a0",
+      "lossless": true
+    },
+    "funkel-icon-128.png": {
+      "size": [
+        128,
+        128
+      ],
+      "bytes": 17555,
+      "sha256": "4bdab0fed90bc5137e8405c12e0f238f21fa7cdafedc47142e88bfec1deb211e",
+      "lossless": true
+    },
+    "funkel-icon-180.png": {
+      "size": [
+        180,
+        180
+      ],
+      "bytes": 30060,
+      "sha256": "2ca9e377712065fd901a0f502faa4609193c04772f66c3617dff0b197ae743ee",
+      "lossless": true
+    },
+    "funkel-icon-256.png": {
+      "size": [
+        256,
+        256
+      ],
+      "bytes": 59740,
+      "sha256": "a89675f1342cf2e661fc92ba963f2b181bb06e53eb8d0a08a63ccf9e81172f23",
+      "lossless": true
+    },
+    "funkel-icon-512.png": {
+      "size": [
+        512,
+        512
+      ],
+      "bytes": 223805,
+      "sha256": "4b648e1791e923ce99e5c3b6f8016c0255c33c477c96366fef0b686cbedcf932",
+      "lossless": true
+    },
+    "funkel-logo-1.png": {
+      "size": [
+        250,
+        100
+      ],
+      "bytes": 12997,
+      "sha256": "8b556ad63b06dd56c896eb5963902b82d1c3789fdbaa975a754188238475f4b4",
+      "lossless": true
+    },
+    "funkel-logo-2.png": {
+      "size": [
+        500,
+        200
+      ],
+      "bytes": 41397,
+      "sha256": "e067dce313f0ca532200fe8e92b7568399e64fa7c97b5b7610fc5951fbf84a6a",
+      "lossless": true
+    },
+    "blinzel-figur-512.webp": {
+      "size": [
+        512,
+        768
+      ],
+      "bytes": 57810,
+      "sha256": "388feb27132dfe6dfb9d99c1648c0c2862a649ce735264ad693b7e8cc0afc2d1",
+      "quality": 82,
+      "method": 6,
+      "alpha_quality": 100,
+      "lossless_alpha_verified": true,
+      "lossless_rgb": false,
+      "exact": true,
+      "budget_bytes": 150000
+    },
+    "blinzel-figur-1024.webp": {
+      "size": [
+        1024,
+        1536
+      ],
+      "bytes": 176310,
+      "sha256": "d7c70c993b2d7d1dd28e07758e134bc87ed83cbd499c447e32b1d8947ba073e9",
+      "quality": 82,
+      "method": 6,
+      "alpha_quality": 100,
+      "lossless_alpha_verified": true,
+      "lossless_rgb": false,
+      "exact": true,
+      "budget_bytes": 400000
+    },
+    "blinzel-icon-16.png": {
+      "size": [
+        16,
+        16
+      ],
+      "bytes": 797,
+      "sha256": "5785909990e9728eb2d69836b34484b142728e29865470b3de1330321439695c",
+      "lossless": true
+    },
+    "blinzel-icon-32.png": {
+      "size": [
+        32,
+        32
+      ],
+      "bytes": 2261,
+      "sha256": "b5708d81f3e921fbfbdd928f3c436d5ced222a4fe17ed9f85c2b17b2446a2980",
+      "lossless": true
+    },
+    "blinzel-icon-64.png": {
+      "size": [
+        64,
+        64
+      ],
+      "bytes": 6627,
+      "sha256": "7df24ad2b68acb02be3156c2bf64d5b6810dfc996af5533ae48b0fa638482bc4",
+      "lossless": true
+    },
+    "blinzel-icon-128.png": {
+      "size": [
+        128,
+        128
+      ],
+      "bytes": 19311,
+      "sha256": "c9a0dec47fc562919dc5cbac2f4a437f96f57b7066cee544e4fd27279d1008a1",
+      "lossless": true
+    },
+    "blinzel-icon-180.png": {
+      "size": [
+        180,
+        180
+      ],
+      "bytes": 32698,
+      "sha256": "90309dc9b21eb77ee79092bb144e422465ba0d3f8666660ddd595ff289a83244",
+      "lossless": true
+    },
+    "blinzel-icon-256.png": {
+      "size": [
+        256,
+        256
+      ],
+      "bytes": 63893,
+      "sha256": "86beaf61bc31cb062e3b5c92629bc0f4c78dde217fb607b4044c702ba4a24a4e",
+      "lossless": true
+    },
+    "blinzel-icon-512.png": {
+      "size": [
+        512,
+        512
+      ],
+      "bytes": 230476,
+      "sha256": "0ad827fe66393029725bad3f3700607c7ac0dfae690272a5b6ec819843c68dc1",
+      "lossless": true
+    },
+    "blinzel-logo-1.png": {
+      "size": [
+        250,
+        100
+      ],
+      "bytes": 14071,
+      "sha256": "fbf5846175023d9b393cfac274b26882b778a579ce1a5f475500c989fd45d7f6",
+      "lossless": true
+    },
+    "blinzel-logo-2.png": {
+      "size": [
+        500,
+        200
+      ],
+      "bytes": 44570,
+      "sha256": "ca14c47ebf647229f69e1dd4649693f93be4da015cb8a19b91e1165b08afb6de",
+      "lossless": true
+    },
+    "schlummer-figur-512.webp": {
+      "size": [
+        512,
+        768
+      ],
+      "bytes": 49266,
+      "sha256": "1213743801718e55758b1109475534eb29f65bc9cf7aafd12dc2c269bd15588d",
+      "quality": 82,
+      "method": 6,
+      "alpha_quality": 100,
+      "lossless_alpha_verified": true,
+      "lossless_rgb": false,
+      "exact": true,
+      "budget_bytes": 150000
+    },
+    "schlummer-figur-1024.webp": {
+      "size": [
+        1024,
+        1536
+      ],
+      "bytes": 143314,
+      "sha256": "d7ca23889e2e4d10716130039ce396bf83c152f1fd8ea786ba94e2444981b2e6",
+      "quality": 82,
+      "method": 6,
+      "alpha_quality": 100,
+      "lossless_alpha_verified": true,
+      "lossless_rgb": false,
+      "exact": true,
+      "budget_bytes": 400000
+    },
+    "schlummer-icon-16.png": {
+      "size": [
+        16,
+        16
+      ],
+      "bytes": 810,
+      "sha256": "2469b8b25a2b490ff58c4b5f3e1be001e36cddf69fc4905b98bda3d31b1aafff",
+      "lossless": true
+    },
+    "schlummer-icon-32.png": {
+      "size": [
+        32,
+        32
+      ],
+      "bytes": 2404,
+      "sha256": "d658fc7f115198ce37d9eb8e59f67b0cf84cce084c3f61d9ca4472fbd3f3c35e",
+      "lossless": true
+    },
+    "schlummer-icon-64.png": {
+      "size": [
+        64,
+        64
+      ],
+      "bytes": 7304,
+      "sha256": "6041315c574e107bb01b2668e7d38b7fbf43cd5533bcca4f91bb8f7540bb6f6d",
+      "lossless": true
+    },
+    "schlummer-icon-128.png": {
+      "size": [
+        128,
+        128
+      ],
+      "bytes": 20979,
+      "sha256": "cb8a8e00ff89e3abb1fbef4153122d496fed8e64fb04584ad41c408d2202cba7",
+      "lossless": true
+    },
+    "schlummer-icon-180.png": {
+      "size": [
+        180,
+        180
+      ],
+      "bytes": 35305,
+      "sha256": "35ac8f123246720ba2f54526af8f2e9e25f948dc8db6d01d0a7774cf48328918",
+      "lossless": true
+    },
+    "schlummer-icon-256.png": {
+      "size": [
+        256,
+        256
+      ],
+      "bytes": 68328,
+      "sha256": "035c9c9639da3105efa6d017c90edecb7bd6ebd99f76863783899a94fc58b0ba",
+      "lossless": true
+    },
+    "schlummer-icon-512.png": {
+      "size": [
+        512,
+        512
+      ],
+      "bytes": 244113,
+      "sha256": "2d433f88a0d86f661026cee400e3c48cf1fd21a346664a0276cf0d314863ff56",
+      "lossless": true
+    },
+    "schlummer-logo-1.png": {
+      "size": [
+        250,
+        100
+      ],
+      "bytes": 15347,
+      "sha256": "e93fcd3752fd2777323f57351045aa5e3423e2728a68333e158d0a56a0fa5f1c",
+      "lossless": true
+    },
+    "schlummer-logo-2.png": {
+      "size": [
+        500,
+        200
+      ],
+      "bytes": 47175,
+      "sha256": "75bef20917fef50f864b5cd642fa542d617a44113f0f14b405bfff55c83b263c",
+      "lossless": true
+    },
+    "traeller-figur-512.webp": {
+      "size": [
+        512,
+        768
+      ],
+      "bytes": 56932,
+      "sha256": "5866dcd349dedd0883952d19259c0c6e3f774a70c41e382595cb0c1c42354c87",
+      "quality": 82,
+      "method": 6,
+      "alpha_quality": 100,
+      "lossless_alpha_verified": true,
+      "lossless_rgb": false,
+      "exact": true,
+      "budget_bytes": 150000
+    },
+    "traeller-figur-1024.webp": {
+      "size": [
+        1024,
+        1536
+      ],
+      "bytes": 162640,
+      "sha256": "974b2af90951cc6ddd219ac3e4cd6e7d8b7fd346a957ead5dc9450c2461e3936",
+      "quality": 82,
+      "method": 6,
+      "alpha_quality": 100,
+      "lossless_alpha_verified": true,
+      "lossless_rgb": false,
+      "exact": true,
+      "budget_bytes": 400000
+    },
+    "traeller-icon-16.png": {
+      "size": [
+        16,
+        16
+      ],
+      "bytes": 789,
+      "sha256": "8107f76b5a622b8158f391420284a31108b197032f357d9b41fdc8f52936943e",
+      "lossless": true
+    },
+    "traeller-icon-32.png": {
+      "size": [
+        32,
+        32
+      ],
+      "bytes": 2229,
+      "sha256": "59cf7b3bc785bf9f163c4bc99baba3d6ea3887b98184c85bdc1f3730afe703fa",
+      "lossless": true
+    },
+    "traeller-icon-64.png": {
+      "size": [
+        64,
+        64
+      ],
+      "bytes": 6666,
+      "sha256": "89436e4dabdcbf31dc3ded3f55e0bbb154d5d41a0f945f2666b8ecc3e60cb54b",
+      "lossless": true
+    },
+    "traeller-icon-128.png": {
+      "size": [
+        128,
+        128
+      ],
+      "bytes": 19495,
+      "sha256": "348291d555ff0e5d62f4ce0642533c5989554b20ff86a2e74bbc94be55002672",
+      "lossless": true
+    },
+    "traeller-icon-180.png": {
+      "size": [
+        180,
+        180
+      ],
+      "bytes": 33025,
+      "sha256": "b29fddf003d803fefacdc643b78ad7210414de048d1228e9cdfc71a320319fae",
+      "lossless": true
+    },
+    "traeller-icon-256.png": {
+      "size": [
+        256,
+        256
+      ],
+      "bytes": 63945,
+      "sha256": "707bed3e65c909ea428f6357e2b3a07b79347cb585d2c80905a1f8a600926586",
+      "lossless": true
+    },
+    "traeller-icon-512.png": {
+      "size": [
+        512,
+        512
+      ],
+      "bytes": 233527,
+      "sha256": "c90540d33b1ebbfe8e7dd500dcc48b0bba6dfa7fc980782819afe85c0d391eb9",
+      "lossless": true
+    },
+    "traeller-logo-1.png": {
+      "size": [
+        250,
+        100
+      ],
+      "bytes": 14236,
+      "sha256": "0569ac61c1d2d40a517251d88241b0600a6d15f787d4f01a048de01acdb65c70",
+      "lossless": true
+    },
+    "traeller-logo-2.png": {
+      "size": [
+        500,
+        200
+      ],
+      "bytes": 44509,
+      "sha256": "8b31aa40bea58b42a75c4b4d2f5ac3bb34ff0d5cbf6a73de9cbfdda35038a41d",
+      "lossless": true
+    },
+    "pfoertchen-figur-512.webp": {
+      "size": [
+        512,
+        768
+      ],
+      "bytes": 41414,
+      "sha256": "6db7c7d5ad1cd582f93ed1b48650d13585d52f3c0aaf298bb9f9fc3456795f17",
+      "quality": 82,
+      "method": 6,
+      "alpha_quality": 100,
+      "lossless_alpha_verified": true,
+      "lossless_rgb": false,
+      "exact": true,
+      "budget_bytes": 150000
+    },
+    "pfoertchen-figur-1024.webp": {
+      "size": [
+        1024,
+        1536
+      ],
+      "bytes": 115884,
+      "sha256": "0938270e48344f979c77fbd919b93e0113a6e402ff6d44ae2365cfdf49520b71",
+      "quality": 82,
+      "method": 6,
+      "alpha_quality": 100,
+      "lossless_alpha_verified": true,
+      "lossless_rgb": false,
+      "exact": true,
+      "budget_bytes": 400000
+    },
+    "pfoertchen-icon-16.png": {
+      "size": [
+        16,
+        16
+      ],
+      "bytes": 797,
+      "sha256": "0a5ae70f385323549289ba73333abd9eba75227361c217b58d32e6af9ed3bc4f",
+      "lossless": true
+    },
+    "pfoertchen-icon-32.png": {
+      "size": [
+        32,
+        32
+      ],
+      "bytes": 2217,
+      "sha256": "ecd679cb241097cf44be532ad31255e8899de2019bd805af23fa3f25e3bdb179",
+      "lossless": true
+    },
+    "pfoertchen-icon-64.png": {
+      "size": [
+        64,
+        64
+      ],
+      "bytes": 6586,
+      "sha256": "52f1b0db20c00ad7861154ed5cad5fb9309595a8fda2ccd41df958195fe9e631",
+      "lossless": true
+    },
+    "pfoertchen-icon-128.png": {
+      "size": [
+        128,
+        128
+      ],
+      "bytes": 19643,
+      "sha256": "22ee33e0d6040feb50ccb4bfb2e1931e19613999bcbf03d668113e597ee92efd",
+      "lossless": true
+    },
+    "pfoertchen-icon-180.png": {
+      "size": [
+        180,
+        180
+      ],
+      "bytes": 33245,
+      "sha256": "f3b16137d47089f5a0446695e71dc6133af31073733374323e300854eeb55cb7",
+      "lossless": true
+    },
+    "pfoertchen-icon-256.png": {
+      "size": [
+        256,
+        256
+      ],
+      "bytes": 64649,
+      "sha256": "551cec0988252a5f592bc062b8f297b73c633b6914649d8760c2f11bb6ab5a59",
+      "lossless": true
+    },
+    "pfoertchen-icon-512.png": {
+      "size": [
+        512,
+        512
+      ],
+      "bytes": 235143,
+      "sha256": "7ff86c30d16f86831afabb29004bcad88af2e0adde24da34a020be886187ff4e",
+      "lossless": true
+    },
+    "pfoertchen-logo-1.png": {
+      "size": [
+        250,
+        100
+      ],
+      "bytes": 14237,
+      "sha256": "ba05ac6e63557651302724b0bdf11d365543febc9bc8db826cf61d6c9d25803c",
+      "lossless": true
+    },
+    "pfoertchen-logo-2.png": {
+      "size": [
+        500,
+        200
+      ],
+      "bytes": 45133,
+      "sha256": "d7f9c9cd3227f140e3aaec746d787e57afda1c7c6a94f1a27b0a123d926e2ec9",
+      "lossless": true
+    }
+  }
+}

@@ -110,6 +110,16 @@ class Producer:
 def temporal(ctx: Context, parameters: TemporalParameters, *, input_name: str = "a") -> FieldValue:
     """Restore and advance a temporal node without replaying events or renewing Grace."""
     now, node, p = ctx.now, ctx.node, parameters
+    from .managed_catalog import dependencies
+
+    missing_catalog_trace = (
+        "temporal" in node
+        and not node.get("catalog_dependencies")
+        and any(e.startswith("catalog:") for value in ctx.inputs.values() for e in value.evidence)
+    )
+    if dependencies(node, list(ctx.inputs.values())) or missing_catalog_trace:
+        for key in ("temporal", "restore_pending", "age_input", "age_value", "edge_active"):
+            node.pop(key, None)
     a, b = ctx.input(input_name), ctx.input("b")
     previous = (
         TemporalState.model_validate(node["temporal"])
@@ -156,7 +166,31 @@ def state_machine(
 ) -> FieldValue:
     """Generic CP-15 restore, explicit type-owned re-init rule and deadline dispatch."""
     now, node = ctx.now, ctx.node
+    from .managed_catalog import dependencies, suspend_machine
+
+    missing_catalog_trace = (
+        "machine" in node
+        and not node.get("catalog_dependencies")
+        and any(e.startswith("catalog:") for value in ctx.inputs.values() for e in value.evidence)
+    )
+    if dependencies(node, list(ctx.inputs.values())) or missing_catalog_trace:
+        suspend_machine(node)
     current: MachineState | None = ctx.override
+    if "catalog_machine_pending" in node:
+        if current is None:
+            if ctx.origin != "input" or not reinitialize(ctx):
+                return unknown(ReasonCode.RESTORE_INCOMPATIBLE, ctx.contract.contract_id, now)
+            current = machine.initial(
+                now, ctx.state.active_revision, node["fingerprint"]
+            ).model_copy(
+                update={
+                    "transition_reason": "reinitialize_when",
+                    "trigger": "reinitialize_when",
+                    "source": "evidence",
+                    "evidence": tuple(node.get("machine_recovery", {}).get("evidence", ())),
+                }
+            )
+        node.pop("catalog_machine_pending")
     if current is None and "machine" in node:
         try:
             current = MachineState.model_validate(node["machine"])
@@ -245,6 +279,8 @@ def state_machine(
                         return unknown(ReasonCode.DEADLINE_OVERDUE, ctx.contract.contract_id, now)
         if ctx.origin == "restore":
             current = current.model_copy(update={"origin": "restore"})
+    if "catalog_machine_pending" in node:
+        return unknown(ReasonCode.RESTORE_INCOMPATIBLE, ctx.contract.contract_id, now)
     node["machine"] = current.model_dump(mode="json")
     return FieldValue(
         status="valid",

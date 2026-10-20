@@ -173,12 +173,12 @@ async def test_bridge_snapshot_absent_changed_report_order(runtime, config, aioh
             and evidence["observation_kind"] == "report"
         )
         assert [r["type"] for r in fake.requests] == [
-            "bifrost/info",
-            "bifrost/negotiate",
+            "traber/info",
+            "traber/negotiate",
             "get_config",
             "subscribe_events",
             "subscribe_events",
-            "bifrost/subscribe",
+            "traber/subscribe",
         ]
         runtime.resubscribe.set()
         await task

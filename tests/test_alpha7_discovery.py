@@ -75,7 +75,7 @@ async def test_preview_is_explicit_admin_only_bounded_and_separate_from_metadata
             "config/area_registry/list",
             "config/device_registry/list",
             "config/entity_registry/list",
-            "bifrost/negotiate",
+            "traber/negotiate",
         }
         for request in fixture.requests
     )

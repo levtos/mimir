@@ -50,6 +50,8 @@ def transform(value: Any, binding: Binding, config: RegistryConfig) -> Any:
         assert transformation.factor is not None and transformation.offset is not None
         return finite(float(value) * transformation.factor + transformation.offset)
     catalog = next(c for c in config.catalogs if c.catalog_id == transformation.catalog_id)
+    if catalog.kind != "map":
+        raise ValueError("inline_catalog_required")
     return catalog.entries[str(value)]
 
 
@@ -146,7 +148,7 @@ class BridgeAdapter:
                             if isinstance(row.get("entity_id"), str)
                         }
                         await socket.send_json(
-                            {"id": 5, "type": "bifrost/negotiate", "supported_versions": [2, 1]}
+                            {"id": 5, "type": "traber/negotiate", "supported_versions": [2, 1]}
                         )
                         negotiated = await socket.receive_json()
                         if negotiated.get("id") != 5:
@@ -165,7 +167,7 @@ class BridgeAdapter:
                                     socket,
                                     {
                                         "id": 6 + offset // 200,
-                                        "type": "bifrost/source_metadata",
+                                        "type": "traber/source_metadata",
                                         "entity_ids": selected_ids[offset : offset + 200],
                                     },
                                 )
@@ -341,7 +343,7 @@ class BridgeAdapter:
                 "assumed_state": bool(attributes.get("assumed_state", False)),
                 "epoch_id": self.runtime.state.epoch_id,
                 "ingest_seq": self.sequence,
-                "reference_version": config.fingerprint_version,
+                "reference_version": 2 if config.fingerprint_version >= 2 else 1,
                 "registry_revision": self.runtime.state.active_revision
                 if revision is None
                 else revision,
@@ -447,7 +449,7 @@ class BridgeAdapter:
                 await self.socket.send_json(
                     {
                         "id": number,
-                        "type": "bifrost/service_call",
+                        "type": "traber/service_call",
                         "protocol_version": 2,
                         "request_id": identifier,
                         "operation": operation,
@@ -476,7 +478,7 @@ class BridgeAdapter:
             await socket.send_json({"type": "auth", "access_token": self.token})
             if (await socket.receive_json()).get("type") != "auth_ok":
                 raise ConnectionError("ha_auth_failed")
-            info = await self._result(socket, {"id": 1, "type": "bifrost/info"})
+            info = await self._result(socket, {"id": 1, "type": "traber/info"})
             if info.get("protocol_version") != 1:
                 raise ConnectionError("bridge_incompatible")
             self.bridge_version = info["bridge_version"]
@@ -484,7 +486,7 @@ class BridgeAdapter:
             await socket.send_json(
                 {
                     "id": 6,
-                    "type": "bifrost/negotiate",
+                    "type": "traber/negotiate",
                     "supported_versions": [2, 1],
                     **(
                         {"installation_id": self.runtime.installation_id}
@@ -531,7 +533,7 @@ class BridgeAdapter:
                 socket,
                 {
                     "id": 5,
-                    "type": "bifrost/subscribe",
+                    "type": "traber/subscribe",
                     "protocol_version": self.protocol_selected,
                     "entity_ids": entities,
                     "report_entity_ids": sorted(

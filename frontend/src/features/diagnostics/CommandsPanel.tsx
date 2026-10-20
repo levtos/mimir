@@ -90,7 +90,7 @@ export function CommandsPanel({ contractId, onContract, fixed = false }: { contr
         contract_id: contractId,
         command: spec!.name,
         args,
-        origin: { kind: 'workbench', actor: 'admin', client_name: 'terra-workbench' },
+        origin: { kind: 'workbench', actor: 'admin', client_name: 'wuschel-workbench' },
         issued_at: new Date(issued).toISOString(),
         valid_until: new Date(issued + 30_000).toISOString(),
         ...(live.registryRevision ? { expected_registry_revision: live.registryRevision } : {}),

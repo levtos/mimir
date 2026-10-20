@@ -111,7 +111,7 @@ class MQTTAdapter:
             mqtt_qos=qos,
             epoch_id=self.runtime.state.epoch_id,
             ingest_seq=self.sequence,
-            reference_version=config.fingerprint_version,
+            reference_version=2 if config.fingerprint_version >= 2 else 1,
             registry_revision=self.runtime.state.active_revision if revision is None else revision,
             **origin_fields,
         )
@@ -191,7 +191,9 @@ class MQTTAdapter:
                                             observation_kind="report",
                                             epoch_id=self.runtime.state.epoch_id,
                                             ingest_seq=self.sequence,
-                                            reference_version=config.fingerprint_version,
+                                            reference_version=2
+                                            if config.fingerprint_version >= 2
+                                            else 1,
                                             registry_revision=revision,
                                             invalid_timestamp=True,
                                         )

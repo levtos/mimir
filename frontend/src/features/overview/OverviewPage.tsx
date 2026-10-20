@@ -4,7 +4,6 @@ import { t } from '@/i18n';
 import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
 import { Button } from '@/components/ui/button';
 import { PageHeader, Panel, PanelHeader, Spinner } from '@/components/ui/layout';
-import { ReviewDraftButton } from '@/features/authoring/DraftBar';
 import { useWorkingDocument } from '@/features/authoring/WorkingDocument';
 import { asArray, str } from '@/features/authoring/model';
 import { isObject } from '@/lib/json';
@@ -45,8 +44,7 @@ export function OverviewPage() {
       <LayoutPanel id="actions" title={t('alpha7.overview.actions')}><Panel>
         <PanelHeader title={t('alpha7.overview.actions')} />
         <div className="flex flex-wrap gap-3 p-5">
-          <Button onClick={() => navigate('/contracts/import/json')}><Upload size={16} />{t('alpha7.nav.contractImport')}</Button>
-          {doc.draft && <ReviewDraftButton size="md" variant="secondary">{t('alpha7.overview.apply')}</ReviewDraftButton>}
+          <Button onClick={() => navigate('/import-export')}><Upload size={16} />{t('alpha10.transfer.title')}</Button>
         </div>
       </Panel></LayoutPanel>
       <LayoutPanel id="contracts" title={t('alpha7.nav.contracts')}><Panel>

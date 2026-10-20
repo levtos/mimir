@@ -163,7 +163,7 @@ function RevisionsTab() {
                     </p>
                     <p className="text-xs text-muted">{formatTime(row.created_at)} · {actorLabel}</p>
                     {row.note && <p className="mt-1 text-sm">{row.note}</p>}
-                    <Collapsible title={uiText('alpha7.versions.advanced')}><p className="mono break-all text-xs text-muted">{row.checksum}</p></Collapsible>
+                    <Collapsible title={uiText('alpha7.versions.advanced')}><p className="mb-2 text-sm text-muted">{uiText('alpha10.checksumHelp')}</p><p className="mono break-all text-xs text-muted">{row.checksum}</p></Collapsible>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     <Button size="sm" onClick={() => setViewing(row)}><History size={13} /> {uiText("features.registry.RegistryPage.ansehen_8e3136")}</Button>
@@ -179,7 +179,7 @@ function RevisionsTab() {
       </Panel>
       {viewing && (
         <Dialog open onOpenChange={(o) => !o && setViewing(null)} size="xl" title={uiText("features.registry.RegistryPage.revision_v0_5db9ad", { v0: (viewing.revision) })}>
-          <Collapsible title={uiText('alpha7.versions.advanced')}><p className="mono break-all text-xs">{viewing.checksum}</p></Collapsible>
+          <Collapsible title={uiText('alpha7.versions.advanced')}><p className="mb-2 text-sm text-muted">{uiText('alpha10.checksumHelp')}</p><p className="mono break-all text-xs">{viewing.checksum}</p></Collapsible>
           <pre className="max-h-[60vh] overflow-auto rounded-[var(--radius-md)] bg-sunken p-3 text-xs">{canonicalJson(viewing.config)}</pre>
         </Dialog>
       )}

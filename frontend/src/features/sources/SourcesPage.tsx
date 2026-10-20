@@ -117,10 +117,10 @@ function Collection({ name, idKey, singular, make, render, subtitle, usage, onMo
             {name === 'sources' && current.origin === 'manual' && !src.editable ? <>
               <ManualSourcePanel key={str(current.source_id)} sourceId={str(current.source_id)} />
               <Collapsible title={uiText('alpha9.manual.configuration')}><fieldset disabled={!src.editable} className="min-w-0">
-              {render(current, `/${name}/${selected}`, (next) => doc.edit((c) => ({ ...setAt(c, `/${name}/${selected}`, next), ...(name === 'sources' && (next.sensor_profile || next.value_origin) ? { config_schema_version: 2 } : {}) })), config)}
+              {render(current, `/${name}/${selected}`, (next) => doc.edit((c) => ({ ...setAt(c, `/${name}/${selected}`, next), ...(name === 'sources' && (next.sensor_profile || next.value_origin) ? { config_schema_version: Math.max(2, Number(c.config_schema_version ?? 1)) } : {}) })), config)}
             </fieldset></Collapsible>
             </> : <><fieldset disabled={!src.editable} className="min-w-0">
-              {render(current, `/${name}/${selected}`, (next) => doc.edit((c) => ({ ...setAt(c, `/${name}/${selected}`, next), ...(name === 'sources' && (next.sensor_profile || next.value_origin) ? { config_schema_version: 2 } : {}) })), config)}
+              {render(current, `/${name}/${selected}`, (next) => doc.edit((c) => ({ ...setAt(c, `/${name}/${selected}`, next), ...(name === 'catalogs' && next.kind === 'managed' ? { config_schema_version: 3, fingerprint_version: 3 } : name === 'sources' && (next.sensor_profile || next.value_origin) ? { config_schema_version: Math.max(2, Number(c.config_schema_version ?? 1)) } : {}) })), config)}
             </fieldset></>}
           </div>
         )}
@@ -255,11 +255,11 @@ export default function SourcesPage() {
                     onChange={next => {
                       const adapter = asObject(next.adapter);
                       if (adapter.kind !== 'ha_calendar') {
-                        if (next.refresh !== undefined) doc.edit(current => ({ ...setAt(current, pointer, next), config_schema_version: 2 }));
+                        if (next.refresh !== undefined) doc.edit(current => ({ ...setAt(current, pointer, next), config_schema_version: Math.max(2, Number(current.config_schema_version ?? 1)) }));
                         else onChange(next);
                         return;
                       }
-                      doc.edit(current => ({ ...setAt(current, pointer, next), config_schema_version: 2,
+                      doc.edit(current => ({ ...setAt(current, pointer, next), config_schema_version: Math.max(2, Number(current.config_schema_version ?? 1)),
                         sources: asArray(current.sources).map(source => isObject(source) && source.source_id === next.source_id
                           ? { ...source, freshness: { ...asObject(source.freshness), mode: 'periodic_ttl', interval_s: adapter.max_age_s ?? 3600 } } : source) }));
                     }}

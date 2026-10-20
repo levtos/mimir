@@ -122,6 +122,33 @@ class API:
                     and str(error)
                     in {
                         "active_revision_conflict",
+                        "catalog_master_invalid",
+                        "catalog_variant_override",
+                        "catalog_class_invalid",
+                        "catalog_key_empty",
+                        "catalog_expansion_limit",
+                        "catalog_retired",
+                        "catalog_definition_missing",
+                        "catalog_evaluation_failed",
+                        "import_format_unknown",
+                        "import_legacy_format_unknown",
+                        "import_digest_mismatch",
+                        "import_object_digest_mismatch",
+                        "import_duplicate_key",
+                        "import_nonfinite",
+                        "import_size_limit",
+                        "import_catalog_definition",
+                        "import_catalog_duplicate",
+                        "import_remap_conflict",
+                        "import_ambiguous_remap",
+                        "import_unresolved_conflicts",
+                        "import_target_draft_required",
+                        "import_target_has_plan",
+                        "import_entry_limit",
+                        "catalog_content_conflict",
+                        "catalog_request_conflict",
+                        "catalog_definition_conflict",
+                        "import_plan_conflict",
                         "draft_version_conflict",
                         "editorial_version_conflict",
                         "editorial_scope_conflict",
@@ -177,7 +204,7 @@ class API:
             )
             return response
 
-        app = web.Application(middlewares=[boundary], client_max_size=2_000_000)
+        app = web.Application(middlewares=[boundary], client_max_size=50 * 1024 * 1024)
         app.on_shutdown.append(self.close_sockets)
         app.router.add_get("/health/live", self.health)
         app.router.add_get("/health/ready", self.health)
@@ -304,6 +331,85 @@ class API:
             result = reasons()
         elif path == "registry/schema" and method == "GET":
             result = configuration_schema()
+        elif path in {"portable/export", "portable/preview", "portable/stage"} and method == "POST":
+            from .portable import strict_json
+
+            body = strict_json(await request.text())
+            if not isinstance(body, dict):
+                raise ValueError("import_object_required")
+            result = await runtime.submit(
+                path.replace("/", "_"), {**body, "_actor": request["actor"]}
+            )
+        elif path == "catalogs" and method == "GET":
+            from .catalog_models import ManagedCatalog
+
+            result = (
+                [
+                    c.model_dump(mode="json")
+                    for c in config.catalogs
+                    if isinstance(c, ManagedCatalog)
+                ]
+                if config
+                else []
+            )
+        elif path == "catalogs/entries" and method == "GET":
+            from .managed_catalog import definition, page
+
+            catalog = definition(
+                config, request.query["catalog_id"], int(request.query["definition_version"])
+            )
+            result = page(
+                state,
+                catalog,
+                query=request.query.get("q", ""),
+                view=request.query.get("view", "all"),
+                after=request.query.get("after", ""),
+                limit=int(request.query.get("limit", "100")),
+                filters={
+                    key: request.query.get(key, "")
+                    for key in ("scope", "media_type", "signal_type")
+                },
+            )
+        elif path == "catalogs/entries" and method == "POST":
+            result = await runtime.submit(
+                "catalog_write",
+                {"request": await self.object_body(request), "_actor": request["actor"]},
+            )
+        elif path == "catalogs/preview" and method == "POST":
+            result = await runtime.submit(
+                "catalog_preview",
+                {"request": await self.object_body(request), "_actor": request["actor"]},
+            )
+        elif path == "catalogs/entry" and method == "GET":
+            from .managed_catalog import definition, entry_view
+
+            catalog = definition(
+                config, request.query["catalog_id"], int(request.query["definition_version"])
+            )
+            result = entry_view(state, catalog, request.query["identity"])
+        elif path == "catalogs/history" and method == "GET":
+            from .managed_catalog import definition, head, head_key
+
+            catalog = definition(
+                config, request.query["catalog_id"], int(request.query["definition_version"])
+            )
+            revision = head(state, catalog)["revision"]
+            before = min(int(request.query.get("after") or revision + 1), revision + 1)
+            rows = await runtime.store.catalog_revisions(head_key(catalog), before)
+            result = [
+                {**row, "head_revision": revision, "active_revision": state.active_revision}
+                for row in rows
+            ]
+        elif path == "catalogs/revision" and method == "GET":
+            result = await runtime.submit(
+                "catalog_revision",
+                {
+                    "catalog_id": request.query["catalog_id"],
+                    "definition_version": int(request.query["definition_version"]),
+                    "revision": int(request.query["revision"]),
+                    "after": request.query.get("after", ""),
+                },
+            )
         elif path == "registry/validate" and method == "POST":
             result = await runtime.submit("validate", await request.json())
         elif path == "definitions" and method == "GET":

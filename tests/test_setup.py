@@ -263,7 +263,7 @@ async def test_unauthenticated_reachability_uses_ssl_request_only(reply, tls):
         ({"protocol_version": 1, "bridge_version": "1.0.0a1"}, [], "active"),
         ({"protocol_version": 1, "bridge_version": "1.0.0a9", "negotiated": 2}, [], "active"),
         ({"protocol_version": 2}, [], "incompatible"),
-        (None, ["bifrost"], "installed_not_configured"),
+        (None, ["traber"], "installed_not_configured"),
         (None, [], "missing_or_restart_pending"),
     ],
 )
@@ -329,8 +329,8 @@ async def test_bridge_detection_readonly_and_no_false_filesystem_claim(
     result = await setup_control.bridge_status("ephemeral-supervisor-token")
     assert result["state"] == expected
     assert result["release_blocker"] == (expected != "active")
-    assert [command["type"] for command in commands] == ["auth", "bifrost/info"] + (
-        ["bifrost/negotiate"] if expected == "active" else []
+    assert [command["type"] for command in commands] == ["auth", "traber/info"] + (
+        ["traber/negotiate"] if expected == "active" else []
     )
     if expected == "active":
         assert result["protocol_selected"] == info.get("negotiated", 1)
@@ -339,8 +339,8 @@ async def test_bridge_detection_readonly_and_no_false_filesystem_claim(
 @pytest.mark.parametrize(
     "existing,handler,expected_posts",
     [
-        (True, "bifrost", 0),
-        (False, "bifrost", 2),
+        (True, "traber", 0),
+        (False, "traber", 2),
         (False, "other_domain", 1),
     ],
 )
@@ -356,7 +356,7 @@ async def test_supported_bridge_flow_is_fixed_domain_and_preserves_existing_entr
             "flow_id": "test_flow",
             "data_schema": [],
         },
-        {"type": "create_entry", "handler": "bifrost"},
+        {"type": "create_entry", "handler": "traber"},
     ]
 
     class Response:
@@ -385,15 +385,15 @@ async def test_supported_bridge_flow_is_fixed_domain_and_preserves_existing_entr
             pass
 
         def get(self, url, **kwargs):
-            assert url.endswith("/entry?domain=bifrost")
-            return Response([{"domain": "bifrost"}] if existing else [])
+            assert url.endswith("/entry?domain=traber")
+            return Response([{"domain": "traber"}] if existing else [])
 
         def post(self, url, **kwargs):
             posts.append((url, kwargs["json"]))
             return Response(values.pop(0))
 
     monkeypatch.setattr(setup_control.aiohttp, "ClientSession", Session)
-    if handler != "bifrost":
+    if handler != "traber":
         with pytest.raises(ValueError, match="bridge_flow_changed"):
             await setup_control.configure_bridge("ephemeral-token")
     else:
@@ -402,7 +402,7 @@ async def test_supported_bridge_flow_is_fixed_domain_and_preserves_existing_entr
         )
     assert len(posts) == expected_posts
     if posts:
-        assert posts[0][1] == {"handler": "bifrost"}
+        assert posts[0][1] == {"handler": "traber"}
     if len(posts) == 2:
         assert posts[1][0].endswith("/flow/test_flow") and posts[1][1] == {}
 
