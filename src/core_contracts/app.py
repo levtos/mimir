@@ -18,13 +18,13 @@ from .adapters.ha import BridgeAdapter
 from .adapters.mqtt import MQTTAdapter
 from .api import API
 from .clock import SystemClock
+from .contract_types import type_registry
 from .identity import load_id, reconcile, write_private
 from .model import Model, canonical
 from .persistence import PersistenceUnavailable, PostgresStore
 from .runtime import Runtime
 from .security import Tokens
 from .setup import Connection, Setup, probe
-from .testing.contract_types import type_registry
 
 LOGGER = logging.getLogger(__name__)
 

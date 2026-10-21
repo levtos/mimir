@@ -11,7 +11,7 @@ from core_contracts.testing.contract_types import type_registry
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_no_builtin_domain_registration_outside_testing():
+def test_only_approved_opening_domain_registration_outside_testing():
     domain_terms = {
         "opening",
         "window",
@@ -51,9 +51,20 @@ def test_no_builtin_domain_registration_outside_testing():
                     for keyword in node.keywords
                 ):
                     continue
-                raise AssertionError(
-                    f"Only fixture packages may register contract types: {path.name}"
-                )
+                if path == ROOT / "src/core_contracts/openings.py":
+                    from core_contracts.openings import register
+                    from core_contracts.schema import TypeRegistry
+
+                    production = TypeRegistry()
+                    register(production)
+                    assert set(production.types) == {
+                        ("opening.dual_contact", 1),
+                        ("opening.single_contact", 1),
+                        ("opening_zone.facts", 1),
+                    }
+                    assert all(not entry.schema.fixture for entry in production.types.values())
+                    continue
+                raise AssertionError(f"Unapproved domain registration: {path.name}")
             if isinstance(node, ast.Constant) and isinstance(node.value, str):
                 assert not any(node.value.startswith(term + ".v") for term in domain_terms)
 

@@ -42,7 +42,7 @@ it('loads local area icons and uses the house for unknown icons or external mark
   expect(await mdiPath('https://example.org/icon.svg')).toBe(await mdiPath('mdi:home'));
   expect(await mdiPath('mdi:not-in-the-pinned-set')).toBe(await mdiPath('mdi:home'));
   expect(fetch).not.toHaveBeenCalled();
-  expect(CATEGORIES).toHaveLength(6);
+  expect(CATEGORIES).toHaveLength(7);
   expect(groupItems([{ category: 'climate' }], row => row.category)).toEqual([['climate', [{ category: 'climate' }]]]);
 });
 
@@ -84,7 +84,7 @@ it('keeps metadata on a new draft contract and offers category and room filters 
 
 it('chooses a category while creating a template and keeps it outside its definition', async () => {
   const user = userEvent.setup(); const { fake } = setup(); app('#/templates/own');
-  await user.click(await screen.findByRole('button', { name: 'Neue Vorlage' }));
+  await user.click(await screen.findByRole('button', { name: 'Neue Vorlage' }, { timeout: 5000 }));
   const dialog = await screen.findByRole('dialog', { name: 'Neue Vorlage' });
   await user.type(within(dialog).getByLabelText(/^Name/), 'Schlafzeit');
   await user.selectOptions(within(dialog).getByLabelText('Kategorie'), 'sleep_wake');

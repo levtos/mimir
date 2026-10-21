@@ -23,7 +23,8 @@ from .conftest import activate
 @pytest.mark.skipif(
     os.environ.get("TEST_MQTT_DOCKER") != "1", reason="isolated Docker MQTT integration only"
 )
-async def test_broker_disconnect_reconnect_and_invalid_message(tmp_path, config):
+@pytest.mark.parametrize("opening", [False, True])
+async def test_broker_disconnect_reconnect_and_invalid_message(tmp_path, config, opening):
     name = "cc-mqtt-test-" + uuid4().hex[:12]
     configuration = tmp_path / "mosquitto.conf"
     configuration.write_text("listener 1883\nallow_anonymous true\npersistence false\n")
@@ -35,7 +36,11 @@ async def test_broker_disconnect_reconnect_and_invalid_message(tmp_path, config)
     def docker(*args):
         return subprocess.check_output(["docker", *args], text=True).strip()
 
-    runtime = Runtime(MemoryStore(), SystemClock(), type_registry())
+    from core_contracts.contract_types import type_registry as application_types
+
+    runtime = Runtime(
+        MemoryStore(), SystemClock(), application_types() if opening else type_registry()
+    )
     await runtime.start()
     task = None
 
@@ -58,6 +63,17 @@ async def test_broker_disconnect_reconnect_and_invalid_message(tmp_path, config)
         )
         assert int(docker("port", name, "1883").rsplit(":", 1)[1]) == port
         config["dependencies"][0]["kind"] = "mqtt"
+        if opening:
+            config["sources"][0]["freshness"] = {
+                "mode": "report_heartbeat",
+                "interval_s": 8400,
+                "future_tolerance_s": 0,
+            }
+            config["contracts"][0].update(
+                type_id="opening.single_contact",
+                parameters={"grace_s": 600},
+                inputs=[{"name": "contact", "ref": "source.a"}],
+            )
         config["bindings"][0]["adapter"] = {
             "kind": "mqtt",
             "mqtt_topic": "synthetic/input",
@@ -91,7 +107,7 @@ async def test_broker_disconnect_reconnect_and_invalid_message(tmp_path, config)
             await eventually(
                 lambda: (
                     runtime.snapshot()["contracts"]["fixture.echo"]["fields"]["value"]["status"]
-                    == "unknown"
+                    == ("held" if opening else "unknown")
                 )
             )
             assert runtime.mqtt == "connected" and not await runtime.store.rows("history_gap")
@@ -109,8 +125,8 @@ async def test_broker_disconnect_reconnect_and_invalid_message(tmp_path, config)
                     == "valid"
                 )
             )
-            assert (
-                runtime.snapshot()["contracts"]["fixture.echo"]["fields"]["value"]["value"] is False
+            assert runtime.snapshot()["contracts"]["fixture.echo"]["fields"]["value"]["value"] == (
+                "closed" if opening else False
             )
     finally:
         if task:

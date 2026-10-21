@@ -2589,5 +2589,18 @@
   "alpha10.catalog.preview": "Auswirkungen prüfen",
   "alpha10.catalog.impact": "{keys} Schlüssel und {contracts} Verträge werden fachlich neu bewertet.",
   "alpha10.catalog.older": "Ältere Änderungen",
-  "alpha10.catalog.removed": "Zuordnung aufgehoben"
+  "alpha10.catalog.removed": "Zuordnung aufgehoben",
+  "alpha9.category.openings": "Öffnungen",
+  "beta1.heartbeat.title": "Lebenszeichen der verbundenen Kontakte",
+  "beta1.heartbeat.help": "Du änderst die Einstellung der Quelle. Deine Änderung gilt erst, wenn du den Entwurf übernimmst.",
+  "beta1.heartbeat.label": "Lebenszeichen-Grenze für {name} (s)",
+  "beta1.heartbeat.shared": "Diese Quelle wird von {count} Verträgen verwendet. Die Änderung betrifft alle.",
+  "beta1.heartbeat.invalid": "Gib eine endliche Zahl größer als null ein.",
+  "fields.grace_s": "Gnadenfrist (s)",
+  "fields.any_open": "Mindestens eine offen",
+  "fields.any_tilted": "Mindestens eine gekippt",
+  "fields.unclear": "Zustand unklar",
+  "fields.any_held": "Mindestens eine gehalten",
+  "fields.all_closed": "Alle ganz geschlossen",
+  "validation.opening_freshness": "Für diesen Öffnungskontakt brauchst du ein Lebenszeichen oder eine ausdrücklich verknüpfte Erreichbarkeitsquelle."
 }

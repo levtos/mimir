@@ -1,5 +1,11 @@
 # ADR 0020 — Kategorien und Raum ohne Wirkung auf Vertragslogik
 
+Ergänzung 21.10.2026, Benni (A2 Bereich 1): Die redaktionelle Kategorie
+`openings` wird zusätzlich zugelassen: Deutsch „Öffnungen“, Englisch „Openings“,
+Symbol `mdi:window-open-variant`. Bestehende Kategorien und Objekte ohne
+Metadaten behalten ihr bisheriges Verhalten. Keine Änderung von Registry-
+Prüfsummen, Typversionen oder Semantik-Fingerprints durch die Kategorie.
+
 18.10.2026 · **A2 freigegeben: Claude (Technik), Benni (Texte), 18.10.2026.** Benni zieht diesen
 redaktionellen Teil aus Alpha 10 nach Alpha 9 vor. Grundlage: APP-01, M30-03/A-06,
 M30-30, Matrix §5/§6 (Abgrenzung G4), [ADR 0006](0006-instance-parameters.md).
