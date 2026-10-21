@@ -25,6 +25,7 @@ import { DeviceWizard } from '@/features/sources/DeviceWizard';
 import { EditorialPanel } from '@/features/editorial/Editorial';
 import { describeError } from '@/lib/api';
 import { ContractExport } from '@/features/registry/ContractExport';
+import { OpeningHeartbeatSettings } from './OpeningHeartbeatSettings';
 
 export default function ContractDetailPage() {
   const { contractId = '' } = useParams();
@@ -128,6 +129,7 @@ export default function ContractDetailPage() {
               <Panel className="max-w-4xl p-5">
                 <fieldset disabled={!src.editable} className="min-w-0">
                   <ContractEditor value={contract} pointer={pointer} types={src.types} refs={refs} refreshSources={refreshSources} onChange={(next) => doc.edit((c) => ({ ...setAt(c, pointer, next), ...(next.refresh_plan !== undefined ? { config_schema_version: Math.max(2, Number(c.config_schema_version ?? 1)) } : {}) }))} onAddDevice={setDeviceInput} />
+                  <OpeningHeartbeatSettings config={src.config ?? {}} contract={contract} onChange={(sourceIndex, interval) => doc.edit(c => setAt(c, `/sources/${sourceIndex}/freshness/interval_s`, interval))} />
                 </fieldset>
               </Panel>
             ),
