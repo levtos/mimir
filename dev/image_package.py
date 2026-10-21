@@ -87,6 +87,10 @@ def check_content(image, meta):
         "assert Path('/app/frontend/index.html').is_file(); "
         "assert any(Path('/app/frontend/assets').glob('*')); "
         "assert importlib.metadata.version('wuschel')==sys.argv[2]; "
+        "from core_contracts.contract_types import type_registry; "
+        "types=type_registry(); "
+        "assert all(not types.get(name,1).schema.fixture for name in "
+        "('opening.dual_contact','opening.single_contact','opening_zone.facts')); "
         "print('PASS: packaged source, migrations, entrypoint, frontend and installed version')"
     )
     print(

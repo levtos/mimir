@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.0b1 — Öffnungen und HA-Verbindung (A2, unveröffentlicht)
+
+- Vier Öffnungen und drei Zonen können mit geprüften Pakettypen konfiguriert werden.
+- Direkte MQTT-Geräte-Evidence mit Heartbeat, asymmetrischer Fusion und unverlängerlicher Grace.
+- Sicher begrenzte Wiederbewertung beim Wuschel-Neustart; Retain und Replay schaffen keinen neuen Nachweis.
+- Lebenszeichen-Grenzen im bestehenden Vertragsformular und neue Kategorie Öffnungen.
+- Technisch vorbereitete Beta; kein Release, keine Installation und kein Import in diesem Schritt.
+
 ## 1.0.0a10 — Wuschel / Traber (A2, vor Release)
 
 - Neue Produktnamen, Slug wuschel und Domain traber, Protokoll 2 und lokale Brandbilder.

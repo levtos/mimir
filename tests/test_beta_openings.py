@@ -13,6 +13,7 @@ from core_contracts.adapters.ha import BridgeAdapter
 from core_contracts.adapters.mqtt import MQTTAdapter
 from core_contracts.clock import FakeClock
 from core_contracts.contract_types import type_registry
+from core_contracts.evidence import Observation
 from core_contracts.openings import OpeningParameters, dual_contact
 from core_contracts.persistence import MemoryStore
 from core_contracts.quality import FieldValue, ReasonCode, unknown
@@ -231,6 +232,8 @@ async def test_B1_05_06_11_12_heartbeat_and_grace_deadlines():
         assert field(rt, "test.zone.area", "all_closed")["value"] is False
         assert field(rt, "test.zone.area", "any_held")["value"] is True
         deadline = held["held_until"]
+        await rt.submit("bridge_state", ("unavailable", "disconnected"))
+        assert field(rt)["held_until"] == deadline
         rt.clock.advance(100)
         await rt.submit("tick")
         assert field(rt)["held_until"] == deadline
@@ -360,15 +363,25 @@ async def test_B1_13_zones_and_B1_15_topic_rebinding():
         assert field(rt, "test.zone.all", "any_open")["value"] is True
         assert field(rt, "test.zone.area", "all_closed")["value"] is True
         assert field(rt, "test.zone.windows", "all_closed")["value"] is True
+        await report(rt, 2, "open", True)
+        await report(rt, 2, "tilt", True)
+        assert field(rt, "test.zone.area", "any_open")["value"] is True
+        assert field(rt, "test.zone.windows", "all_closed")["value"] is True
         doc = configuration()
         doc["bindings"][0]["adapter"]["mqtt_topic"] = "test/beta/replacement"
         before = fingerprints(rt.config, rt.types)
+        old_observation = Observation.model_validate(
+            rt.state.tables["source_observation_current"]["source.test.0.open"]
+        )
         after = fingerprints(validate(doc, rt.types), rt.types)
         assert before["test.zone.windows"] != after["test.zone.windows"]
         await activate(rt, doc)
         assert field(rt)["status"] == "unknown"
         assert "source.test.0.open" not in rt.state.tables["source_observation_current"]
         assert not rt.state.tables["node_state"]["test.opening0"]["temporal"]["grace_until"]
+        rt.ingest(old_observation.model_copy(update={"registry_revision": 1}))
+        await rt.queue.join()
+        assert field(rt)["status"] == "unknown"
     finally:
         await rt.stop()
 
@@ -535,6 +548,10 @@ async def test_B1_17_category_export_import_roundtrip_and_legacy():
         )
     finally:
         await rt.stop()
+    from core_contracts.testing.contract_types import type_registry as fixture_types
+
+    with pytest.raises(ValueError, match="type or parameters"):
+        validate(configuration(), fixture_types())
     data = configuration()
     data["sources"][0]["value_schema"]["type"] = "number"
     with pytest.raises(ValueError):

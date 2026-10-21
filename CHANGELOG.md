@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.0b1 — Bereich 1 Öffnungen (A2, unveröffentlicht)
+
+- Produktive Opening-Pakettypen mit asymmetrischer Kontaktfusion, Konfliktgründen und begrenzter Grace.
+- Belegte MQTT-Geräteberichte behalten beim Prozessneustart ihre ursprüngliche Alterungsfrist; kein neuer Hold durch Restore.
+- Zonen liefern getrennte Fakten mit eigenem Beginn; gehaltenes open bleibt offen, held ist nie all_closed.
+- Lebenszeichen der gebundenen Quellen am Vertrag im Entwurf ändern; Kategorie Öffnungen ergänzt.
+- Connectivity verwendet den vorhandenen Adapter. Keine Consumer-/Policy-Migration oder Live-Änderung.
+- A2 endet am Review-PR; Veröffentlichung, Installation und Bennis Übernahme bleiben getrennte Gates.
+
 ## 1.0.0a8 — Wuschel (vorbereitet, 2026-10-17)
 
 - Neuer App-Slug wuschel und Traber-Domain traber; eigene Installation, Terra bleibt erhalten.
