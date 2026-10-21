@@ -2601,5 +2601,6 @@
   "fields.any_tilted": "Mindestens eine gekippt",
   "fields.unclear": "Zustand unklar",
   "fields.any_held": "Mindestens eine gehalten",
-  "fields.all_closed": "Alle ganz geschlossen"
+  "fields.all_closed": "Alle ganz geschlossen",
+  "validation.opening_freshness": "Für diesen Öffnungskontakt brauchst du ein Lebenszeichen oder eine ausdrücklich verknüpfte Erreichbarkeitsquelle."
 }

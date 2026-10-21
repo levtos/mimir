@@ -14,8 +14,8 @@ from .value_origin import ForecastPoint, ValueOrigin, forecast_points, interval_
 
 class Freshness(Model):
     mode: Literal["report_heartbeat", "liveness_source", "periodic_ttl", "event_stateful"]
-    future_tolerance_s: float = Field(ge=0)
-    interval_s: float | None = Field(default=None, gt=0)
+    future_tolerance_s: float = Field(ge=0, strict=True, allow_inf_nan=False)
+    interval_s: float | None = Field(default=None, gt=0, strict=True, allow_inf_nan=False)
     liveness_source: str | None = None
 
     @model_validator(mode="after")

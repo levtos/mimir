@@ -651,3 +651,19 @@ async def test_B1_09_repeated_restarts_preserve_original_report_identity():
         assert field(rt)["value"] == "closed"
         assert field(rt)["evidence"] == original
     await rt.stop()
+
+
+@pytest.mark.parametrize("mode", ["event_stateful", "periodic_ttl"])
+def test_B1_19_opening_requires_explicit_heartbeat_or_liveness(mode):
+    data = configuration()
+    data["sources"][0]["freshness"]["mode"] = mode
+    with pytest.raises(ValueError, match="heartbeat or explicit liveness"):
+        validate(data, type_registry())
+
+
+@pytest.mark.parametrize("interval", [True, "8400", float("inf"), float("nan")])
+def test_B1_14_heartbeat_interval_is_finite_and_strict(interval):
+    data = configuration()
+    data["sources"][0]["freshness"]["interval_s"] = interval
+    with pytest.raises(ValueError):
+        validate(data, type_registry())

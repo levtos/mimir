@@ -690,6 +690,16 @@ def validate_document(
             )
             if contract.type_id in {"opening.dual_contact", "opening.single_contact"}:
                 expected = FieldSchema(type="bool", required=True, physical_state=True)
+                if field is None and sources[ref].freshness.mode not in {
+                    "report_heartbeat",
+                    "liveness_source",
+                }:
+                    add(
+                        "opening_freshness",
+                        location,
+                        "opening requires heartbeat or explicit liveness",
+                        key,
+                    )
             if contract.type_id == "opening_zone.facts":
                 expected = FieldSchema(
                     type="enum",
