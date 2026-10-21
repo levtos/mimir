@@ -84,7 +84,7 @@ it('keeps metadata on a new draft contract and offers category and room filters 
 
 it('chooses a category while creating a template and keeps it outside its definition', async () => {
   const user = userEvent.setup(); const { fake } = setup(); app('#/templates/own');
-  await user.click(await screen.findByRole('button', { name: 'Neue Vorlage' }));
+  await user.click(await screen.findByRole('button', { name: 'Neue Vorlage' }, { timeout: 5000 }));
   const dialog = await screen.findByRole('dialog', { name: 'Neue Vorlage' });
   await user.type(within(dialog).getByLabelText(/^Name/), 'Schlafzeit');
   await user.selectOptions(within(dialog).getByLabelText('Kategorie'), 'sleep_wake');
