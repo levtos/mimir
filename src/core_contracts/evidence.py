@@ -1,6 +1,6 @@
 """Observations preserve source clocks; receipt never becomes measurement."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Literal, Self
 
 from pydantic import Field, field_validator, model_validator
@@ -60,6 +60,8 @@ class Observation(Model):
     attribution: Attribution | None = Field(default=None, exclude_if=lambda value: value is None)
     mqtt_retained: bool = False
     mqtt_qos: int | None = Field(default=None, ge=0, le=2)
+    mqtt_device_proof: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    mqtt_revalidated: bool = Field(default=False, exclude_if=lambda value: not value)
     received_at: datetime
     observation_kind: Literal["live_change", "report", "snapshot", "restore"]
     ha_restored: bool = False
@@ -196,7 +198,10 @@ def assess(
             and (now - entry.valid_from).total_seconds() >= (policy.interval_s or 0)
         ):
             code = ReasonCode.INPUT_STALE
-    elif observation.ha_restored or observation.observation_kind == "restore":
+    elif observation.ha_restored or (
+        observation.observation_kind == "restore"
+        and not (observation.adapter == "mqtt" and observation.mqtt_revalidated)
+    ):
         code = ReasonCode.INPUT_RESTORED
     elif observation.assumed_state:
         code = ReasonCode.INPUT_UNKNOWN
@@ -221,6 +226,22 @@ def assess(
         code = ReasonCode.INPUT_STALE
     if code:
         result = unknown(code, source_id, now)
+        if (
+            code == ReasonCode.INPUT_STALE
+            and not observation.mqtt_retained
+            and observation.measurement is not None
+            and policy.mode == "report_heartbeat"
+        ):
+            since = observation.measurement + timedelta(
+                seconds=policy.interval_s or 0, microseconds=1
+            )
+            result = result.model_copy(
+                update={
+                    "reasons": tuple(
+                        r.model_copy(update={"since": min(now, since)}) for r in result.reasons
+                    )
+                }
+            )
         return result.model_copy(
             update={"evidence": (observation.reference,), "freshness": "invalid"}
         )

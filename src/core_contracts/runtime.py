@@ -562,8 +562,20 @@ class Runtime:
 
         restore_jobs(state, self.clock.now_utc())
         if reason == "process_restart":
-            for observation in state.tables["source_observation_current"].values():
-                if observation["adapter"] not in {"ha_calendar", "manual"}:
+            from .mqtt_restore import restore as restore_mqtt
+
+            for binding_id, observation in list(state.tables["source_observation_current"].items()):
+                if observation["adapter"] == "mqtt" and self.config:
+                    restored = restore_mqtt(
+                        Observation.model_validate(observation),
+                        self.config,
+                        self.types,
+                        self.clock.now_utc(),
+                    )
+                    state.tables["source_observation_current"][binding_id] = (
+                        restored.storage_document()
+                    )
+                elif observation["adapter"] not in {"ha_calendar", "manual"}:
                     observation["observation_kind"] = "restore"
         for node in state.tables["node_state"].values():
             for context in self._temporal_contexts(node):
@@ -1342,6 +1354,9 @@ class Runtime:
                 )
             ):
                 return None
+            from .mqtt_restore import remember as remember_mqtt
+
+            obs = remember_mqtt(obs, config, self.types, self.clock.now_utc())
             state.tables["source_observation_current"][obs.binding_id] = obs.storage_document()
             await self._record_observation(state, obs)
         elif operation != "tick":
@@ -1529,9 +1544,14 @@ class Runtime:
             if not available:
                 return unknown(ReasonCode.DEPENDENCY_UNAVAILABLE, source.dependency_id, now)
             liveness = observations.get(by_source.get(source.freshness.liveness_source or "", ""))
-            value = assess(
-                observations.get(by_source.get(ref, "")), source.freshness, now, ref, liveness
-            )
+            observation = observations.get(by_source.get(ref, ""))
+            if (
+                observation
+                and observation.mqtt_revalidated
+                and observation.mqtt_device_proof != self._evaluation_plan(state, config)[0][ref]
+            ):
+                observation = observation.model_copy(update={"mqtt_revalidated": False})
+            value = assess(observation, source.freshness, now, ref, liveness)
             if source.sensor_profile:
                 from .sensor_profile import assess_sensor
 
@@ -2174,6 +2194,12 @@ class Runtime:
                 or any(source.value_origin for source in config.sources)
                 or bool(self.state.tables["service_state"])
                 or any(node.get("clock_due") for node in self.state.tables["node_state"].values())
+                or any(
+                    c.enabled
+                    and c.type_id
+                    in {"opening.dual_contact", "opening.single_contact", "opening_zone.facts"}
+                    for c in config.contracts
+                )
             )
         ):
             self.evaluation_alarm = self.clock.call_at_utc(self.next_evaluation, self.tick)

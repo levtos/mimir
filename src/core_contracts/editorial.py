@@ -11,7 +11,7 @@ from .persistence import State
 if TYPE_CHECKING:
     from .runtime import Runtime
 
-Category = Literal["climate", "light_cover", "presence", "sleep_wake", "media", "other"]
+Category = Literal["climate", "light_cover", "presence", "sleep_wake", "media", "other", "openings"]
 CATEGORIES = {
     "climate": "mdi:thermometer",
     "light_cover": "mdi:lightbulb",
@@ -19,6 +19,7 @@ CATEGORIES = {
     "sleep_wake": "mdi:sleep",
     "media": "mdi:play-circle",
     "other": "mdi:shape",
+    "openings": "mdi:window-open-variant",
 }
 
 

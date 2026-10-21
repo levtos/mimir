@@ -688,6 +688,20 @@ def validate_document(
                 if declared
                 else None
             )
+            if contract.type_id in {"opening.dual_contact", "opening.single_contact"}:
+                expected = FieldSchema(type="bool", required=True, physical_state=True)
+            if contract.type_id == "opening_zone.facts":
+                expected = FieldSchema(
+                    type="enum",
+                    required=True,
+                    physical_state=True,
+                    value_catalog=("closed", "tilted", "open"),
+                )
+                if field is None or contracts[ref].type_id not in {
+                    "opening.dual_contact",
+                    "opening.single_contact",
+                }:
+                    add("opening_member", location, "opening contract field required", key)
             if expected and (actual is None or not compatible(actual, expected)):
                 add(
                     "input_type_mismatch",
@@ -703,6 +717,10 @@ def validate_document(
                         "expectedUnit": expected.unit,
                     },
                 )
+        if contract.type_id == "opening_zone.facts" and len(
+            {i.ref for i in contract.inputs}
+        ) != len(contract.inputs):
+            add("opening_members", path + "/inputs", "distinct opening members required", key)
     if evaluation_cost > 8192:
         add(
             "registry_evaluation_limit",
