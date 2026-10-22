@@ -1,0 +1,130 @@
+# ADR 0029 – Entwurfsabschluss, Übernahmebelege und sichere Weiterführung
+
+- Status: **Entwurf für Bennis A1-Review; nicht beschlossen, nicht implementiert.**
+- Datum: 22.10.2026.
+- Auftrag: [Wuschel #35](https://github.com/Levtos/wuschel/issues/35).
+- Basis: `c8d4dff35048f0c69290ea500b0609e89d531a60`, nach PR #34.
+- Konkretisierung: [UX-A1 §§3–6 und Testliste](../beta/ux/A1.md),
+  [Konzept §§3–4](../beta/ux/konzept-2026-10-22.md),
+  [ADR 0026](0026-import-export.md), [ADR 0028](0028-grenze-wuschel-engines.md).
+
+## Problem und Entscheidungsvorschlag
+
+Eine im Entwurf gespeicherte Grundlage ist heute nicht als Übernahmesperre
+durchgesetzt. Die vom Frontend gesendete aktuelle Revision kann einen alten
+Gesamtstand daher zur Vollersetzung freigeben (F1). Importpläne bleiben nach
+Übernahme am weiter editierbaren Entwurf und werden bei späterer Änderung
+weitergetragen (F2). Ein erneutes Prüfen löst diesen Lebenszyklusfehler nicht.
+
+Vorgeschlagen wird ein persistenter Entwurfs-Lebenszyklus mit unveränderlichem
+Abschluss, genau zuordenbarem Übernahmebeleg und eigenem Weiterführungsweg.
+Wuschel bleibt alleiniger Eigentümer von Registry/Plan und ihrer Prüfung.
+Die Oberfläche beschreibt den Serverzustand und bietet passende Aktionen.
+
+## Invarianten
+
+1. Lebenszyklus `open | completed | continued`; Grundlagenzustand separat
+   `known | needs_review`, aktuelle Grundlage als Vergleich mit aktivem Stand.
+2. Neue Übernahme nur bei open, exakt gespeichertem draft_version und
+   **draft.base_revision == state.active_revision** mit passender Checksum.
+   expected_active_revision bleibt zusätzliche Konkurrenzsperre. Der Server
+   liest Grundlage und Entwurf selbst; keine Reparatur durch Client-Nummerierung.
+3. Registryrevision, Editorial/Katalogeffekte, Plan consumed, Entwurf completed
+   und Erfolgsbeleg werden in derselben vorhandenen Writer-Transaktion gespeichert.
+   Keine Nebenverbindung, kein zweiter nachgelagerter Abschluss-Commit.
+4. request_id und Digest binden genau einen Übernahmeauftrag. Derselbe Auftrag
+   liefert denselben dauerhaften Erfolgsbeleg, auch nach Antwortverlust/Restart.
+   Gleiche ID mit anderem Inhalt ist ein Konflikt. Jede draft_id/version kann
+   höchstens einen erfolgreichen Übernahmebeleg besitzen.
+5. Erfolgsbeleg nach Auth-Prüfung vor neuen Basis-/Lebenszyklussperren lesen:
+   Eine erfolgreiche Wiederholung bleibt erfolgreich, obwohl die alte Basis
+   inzwischen veraltet und der Entwurf erledigt ist.
+6. Kein Erfolg vor Commit. Unbekannter Ausgang wird erst geklärt und nicht als
+   „nichts übernommen“ beschriftet. Commitfehler lässt alle Teilstände unverändert.
+7. Weiterführung erzeugt einen neuen Entwurf. Originalabschluss und neuer
+   Entwurf samt neuem Plan/Herkunftsverweis werden atomar gespeichert.
+8. Kein automatisches Löschen alter Entwürfe. Nur offene zählen zur 100er-Grenze.
+
+## Daten und API
+
+Die konkreten Feldnamen und Endpunkte stehen in UX-A1 §3/§4. Benötigt werden
+result_revision/checksum, genauer damaliger Entwurfs-/Planstand, beidseitige
+Weiterführungsverweise und persistierte Vergleichsentscheidungen mit Digests.
+Eine Aktivierungsrevision enthält künftig selbst den Verweis auf den erzeugenden
+Entwurf, dessen Version und Übernahmebeleg. Laufzeit-Nachweise werden dafür
+nicht in ein portables Konfigurationspaket übernommen.
+
+Vorschlag zur Kompatibilität: Authoring-Protokoll 2 für die neue Bestätigungs-
+und Belegsemantik. Alte schreibende Clients werden sichtbar zum Neuladen
+aufgefordert; kein unsicherer Legacy-Schreibpfad ohne F1/F2. Bestehende lesende
+Consumer-Schnittstellen und englische Vertragswerte bleiben unverändert.
+Diese Änderung muss Benni mit A1 bestätigen; es gibt in diesem PR keinen API-Code.
+
+Mutation eines erledigten Entwurfs ist gesperrt. Wiederöffnen ist lesend;
+„Bearbeiten“ beginnt auf dem aktiven Stand oder mit ausdrücklich ausgewähltem
+geeignetem offenen Entwurf. Neue Konfiguration während lokaler Eingaben:
+bekannte Eingaben sichern, Grundlage als veraltet anzeigen, Weiterführung
+verlangen. Das Erhalten begonnener Eingaben setzt keine neue Grundlage.
+
+Ein bestätigter Abschluss bereits wirksamer Änderungen erzeugt keine weitere
+Registryrevision, muss jedoch alle noch offenen Planbestandteile einbeziehen.
+Er verweist auf den aktuell belegten Stand und behauptet keine historische
+Übernahmezuordnung. Historischer Entwurfsexport liest den tatsächlich
+abgeschlossenen Stand; ein consumed-Plan wird niemals erneut ausgeführt.
+
+## Zusammenführung
+
+Drei konsistente Stände: nachgewiesene Basis, Entwurf, aktive Konfiguration.
+Vergleich nach Objektart/ID und fachlicher Eigenschaft. Mengenreihenfolge ist
+irrelevant, fachlich geordnete Folgen bleiben relevant. Fehlend, null und
+beabsichtigtes Löschen sind unterscheidbar. Unterschiedliche Änderungen am
+selben Pfad, Löschen gegen Benötigen, kollidierende neue Identitäten und
+geschützte Vorlagenversionen erhalten eigene, nicht vorausgewählte Entscheidungen.
+
+Import-Weiterführung umfasst Registry, beabsichtigte Entfernungen, Kataloge und
+Editorial. Ein neuer Plan wird gegen aktuelle Heads/Versionen vollständig neu
+geprüft; nur nachgewiesen verbrauchte Anteile entfallen aus dem ausführbaren Plan.
+Vorgesehene Ersatzimport-Entfernungen bleiben erhalten; seit Basis neu entstandene
+aktive Objekte verschwinden nicht ohne bewusste Entscheidung. Erneuter aktiver
+Wechsel erlaubt einmal automatische Neubewertung; bei weiterem Wechsel Halt.
+Die Begrenzung und Auswahl überleben Reload. Abbruch übernimmt nichts.
+
+## Altbestand und Migration
+
+Nur beweisbare damalige Entwurf-/Versions-/Planzuordnung erlaubt automatischen
+Abschluss. Der aktuelle Auditpfad garantiert diese Zuordnung nicht für alle
+Altbestände. Gleichheit von Inhalten, Zeitnähe und Name „Import“ reichen nicht.
+
+Der Referenzfall enthält zwei Änderungen nach einem früheren Import. Liegen
+exakter übernommener Stand und Planverbrauch vollständig belegt vor, werden
+nur diese späteren Änderungen weitergeführt. Sonst bleiben Original und beide
+Änderungen unter needs_review erhalten; geführter Vergleich mit expliziter
+heutiger Änderungsabsicht. Kein stilles Archivieren, Löschen oder erneuter Import.
+Spätere Migration erfolgt wiederanlauffähig über die App, ohne direkte DB-Reparatur.
+
+## Alternativen und Folgen
+
+- Nur im Frontend ausblenden: schützt API und alte Fenster nicht; abgelehnt.
+- Bei activate immer den aktuellen expected_active_revision senden: bewahrt
+  genau die ungesicherte Vollersetzung; abgelehnt.
+- Alte Pläne löschen oder base_revision hochsetzen: verliert Herkunft oder
+  umgeht noch offene Katalog-/Editorialkonflikte; abgelehnt.
+- Entwurf nach Commit in separatem Schritt erledigen: Antwortverlust erzeugt
+  wieder einen offenen ausführbaren Plan; abgelehnt.
+
+Der Vorschlag benötigt begrenzte persistente Metadaten/Belege und eine Migration.
+Er verhindert Datenverlust und Wiederholung, erhöht aber den Authoring-Vertrag.
+Beleg-/Provenienzreferenzen dürfen nicht vor den zugehörigen historischen
+Konfigurationen gelöscht werden. Eine spätere Aufräumregel ist ein eigener
+expliziter Vertrag, kein implizites Löschen in diesem Paket.
+
+## Tests, Gates und offene Entscheidung
+
+Geplant: UX-1-01…09, UX-2-01…12, UX-5-11; Commit-Fehler an jedem Teil,
+Antwortverlust nach Commit, Restart/Wiederholung, zwei Fenster, geänderte
+Katalog-/Editorialstände, fehlende Basis, Ersatzimport-Entfernungen und zwei
+spätere Änderungen im Altimport. Ausschließlich synthetische Daten.
+
+Empfohlener Schnitt: b3. Erst Review und A2-Go erlauben Code. Die Frage zur
+Authoring-Schnittstelle ist in UX-A1 §14 gesammelt. Kein Merge dieses Design-PRs,
+kein Release und keine Installationsänderung aus dieser ADR.
