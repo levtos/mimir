@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from dev.version_gate import compare_tags
+from dev.version_gate import bridge_version_errors, compare_tags
 
 
 @pytest.fixture
@@ -80,3 +80,18 @@ def test_terra_app_store_entry_is_unchanged():
     mimir = yaml.safe_load((root / "wuschel/config.yaml").read_text(encoding="utf-8"))
     assert mimir["slug"] == "wuschel" and mimir["name"] == "Wuschel"
     assert mimir["image"] == "ghcr.io/levtos/{arch}-wuschel"
+
+
+def test_independent_bridge_version_requires_unchanged_tagged_code(tagged_repo):
+    root, tag = tagged_repo
+    bridge = root / "custom_components/traber"
+    bridge.mkdir(parents=True)
+    source = bridge / "__init__.py"
+    source.write_text("# released bridge\n")
+    tag("v1.0.0b1", "wuschel")
+    assert not bridge_version_errors(root, "1.0.0b2", "1.0.0b1")
+    source.write_text("# modified bridge\n")
+    assert bridge_version_errors(root, "1.0.0b2", "1.0.0b1")
+    assert not bridge_version_errors(root, "1.0.0b2", "1.0.0b2")
+    assert bridge_version_errors(root, "1.0.0b2", "1.0.0b3")
+    assert bridge_version_errors(root, "1.0.0b2", "1.0.0a10")

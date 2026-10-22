@@ -9,6 +9,9 @@ class FakeHA:
         self.protocol, self.missing = protocol, missing
         self.requests = []
         self.sockets = set()
+        self.connections = []
+        self.subscriptions = {}
+        self.lifecycle_subscriptions = {}
         self.registries = registries or {}
         self.v2 = v2
 
@@ -24,12 +27,27 @@ class FakeHA:
         await socket.send_json({"type": "auth_required"})
         await socket.receive_json()
         await socket.send_json({"type": "auth_ok"})
+        requests = []
+        self.connections.append(requests)
+        last_id = 0
         try:
             async for message in socket:
                 if message.type != web.WSMsgType.TEXT:
                     break
                 data = message.json()
                 self.requests.append(data)
+                requests.append(data)
+                if data["id"] <= last_id:
+                    await socket.send_json(
+                        {
+                            "id": data["id"],
+                            "type": "result",
+                            "success": False,
+                            "error": {"code": "id_reuse"},
+                        }
+                    )
+                    continue
+                last_id = data["id"]
                 kind = data["type"]
                 result = {}
                 if kind == "traber/negotiate":
@@ -60,6 +78,22 @@ class FakeHA:
                     ]
                 if kind.startswith("config/") and kind.endswith("_registry/list"):
                     result = self.registries.get(kind, [])
+                    if isinstance(result, str):
+                        await socket.send_json(
+                            {
+                                "id": data["id"],
+                                "type": "result",
+                                "success": False,
+                                "error": {"code": result},
+                            }
+                        )
+                        continue
+                if kind == "traber/source_metadata":
+                    result = [{"entity_id": entity} for entity in data["entity_ids"]]
+                if kind == "subscribe_events":
+                    self.lifecycle_subscriptions.setdefault(socket, {})[data["event_type"]] = data[
+                        "id"
+                    ]
                 if kind == "traber/info":
                     if self.missing:
                         await socket.send_json(
@@ -81,6 +115,7 @@ class FakeHA:
                     {"id": data["id"], "type": "result", "success": True, "result": result}
                 )
                 if kind == "traber/subscribe":
+                    self.subscriptions[socket] = data["id"]
                     await socket.send_json(
                         {
                             "id": data["id"],
@@ -93,8 +128,24 @@ class FakeHA:
                     )
         finally:
             self.sockets.discard(socket)
+            self.subscriptions.pop(socket, None)
+            self.lifecycle_subscriptions.pop(socket, None)
         return socket
 
     async def emit(self, event):
-        for socket in self.sockets:
-            await socket.send_json({"id": 5, "type": "event", "event": event})
+        for socket, subscription_id in list(self.subscriptions.items()):
+            await socket.send_json({"id": subscription_id, "type": "event", "event": event})
+
+    async def lifecycle(self, event_type):
+        for socket, subscriptions in list(self.lifecycle_subscriptions.items()):
+            await socket.send_json(
+                {
+                    "id": subscriptions[event_type],
+                    "type": "event",
+                    "event": {"event_type": event_type},
+                }
+            )
+
+    async def disconnect(self):
+        for socket in list(self.sockets):
+            await socket.close()

@@ -73,3 +73,13 @@ weiter `uv run python dev/verify_postrelease.py`; ohne Schalter ist der Modus
 immer `release`. Der Bericht nennt den verwendeten Modus. Gleichstand besteht
 nur die normale CI, ein Rückschritt besteht keinen Modus, eine höhere Version
 besteht beide. Diese Ergänzung ersetzt keine früheren Entscheidungen.
+
+## Ergänzung: unveränderter Traber bei App-Fixes (Benni, 22.10.2026)
+
+Für [Wuschel 1.0.0b2, Issue #33](https://github.com/Levtos/wuschel/issues/33)
+bleibt Traber bei `1.0.0b1`, weil ausschließlich der App-Client repariert wird.
+Dies präzisiert die frühere pauschale Versionsgleichheit: App, Python-Paket und
+Frontend bleiben gleich versioniert. Eine abweichende, ältere Traber-Version
+ist nur zulässig, wenn sein vollständiger getrackter Verzeichnisinhalt gegenüber
+seinem vorhandenen Versionstag unverändert ist; fehlender Tag oder Codeänderung
+blockieren das Gate. Alle übrigen CI-/Release-Prüfungen bleiben unverändert.

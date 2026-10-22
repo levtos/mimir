@@ -88,6 +88,26 @@ def compare_tags(
     }
 
 
+def bridge_version_errors(root: Path, candidate: str, bridge_version: str) -> list[str]:
+    if bridge_version == candidate:
+        return []
+    if not AwesomeVersion(bridge_version).valid or AwesomeVersion(bridge_version) > AwesomeVersion(
+        candidate
+    ):
+        return ["Ungültige oder neuere Bridge-Version"]
+    tag = f"v{bridge_version}"
+    try:
+        git(root, "rev-parse", f"{tag}:custom_components/traber")
+        changed = git(root, "diff", "--name-only", tag, "--", "custom_components/traber")
+        if not changed:
+            return []
+    except subprocess.CalledProcessError:
+        pass
+    return [
+        "Abweichende Bridge-Version nur bei unverändertem Traber gegenüber seinem Versionstag erlaubt"
+    ]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("ci", "release"), default="release")
@@ -113,12 +133,14 @@ def main() -> None:
     versions = [
         tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"],
         json.loads((ROOT / "frontend/package.json").read_text(encoding="utf-8"))["version"],
-        json.loads((ROOT / "custom_components/traber/manifest.json").read_text(encoding="utf-8"))[
-            "version"
-        ],
     ]
     if any(value != candidate for value in versions):
-        report["errors"].append("App-, Paket-, Frontend- und Bridge-Version müssen übereinstimmen")
+        report["errors"].append("App-, Paket- und Frontend-Version müssen übereinstimmen")
+    bridge_version = json.loads(
+        (ROOT / "custom_components/traber/manifest.json").read_text(encoding="utf-8")
+    )["version"]
+    report["bridge_version"] = bridge_version
+    report["errors"].extend(bridge_version_errors(ROOT, candidate, bridge_version))
     report["passed"] = not report["errors"]
     print(json.dumps(report, ensure_ascii=False, indent=2))
     raise SystemExit(0 if report["passed"] else 1)

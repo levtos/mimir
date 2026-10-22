@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.0b2 — HA-Verbindung (A1+A2, unveröffentlicht)
+
+- WebSocket-Anfragen verwenden streng steigende IDs je Verbindung; Reconnect beginnt neu.
+- Snapshot-Events werden über die tatsächlich gesendete Subscription-ID zugeordnet.
+- Strenges FakeHA und Regressionen für Connectivity, Snapshot, Reconnect, Discovery und Dienstaufrufe.
+- Fehlerlogs ergänzen Anfragetyp und sicheren HA-Fehlercode ohne Nutzdaten.
+- Traber bleibt unverändert bei 1.0.0b1; Release-Gate belegt seine Code-Identität zum Versionstag.
+- [A1/A2 und Review-Gate](docs/beta/ha-connection-b2.md). Nach PR STOPP für Benni.
+
 ## 1.0.0b1 — Bereich 1 Öffnungen (A2, unveröffentlicht)
 
 - Produktive Opening-Pakettypen mit asymmetrischer Kontaktfusion, Konfliktgründen und begrenzter Grace.

@@ -19,6 +19,51 @@ from ..value_origin import normalize as normalize_origin
 LOGGER = logging.getLogger(__name__)
 
 
+class BridgeRequestError(ConnectionError):
+    def __init__(self, request_type: str, ha_error_code: str) -> None:
+        super().__init__("bridge_request_failed")
+        self.request_type = request_type
+        self.ha_error_code = ha_error_code
+
+
+class WebSocketRequests:
+    """Own IDs and send order for exactly one authenticated WebSocket."""
+
+    def __init__(self, socket: aiohttp.ClientWebSocketResponse) -> None:
+        self.socket = socket
+        self.number = 0
+        self.lock = asyncio.Lock()
+        self.pending: dict[int, asyncio.Future[Any]] = {}
+
+    async def send(self, request: dict[str, Any], future: asyncio.Future[Any] | None = None) -> int:
+        async with self.lock:
+            self.number += 1
+            if future is not None:
+                self.pending[self.number] = future
+            try:
+                await self.socket.send_json({**request, "id": self.number})
+            except BaseException:
+                self.pending.pop(self.number, None)
+                raise
+            return self.number
+
+
+def request_error(request_type: str, response: dict[str, Any]) -> BridgeRequestError:
+    # HA error messages and arbitrary remote codes may contain sensitive data.
+    code = response.get("error", {}).get("code")
+    safe_code = (
+        code
+        if code in {"id_reuse", "unknown_command", "unauthorized", "invalid_format"}
+        else "unknown_error"
+    )
+    error = BridgeRequestError(request_type, safe_code)
+    LOGGER.warning(
+        "bridge_request_failed",
+        extra={"request_type": error.request_type, "ha_error_code": error.ha_error_code},
+    )
+    return error
+
+
 def timestamp(value: Any) -> datetime | None:
     if value is None:
         return None
@@ -65,8 +110,7 @@ class BridgeAdapter:
         self.bridge_version: str | None = None
         self.protocol_selected = 1
         self.socket: aiohttp.ClientWebSocketResponse | None = None
-        self.requests: dict[int, asyncio.Future[Any]] = {}
-        self.request_number = 1000
+        self.connection: WebSocketRequests | None = None
         self.contexts = ContextIndex()
         runtime.context_index = self.contexts
         self.subscription_count = 0
@@ -96,18 +140,18 @@ class BridgeAdapter:
                     await socket.send_json({"type": "auth", "access_token": self.token})
                     if (await socket.receive_json()).get("type") != "auth_ok":
                         raise ConnectionError("ha_auth_failed")
-                    states = await self._result(socket, {"id": 1, "type": "get_states"})
+                    connection = WebSocketRequests(socket)
+                    states = await self._result(connection, {"type": "get_states"})
                     if not isinstance(states, list) or len(states) > 10000:
                         raise ValueError("discovery_resource_limit")
                     if preview:
                         registries: list[list[dict[str, Any]]] = []
-                        for request_id, kind in enumerate(("area", "device", "entity"), 2):
-                            await socket.send_json(
-                                {"id": request_id, "type": f"config/{kind}_registry/list"}
+                        for kind in ("area", "device", "entity"):
+                            response = await self._response(
+                                connection,
+                                {"type": f"config/{kind}_registry/list"},
+                                allowed_errors={"unknown_command", "unauthorized"},
                             )
-                            response = await socket.receive_json()
-                            if response.get("id") != request_id:
-                                raise ConnectionError("ha_discovery_protocol")
                             if not response.get("success"):
                                 if response.get("error", {}).get("code") in {
                                     "unknown_command",
@@ -147,12 +191,11 @@ class BridgeAdapter:
                             for row in registries[2]
                             if isinstance(row.get("entity_id"), str)
                         }
-                        await socket.send_json(
-                            {"id": 5, "type": "traber/negotiate", "supported_versions": [2, 1]}
+                        negotiated = await self._response(
+                            connection,
+                            {"type": "traber/negotiate", "supported_versions": [2, 1]},
+                            allowed_errors={"unknown_command"},
                         )
-                        negotiated = await socket.receive_json()
-                        if negotiated.get("id") != 5:
-                            raise ConnectionError("ha_discovery_protocol")
                         if (
                             negotiated.get("success")
                             and negotiated.get("result", {}).get("protocol_selected") == 2
@@ -164,9 +207,8 @@ class BridgeAdapter:
                             ]
                             for offset in range(0, len(selected_ids), 200):
                                 metadata_rows = await self._result(
-                                    socket,
+                                    connection,
                                     {
-                                        "id": 6 + offset // 200,
                                         "type": "traber/source_metadata",
                                         "entity_ids": selected_ids[offset : offset + 200],
                                     },
@@ -405,13 +447,27 @@ class BridgeAdapter:
                     )
                 )
 
-    async def _result(
-        self, socket: aiohttp.ClientWebSocketResponse, request: dict[str, Any]
-    ) -> Any:
-        await socket.send_json(request)
-        response = await socket.receive_json()
-        if response.get("id") != request["id"] or not response.get("success"):
-            raise ConnectionError("bridge_request_failed")
+    async def _response(
+        self,
+        connection: WebSocketRequests,
+        request: dict[str, Any],
+        *,
+        allowed_errors: set[str] | None = None,
+    ) -> dict[str, Any]:
+        number = await connection.send(request)
+        response = await connection.socket.receive_json()
+        if not isinstance(response, dict):
+            raise request_error(request["type"], {})
+        if response.get("id") != number:
+            raise request_error(request["type"], {})
+        if not response.get("success") and response.get("error", {}).get("code") not in (
+            allowed_errors or set()
+        ):
+            raise request_error(request["type"], response)
+        return response
+
+    async def _result(self, connection: WebSocketRequests, request: dict[str, Any]) -> Any:
+        response = await self._response(connection, request)
         return response.get("result")
 
     async def connect(self, config: RegistryConfig) -> None:
@@ -419,10 +475,15 @@ class BridgeAdapter:
             await self._connect(config)
         finally:
             self.socket = None
-            for future in self.requests.values():
-                if not future.done():
-                    future.set_result({"outcome": "indeterminate", "error_code": "ha_unavailable"})
-            self.requests.clear()
+            connection = self.connection
+            self.connection = None
+            if connection is not None:
+                for future in connection.pending.values():
+                    if not future.done():
+                        future.set_result(
+                            {"outcome": "indeterminate", "error_code": "ha_unavailable"}
+                        )
+                connection.pending.clear()
 
     async def service_call(
         self,
@@ -434,28 +495,27 @@ class BridgeAdapter:
     ) -> dict[str, Any]:
         """One attempt only. Callers persist intent before reaching this boundary."""
         identifier = request_id or str(uuid4())
-        if self.protocol_selected != 2 or self.socket is None or self.socket.closed:
+        connection = self.connection
+        if self.protocol_selected != 2 or connection is None or connection.socket.closed:
             return {
                 "request_id": identifier,
                 "outcome": "rejected",
                 "error_code": "unsupported_protocol",
             }
-        self.request_number += 1
-        number = self.request_number
         future = asyncio.get_running_loop().create_future()
-        self.requests[number] = future
+        number: int | None = None
         try:
             async with asyncio.timeout(12):
-                await self.socket.send_json(
+                number = await connection.send(
                     {
-                        "id": number,
                         "type": "traber/service_call",
                         "protocol_version": 2,
                         "request_id": identifier,
                         "operation": operation,
                         "target_ids": target_ids,
                         "arguments": arguments,
-                    }
+                    },
+                    future,
                 )
                 response = await future
                 if not isinstance(response, dict):
@@ -464,7 +524,8 @@ class BridgeAdapter:
         except TimeoutError, aiohttp.ClientError, ConnectionError:
             return {"request_id": identifier, "outcome": "indeterminate", "error_code": "timeout"}
         finally:
-            self.requests.pop(number, None)
+            if number is not None:
+                connection.pending.pop(number, None)
 
     async def _connect(self, config: RegistryConfig) -> None:
         revision = self.runtime.state.active_revision
@@ -478,14 +539,15 @@ class BridgeAdapter:
             await socket.send_json({"type": "auth", "access_token": self.token})
             if (await socket.receive_json()).get("type") != "auth_ok":
                 raise ConnectionError("ha_auth_failed")
-            info = await self._result(socket, {"id": 1, "type": "traber/info"})
+            connection = WebSocketRequests(socket)
+            info = await self._result(connection, {"type": "traber/info"})
             if info.get("protocol_version") != 1:
                 raise ConnectionError("bridge_incompatible")
             self.bridge_version = info["bridge_version"]
             self.runtime.bridge_version = self.bridge_version
-            await socket.send_json(
+            negotiated = await self._response(
+                connection,
                 {
-                    "id": 6,
                     "type": "traber/negotiate",
                     "supported_versions": [2, 1],
                     **(
@@ -493,11 +555,9 @@ class BridgeAdapter:
                         if self.runtime.installation_id
                         else {}
                     ),
-                }
+                },
+                allowed_errors={"unknown_command"},
             )
-            negotiated = await socket.receive_json()
-            if negotiated.get("id") != 6:
-                raise ConnectionError("bridge_negotiation_protocol")
             self.protocol_selected = 1
             features: list[str] = []
             if negotiated.get("success"):
@@ -513,10 +573,10 @@ class BridgeAdapter:
                 self.contexts.set_epoch(None)
             self.runtime.bridge_protocol_selected = self.protocol_selected
             self.runtime.bridge_features = features
-            await self._result(socket, {"id": 2, "type": "get_config"})
-            for number, event_type in enumerate(("homeassistant_started", "homeassistant_stop"), 3):
+            await self._result(connection, {"type": "get_config"})
+            for event_type in ("homeassistant_started", "homeassistant_stop"):
                 await self._result(
-                    socket, {"id": number, "type": "subscribe_events", "event_type": event_type}
+                    connection, {"type": "subscribe_events", "event_type": event_type}
                 )
             entities = sorted(
                 {b.adapter.ha_entity_id for b in config.bindings if b.adapter.ha_entity_id}
@@ -529,10 +589,9 @@ class BridgeAdapter:
                 for s in config.sources
                 if s.freshness.mode != "event_stateful" or s.source_id in live_sources
             }
-            await self._result(
-                socket,
+            subscribed = await self._response(
+                connection,
                 {
-                    "id": 5,
                     "type": "traber/subscribe",
                     "protocol_version": self.protocol_selected,
                     "entity_ids": entities,
@@ -545,6 +604,7 @@ class BridgeAdapter:
                     ),
                 },
             )
+            subscription_id = subscribed["id"]
             await self.runtime.submit(
                 "bridge_state",
                 (
@@ -557,6 +617,7 @@ class BridgeAdapter:
             self.retry_delay = 1.0
             LOGGER.info("bridge_connected")
             self.socket = socket
+            self.connection = connection
             while True:
                 receive = asyncio.create_task(socket.receive_json())
                 change = asyncio.create_task(self.runtime.revision_changed.wait())
@@ -567,8 +628,10 @@ class BridgeAdapter:
                     if change in done or overflow in done:
                         return
                     message = receive.result()
-                    if message.get("type") == "result" and message.get("id") in self.requests:
-                        future = self.requests[message["id"]]
+                    if message.get("type") == "result" and message.get("id") in connection.pending:
+                        if not message.get("success"):
+                            request_error("traber/service_call", message)
+                        future = connection.pending[message["id"]]
                         if not future.done():
                             future.set_result(
                                 message.get("result")
@@ -577,7 +640,7 @@ class BridgeAdapter:
                             )
                         continue
                     if message.get("type") == "event":
-                        if message["id"] == 5:
+                        if message["id"] == subscription_id:
                             await self.event(message["event"], config, revision)
                         else:
                             event_type = message.get("event", {}).get("event_type")
@@ -611,7 +674,14 @@ class BridgeAdapter:
                 await self.connect(config)
             except Exception as error:
                 self.runtime.bridge_subscriptions = 0
-                LOGGER.warning("bridge_disconnected", extra={"error_type": type(error).__name__})
+                LOGGER.warning(
+                    "bridge_disconnected",
+                    extra={
+                        "error_type": type(error).__name__,
+                        "request_type": getattr(error, "request_type", None),
+                        "ha_error_code": getattr(error, "ha_error_code", None),
+                    },
+                )
                 await self.runtime.submit("bridge_state", ("unavailable", "disconnected"))
                 await self.runtime.clock.sleep(self.retry_delay)
                 self.retry_delay = min(self.retry_delay * 2, 30)
