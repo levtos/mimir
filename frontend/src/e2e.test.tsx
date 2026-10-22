@@ -17,6 +17,7 @@ import { FieldSchemaEditor } from '@/editors/FieldSchemaEditor';
 import type { FieldSchema } from '@/features/authoring/model';
 import { Stateful, wrap } from '../test/harness';
 import { objects } from '@/features/sources/sourceMigration';
+import type { Draft, RevisionRow } from '@/lib/types';
 
 /**
  * End-to-end against the REAL API and engine in an isolated, in-memory instance
@@ -36,6 +37,7 @@ const f = flow(user);
 const registry = example as unknown as JsonObject;
 const realFetch = globalThis.fetch;
 const raw = async <T,>(path: string, init?: RequestInit): Promise<{ status: number; body: T }> => {
+  if (path === 'registry/drafts' && init?.method === 'POST') { const body = JSON.parse(String(init.body)); const head = await (await realFetch(`${base}/api/v1/registry/active`)).json(); init = { ...init, body: JSON.stringify({ ...body, expected_active_revision: head?.revision ?? 0 }) }; }
   const response = await realFetch(`${base}/api/v1/${path}`, init);
   const text = await response.text();
   try {
@@ -44,7 +46,12 @@ const raw = async <T,>(path: string, init?: RequestInit): Promise<{ status: numb
     throw new Error(`${init?.method ?? 'GET'} ${path} -> ${response.status} ${text.slice(0, 80)}`);
   }
 };
-const json = (method: string, body: unknown): RequestInit => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+const json = (method: string, body: unknown): RequestInit => ({ method, headers: { 'Content-Type': 'application/json', 'X-Authoring-Protocol': '2' }, body: JSON.stringify(body) });
+
+async function activationInput(draft: { draft_id: string; draft_version: number }, expected: number) {
+  const preview = (await raw<{ comparison_digest: string; required_confirmations: string[] }>(`registry/drafts/${draft.draft_id}/activation-preview`, json('POST', {}))).body;
+  return { request_id: crypto.randomUUID(), draft_version: draft.draft_version, expected_active_revision: expected, comparison_digest: preview.comparison_digest, confirmations: preview.required_confirmations };
+}
 
 /** The server stores/exports its canonical form (defaults filled in), so equality is judged by the server's own diff. */
 interface Verdict {
@@ -110,8 +117,8 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     const verdict = await raw<{ valid: boolean; issues: unknown[] }>('registry/validate', json('POST', drafts[0]!.config));
     expect(verdict).toMatchObject({ status: 200, body: { valid: true, issues: [] } });
     const dialog = await f.activateOpenDraft(draftId);
-    await within(dialog).findByText("Konfiguration 1 ist aktiv", {}, { timeout: 20_000 });
-    await user.click(within(dialog).getAllByRole('button', { name: 'Schließen' }).at(-1)!);
+    await within(dialog).findByText("Konfiguration 1 ist übernommen.", {}, { timeout: 20_000 });
+    await user.click(within(dialog).getAllByRole('button', { name: /Konfiguration ansehen|Schließen/ }).at(-1)!);
     await expectSameAsActive(registry); // what the server activated is semantically the registry that was built
 
     // 3. The activated cascade is observed over the real WebSocket (snapshot → deltas).
@@ -150,13 +157,13 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
       expect(current.config.definitions).toHaveLength(6);
     }, { timeout: 15_000 });
     const second = await f.activateOpenDraft(reimported.draft_id);
-    await within(second).findByText("Konfiguration 2 ist aktiv", {}, { timeout: 65_000 });
-    await user.click(within(second).getAllByRole('button', { name: 'Schließen' }).at(-1)!);
+    await within(second).findByText("Konfiguration 2 ist übernommen.", {}, { timeout: 65_000 });
+    await user.click(within(second).getAllByRole('button', { name: /Konfiguration ansehen|Schließen/ }).at(-1)!);
     await waitFor(() => expect(store.getSnapshot().registryRevision).toBe(2), { timeout: 20_000 });
 
     // 6. Rollback to revision 1 through the UI: a NEW revision with the historical content.
     await f.go('#/changes/versions');
-    const rev1 = (await within(screen.getByRole('main')).findByText("Konfiguration 1", {}, { timeout: 65_000 })).closest('li')!;
+    const rev1 = (await within(await screen.findByRole('main', {}, { timeout: 65_000 })).findByText("Konfiguration 1", {}, { timeout: 65_000 })).closest('li')!;
     const rollbackButton = await within(rev1).findByRole('button', { name: 'Auf diese Konfiguration zurücksetzen' }, { timeout: 65_000 });
     await waitFor(() => expect(rollbackButton).toBeEnabled(), { timeout: 65_000 });
     await user.click(rollbackButton);
@@ -165,14 +172,15 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     await user.click(await within(rollback).findByRole('checkbox', { name: /Ich möchte Konfiguration 1 als neue Konfiguration 3/ }, { timeout: 65_000 }));
     await user.click(within(rollback).getByRole('button', { name: "Zurücksetzen" }));
     await within(rollback).findByText(/Konfiguration 3 ist übernommen/, {}, { timeout: 20_000 });
-    await user.click(within(rollback).getAllByRole('button', { name: 'Schließen' }).at(-1)!);
+    await user.click(within(rollback).getAllByRole('button', { name: /Konfiguration ansehen|Schließen/ }).at(-1)!);
     await expectSameAsActive(registry); // revision 3 carries revision 1's content again
     expect((await raw<{ items: { operation: string }[] }>('history/query/activations')).body.items.map((i) => i.operation)).toEqual(['rollback', 'activate', 'activate']);
     await waitFor(() => expect(store.getSnapshot().registryRevision).toBe(3), { timeout: 20_000 });
 
-    // 7. A concurrent change by another session is reported as a conflict and overwrites nothing.
-    await f.go(`#/registry/drafts/${draftId}`);
-    await waitFor(() => expect(screen.getByLabelText("Name des Entwurfs")).toHaveValue('E2E'), { timeout: 65_000 });
+    // 7. A new working draft is explicit; the completed original stays immutable.
+    await f.go('#/changes/drafts');
+    await f.createDraft('E2E-Weiterarbeit', 'Einlesen (JSON)', JSON.stringify(exportedActive));
+    const working = (await raw<{ draft_id: string; display_name: string }[]>('registry/drafts')).body.find(d => d.display_name === 'E2E-Weiterarbeit')!.draft_id;
     await f.go('#/contracts');
     await user.click(await screen.findByRole('button', { name: /Neuer Vertrag/ }));
     await user.click(await screen.findByRole('button', { name: 'Ohne Gerät anlegen' }));
@@ -182,12 +190,14 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Neuer Vertrag' })).not.toBeInTheDocument(), { timeout: 65_000 });
     await user.click(await screen.findByRole('tab', { name: 'Konfiguration' }));
     await f.type(screen.getByLabelText(/^(Anzeigename|Name)$/), 'Zusatzvertrag');
-    const current = (await raw<{ draft_version: number; config: JsonObject }>(`registry/drafts/${draftId}`)).body;
-    const other = await raw(`registry/drafts/${draftId}`, json('PUT', { config: { ...current.config, other_session: true }, draft_version: current.draft_version }));
+    const current = (await raw<{ draft_version: number; config: JsonObject }>(`registry/drafts/${working}`)).body;
+    const other = await raw(`registry/drafts/${working}`, json('PUT', { config: { ...current.config, other_session: true }, draft_version: current.draft_version }));
     expect(other.status).toBe(200);
     await user.click(await f.saveButton());
     await screen.findByRole('dialog', { name: /Versionskonflikt/ }, { timeout: 65_000 });
-    expect(((await raw<{ config: JsonObject }>(`registry/drafts/${draftId}`)).body.config as JsonObject).other_session).toBe(true); // the other session's data is intact
+    expect(((await raw<{ config: JsonObject }>(`registry/drafts/${working}`)).body.config as JsonObject).other_session).toBe(true); // the other session's data is intact
+    await user.click(screen.getByRole('button', { name: 'Änderungen zusammenführen' }));
+    await waitFor(async () => { const merged = (await raw<Draft>(`registry/drafts/${working}`)).body; expect(merged.config.other_session).toBe(true); expect(JSON.stringify(merged.config)).toContain('Zusatzvertrag'); }, { timeout: 65_000 });
   }, 300_000);
 
   it('routes the untouched UX12 import through guided devices without manual transformations and verifies real engine values', async () => {
@@ -234,7 +244,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     expect(verdict).toMatchObject({ status: 200, body: { valid: true, issues: [] } });
     const active = (await raw<{ revision: number } | null>('registry/active')).body;
     const draft = await raw<{ draft_id: string; draft_version: number }>('registry/drafts', json('POST', { config: document, display_name: 'UX12' }));
-    const result = await raw(`registry/drafts/${draft.body.draft_id}/activate`, json('POST', { draft_version: draft.body.draft_version, expected_active_revision: active?.revision ?? 0 }));
+    const result = await raw(`registry/drafts/${draft.body.draft_id}/activate`, json('POST', await activationInput(draft.body, active?.revision ?? 0)));
     expect(result.status).toBe(200);
     await expectSameAsActive(document);
     await waitFor(async () => {
@@ -264,20 +274,24 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     const comparison = (await raw<Verdict>('registry/validate', json('POST', guided.config))).body;
     const objectCount = Object.values(comparison.diff.objects).reduce((total, group) => total + group.added.length + group.changed.length + group.removed.length, 0);
     await f.go(`#/changes/drafts/${guided.draft_id}`);
-    await user.click(await screen.findByRole('button', { name: 'Prüfen' }));
+    await user.click(await screen.findByRole('button', { name: 'Änderungen prüfen' }));
     await waitFor(() => expect(screen.getAllByLabelText('Anzahl der Änderungen').map(node => node.textContent)).toEqual([`${objectCount} Änderungen`, `${objectCount} Änderungen`]), { timeout: 65_000 });
     const takeover = async () => {
+      const details = screen.queryByRole('link', { name: 'Änderungen ansehen' }); if (details) await user.click(details);
+      const check = screen.queryByRole('button', { name: 'Änderungen prüfen' }); if (check) await user.click(check);
+      await screen.findByRole('button', { name: 'Übernehmen' });
       await user.click(screen.getByRole('button', { name: 'Übernehmen' }));
       const confirm = await screen.findByRole('dialog', { name: 'Konfiguration übernehmen' });
       const accept = await within(confirm).findByRole('checkbox', { name: /Auswirkungen geprüft/ }, { timeout: 65_000 });
       await waitFor(() => expect(accept).toBeEnabled(), { timeout: 65_000 });
       await user.click(accept);
       await user.click(within(confirm).getByRole('button', { name: 'Jetzt übernehmen' }));
-      await within(confirm).findByText(/Konfiguration \d+ ist aktiv/, {}, { timeout: 65_000 });
-      await user.click(within(confirm).getAllByRole('button', { name: 'Schließen' }).at(-1)!);
+      await within(confirm).findByText(/Konfiguration \d+ ist übernommen/, {}, { timeout: 65_000 });
+      await user.click(within(confirm).getAllByRole('button', { name: /Konfiguration ansehen|Schließen/ }).at(-1)!);
     };
     await takeover();
-    await waitFor(() => expect(screen.getAllByLabelText('Anzahl der Änderungen').map(node => node.textContent)).toEqual(['0 Änderungen', '0 Änderungen']), { timeout: 65_000 });
+    expect((await raw<{ lifecycle: string }>(`registry/drafts/${guided.draft_id}`)).body.lifecycle).toBe('completed');
+    expect(sessionStorage.getItem('terra.workingDraft')).toBeNull();
     const before = (await raw<JsonObject>('registry/active/export')).body;
     const sourceId = String(objects(before.sources)[0]!.source_id); const contractId = String(objects(before.contracts)[0]!.contract_id);
     await waitFor(async () => expect((await raw<{ fields: { value: { value: unknown } } }>(`contracts/${contractId}`)).body.fields.value.value).toBe(21.5), { timeout: 65_000 });
@@ -287,10 +301,15 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     await user.click(await screen.findByRole('button', { name: 'Quelle mit anderem Typ anlegen' }, { timeout: 65_000 }));
     const moving = await screen.findByRole('dialog', { name: 'Quelle umziehen' });
     await user.selectOptions(within(moving).getByLabelText('Neue Werteart'), 'text');
-    const check = within(moving).getByRole('button', { name: 'Umzug prüfen' });
-    await waitFor(() => expect(check).toBeEnabled(), { timeout: 65_000 }); await user.click(check);
-    await within(moving).findByText(/Direkt umgestellte Verträge: 1/, {}, { timeout: 65_000 });
-    await user.click(within(moving).getByRole('button', { name: "Im Entwurf speichern" }));
+    const currentMove = () => screen.getByRole('dialog', { name: 'Quelle umziehen' });
+    await waitFor(() => {
+      const current = currentMove();
+      expect(within(current).getByLabelText('Neue Werteart')).toHaveValue('text');
+      expect(within(current).getByRole('button', { name: 'Umzug prüfen' }), current.textContent ?? '').toBeEnabled();
+    }, { timeout: 65_000 });
+    await user.click(within(currentMove()).getByRole('button', { name: 'Umzug prüfen' }));
+    await within(currentMove()).findByText(/Direkt umgestellte Verträge: 1/, {}, { timeout: 65_000 });
+    await user.click(within(currentMove()).getByRole('button', { name: "Im Entwurf speichern" }));
     await takeover();
     const after = (await raw<JsonObject>('registry/active/export')).body;
     expect(objects(after.sources)).toHaveLength(2);
@@ -323,7 +342,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     expect((await raw<{ valid: boolean }>('registry/validate', json('POST', document))).body.valid).toBe(true);
     const active = (await raw<{ revision: number } | null>('registry/active')).body;
     const draft = (await raw<{ draft_id: string; draft_version: number }>('registry/drafts', json('POST', { config: document }))).body;
-    const activated = await raw<{ revision: number }>(`registry/drafts/${draft.draft_id}/activate`, json('POST', { draft_version: draft.draft_version, expected_active_revision: active?.revision ?? 0 }));
+    const activated = await raw<{ revision: number }>(`registry/drafts/${draft.draft_id}/activate`, json('POST', await activationInput(draft, active?.revision ?? 0)));
     expect(activated.status).toBe(200);
     window.location.hash = '#/contracts/view/manueller_neustart';
     const seen: boolean[] = [];
@@ -350,4 +369,63 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     expect(audit).toHaveLength(1); expect(audit[0]).toMatchObject({ reason: 'Isolierter Engine-Test', origin: 'manual', actor: { role: 'admin', kind: 'ingress' } });
     unsubscribe();
   }, 180_000);
+
+  it('b3 UX-1/2 continues independent edits, resolves real contradictions and replays one activation receipt', async () => {
+    const head = (await raw<RevisionRow>('registry/active')).body;
+    const local = structuredClone(head.config); const current = structuredClone(head.config);
+    (local.sources as JsonObject[])[0]!.display_name = 'Synthetic draft source';
+    (current.contracts as JsonObject[])[0]!.display_name = 'Synthetic active contract';
+    const old = (await raw<Draft>('registry/drafts', json('POST', { config: local }))).body;
+    const parallel = (await raw<Draft>('registry/drafts', json('POST', { config: current }))).body;
+    expect((await raw(`registry/drafts/${parallel.draft_id}/activate`, json('POST', await activationInput(parallel, head.revision)))).status).toBe(200);
+    const stale = await raw<{ error: string }>(`registry/drafts/${old.draft_id}/activation-preview`, json('POST', {}));
+    expect(stale).toMatchObject({ status: 409, body: { error: 'draft_base_conflict' } });
+    type Session = { session_id: string; session_version: number; status: string; conflicts: { path: string; digests: string[] }[] };
+    const session = (await raw<Session>(`registry/drafts/${old.draft_id}/continuations`, json('POST', { draft_version: old.draft_version }))).body;
+    expect(session.conflicts).toEqual([]);
+    const finish = { session_version: session.session_version, request_id: session.session_id };
+    const continued = (await raw<Draft>(`registry/continuations/${session.session_id}/finish`, json('POST', finish))).body;
+    expect((continued.config.sources as JsonObject[])[0]!.display_name).toBe('Synthetic draft source');
+    expect((continued.config.contracts as JsonObject[])[0]!.display_name).toBe('Synthetic active contract');
+    expect((await raw<Draft>(`registry/continuations/${session.session_id}/finish`, json('POST', finish))).body).toEqual(continued);
+    expect((await raw<Draft>(`registry/drafts/${old.draft_id}`)).body.lifecycle).toBe('continued');
+    expect((await raw(`registry/drafts/${old.draft_id}`, json('PUT', { config: local, draft_version: old.draft_version }))).status).toBe(409);
+    const request = await activationInput(continued, continued.base_revision!);
+    const first = await raw<RevisionRow>(`registry/drafts/${continued.draft_id}/activate`, json('POST', request));
+    expect(first.status).toBe(200);
+    // The response may be lost: query its durable result and repeat exactly that envelope.
+    expect((await raw<{ result: RevisionRow }>(`registry/activation-requests/${request.request_id}`)).body.result.revision).toBe(first.body.revision);
+    expect((await raw(`registry/drafts/${continued.draft_id}/activate`, json('POST', request))).body).toEqual(first.body);
+    const d = structuredClone(first.body.config); const c = structuredClone(first.body.config);
+    (d.sources as JsonObject[])[0]!.display_name = 'Synthetic choice D';
+    (c.sources as JsonObject[])[0]!.display_name = 'Synthetic choice C';
+    const draft = (await raw<Draft>('registry/drafts', json('POST', { config: d }))).body;
+    const newer = (await raw<Draft>('registry/drafts', json('POST', { config: c }))).body;
+    const active = (await raw<RevisionRow>('registry/active')).body;
+    expect((await raw(`registry/drafts/${newer.draft_id}/activate`, json('POST', await activationInput(newer, active.revision)))).status).toBe(200);
+    const conflicted = (await raw<Session>(`registry/drafts/${draft.draft_id}/continuations`, json('POST', { draft_version: draft.draft_version }))).body;
+    expect(conflicted.conflicts).toHaveLength(1);
+    const row = conflicted.conflicts[0]!;
+    const decided = (await raw<Session>(`registry/continuations/${conflicted.session_id}/decisions`, json('PUT', { session_version: conflicted.session_version, decisions: { [row.path]: { digests: row.digests, choice: 'draft' } } }))).body;
+    expect(decided.conflicts).toEqual([]);
+    const result = (await raw<Draft>(`registry/continuations/${decided.session_id}/finish`, json('POST', { session_version: decided.session_version, request_id: decided.session_id }))).body;
+    expect((result.config.sources as JsonObject[])[0]!.display_name).toBe('Synthetic choice D');
+    expect((await raw<RevisionRow>('registry/active')).body.config).toEqual(c);
+  }, 120_000);
+
+  it('b3 F5 and UX-5-11 compare retention on the server and complete an unchanged draft without a new revision', async () => {
+    const active = (await raw<RevisionRow>('registry/active')).body;
+    const draft = (await raw<Draft>('registry/drafts', json('POST', { config: active.config }))).body;
+    const preview = (await raw<{ no_effect: boolean; retention: { changed: boolean } }>(`registry/drafts/${draft.draft_id}/activation-preview`, json('POST', {}))).body;
+    expect(preview.no_effect).toBe(true); expect(preview.retention.changed).toBe(false);
+    expect((await raw(`registry/drafts/${draft.draft_id}/complete`, json('POST', await activationInput(draft, active.revision)))).status).toBe(200);
+    expect((await raw<RevisionRow>('registry/active')).body.revision).toBe(active.revision);
+    expect((await raw<Draft>(`registry/drafts/${draft.draft_id}`)).body.lifecycle).toBe('completed');
+    const retained = { ...active.config, history_retention: { raw_days: 7, rollup_days: 30 } };
+    const shorter = (await raw<Draft>('registry/drafts', json('POST', { config: retained }))).body;
+    const comparison = (await raw<{ retention: { changed: boolean; shortening: string[] }; required_confirmations: string[] }>(`registry/drafts/${shorter.draft_id}/activation-preview`, json('POST', {}))).body;
+    expect(comparison.retention.changed).toBe(true);
+    expect(comparison.retention.shortening).toEqual(['raw_days', 'rollup_days']);
+    expect(comparison.required_confirmations).toContain('retention');
+  }, 120_000);
 });

@@ -20,6 +20,7 @@ from core_contracts.quality import FieldValue, ReasonCode, unknown
 from core_contracts.registry import fingerprints, validate
 from core_contracts.runtime import Runtime
 from dev.fake_ha import FakeHA
+from tests.conftest import activate_draft
 
 from .conftest import activate
 
@@ -537,7 +538,7 @@ async def test_B1_17_category_export_import_roundtrip_and_legacy():
         assert preview["unresolved"] == []
         draft = await stage(rt, package, preview)
         assert rt.state.active_revision == 1
-        await rt.submit("activate", {**draft, "expected_active_revision": 1})
+        await activate_draft(rt, draft, expected_active_revision=1)
         assert (
             rt.state.tables["editorial_current"]["contract:test.opening0"]["category"] == "openings"
         )

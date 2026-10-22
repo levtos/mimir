@@ -9,6 +9,7 @@ from core_contracts.identity import reconcile
 from core_contracts.registry import validate
 from core_contracts.runtime import Runtime
 from core_contracts.testing.contract_types import type_registry
+from tests.conftest import activate_draft
 
 from .conftest import activate
 
@@ -50,7 +51,7 @@ async def test_draft_occ_activation_rollback_disabled(runtime, config):
     assert not runtime.snapshot()["contracts"]
     with pytest.raises(ValueError):
         await runtime.submit("draft_update", {**draft, "draft_version": 0})
-    await runtime.submit("activate", {**draft, "expected_active_revision": 0})
+    await activate_draft(runtime, draft, expected_active_revision=0)
     config["contracts"][0]["enabled"] = False
     await activate(runtime, config)
     assert not runtime.snapshot()["contracts"]

@@ -13,7 +13,7 @@ import { installFakeApi, makeDraft, reply, sampleConfig } from '../../test/fakeA
 const emptyVerdict = (): ValidationResult => ({ ...structuredClone(verdict), diff: { ...structuredClone(verdict.diff), analysis: 'static', predicts_values: false, added: [], affected_contracts: [], objects: {} } });
 function Editor() {
   const doc = useWorkingDocument();
-  return <><DraftBar /><button onClick={() => doc.open(makeDraft('comparison', sampleConfig({ normalized_defaults: true })))}>Open</button><button onClick={() => doc.edit(config => ({ ...config, edited: true }))}>Edit</button>{doc.validation.state === 'done' && !doc.validation.stale && doc.validation.result?.diff && <DiffView diff={doc.validation.result.diff} />}</>;
+  return <><DraftBar /><button onClick={() => void doc.validateNow()}>Prüfen</button><button onClick={() => doc.open(makeDraft('comparison', sampleConfig({ normalized_defaults: true })))}>Open</button><button onClick={() => doc.edit(config => ({ ...config, edited: true }))}>Edit</button>{doc.validation.state === 'done' && !doc.validation.stale && doc.validation.result?.diff && <DiffView diff={doc.validation.result.diff} />}</>;
 }
 function editor(client = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   render(<QueryClientProvider client={client}><MemoryRouter><WorkingDocumentProvider validateDebounceMs={5}><Editor /></WorkingDocumentProvider></MemoryRouter></QueryClientProvider>);
@@ -28,7 +28,7 @@ it('uses only the current server object diff, including zero, while active expor
   editor(); await user.click(screen.getByText('Open'));
   expect(screen.getByLabelText('Anzahl der Änderungen')).toHaveTextContent('…');
   await waitFor(() => expect(respond).toBeDefined()); respond!(reply(200, emptyVerdict()));
-  await waitFor(() => expect(screen.getAllByLabelText('Anzahl der Änderungen').map(node => node.textContent)).toEqual(['0 Änderungen', '0 Änderungen']));
+  await waitFor(() => expect(screen.getAllByLabelText('Anzahl der Änderungen').map(node => node.textContent)).toEqual(['Keine Änderungen', 'Keine Änderungen']));
   await user.click(screen.getByRole('button', { name: 'Prüfen' }));
   expect(screen.getByLabelText('Anzahl der Änderungen')).toHaveTextContent('…');
   const result = emptyVerdict();
@@ -53,7 +53,7 @@ it('invalidates a comparison when the active version changes and automatically r
   await act(() => client.invalidateQueries({ queryKey: ['registry', 'active'] }));
   await waitFor(() => expect(screen.getByLabelText('Anzahl der Änderungen')).toHaveTextContent('…'));
   await waitFor(() => expect(respond).toBeDefined()); respond!(reply(200, emptyVerdict()));
-  await waitFor(() => expect(screen.getAllByLabelText('Anzahl der Änderungen').map(node => node.textContent)).toEqual(['0 Änderungen', '0 Änderungen']));
+  await waitFor(() => expect(screen.getAllByLabelText('Anzahl der Änderungen').map(node => node.textContent)).toEqual(['Keine Änderungen', 'Keine Änderungen']));
 });
 
 it('shows a dash and correction hint after invalid validation, then a fresh count after repair', async () => {
@@ -65,5 +65,5 @@ it('shows a dash and correction hint after invalid validation, then a fresh coun
   expect(screen.getByLabelText('Anzahl der Änderungen')).not.toHaveTextContent('…');
   valid = true;
   await user.click(screen.getByRole('button', { name: 'Prüfen' }));
-  await waitFor(() => expect(screen.getAllByLabelText('Anzahl der Änderungen').map(node => node.textContent)).toEqual(['0 Änderungen', '0 Änderungen']));
+  await waitFor(() => expect(screen.getAllByLabelText('Anzahl der Änderungen').map(node => node.textContent)).toEqual(['Keine Änderungen', 'Keine Änderungen']));
 });

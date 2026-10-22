@@ -34,7 +34,7 @@ export function CreateDraftDialog({
   const { create } = useDraftMutations();
   const active = useActiveExport();
   const drafts = useDrafts();
-  const atLimit = (drafts.data?.length ?? 0) >= 100;
+  const atLimit = (drafts.data?.filter(d => (d.lifecycle ?? 'open') === 'open').length ?? 0) >= 100;
   const doc = useWorkingDocument();
   const [origin, setOrigin] = useState<Origin>(copyOf ? 'copy' : 'empty');
   const [name, setName] = useState('');
@@ -64,7 +64,7 @@ export function CreateDraftDialog({
       display ||= parsed.display_name ?? '';
     }
     try {
-      const draft = await create.mutateAsync({ config, ...(display ? { display_name: display } : {}) });
+      const draft = await create.mutateAsync({ config, from_active: origin === 'active', ...(display ? { display_name: display } : {}) });
       // A just-created draft is opened without silently discarding edits of the draft that is open.
       doc.requestOpen(draft);
       onCreated?.(draft);

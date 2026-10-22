@@ -3,7 +3,7 @@ import { useId, type ButtonHTMLAttributes, type Ref } from 'react';
 import { cn } from '@/lib/utils';
 
 export const buttonVariants = cva(
-  'inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius-sm)] border text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-45 cursor-pointer select-none',
+  'inline-flex shrink-0 items-center justify-center gap-2 whitespace-normal break-words text-center rounded-[var(--radius-sm)] border text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-45 cursor-pointer select-none',
   {
     variants: {
       variant: {
@@ -15,10 +15,10 @@ export const buttonVariants = cva(
         outline: 'border-line-strong bg-transparent text-fg hover:border-fg/60',
       },
       size: {
-        sm: 'h-7 px-2.5 text-xs',
-        md: 'h-9 px-3.5',
-        lg: 'h-10 px-5',
-        icon: 'h-8 w-8 p-0',
+        sm: 'min-h-11 px-2.5 py-2 text-xs',
+        md: 'min-h-11 px-3.5 py-2',
+        lg: 'min-h-11 px-5 py-2',
+        icon: 'min-h-11 min-w-11 p-0',
       },
     },
     defaultVariants: { variant: 'secondary', size: 'md' },

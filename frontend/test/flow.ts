@@ -40,24 +40,26 @@ export function flow(user: UserEvent) {
     // Dependencies, sources, bindings
     await go('#/sources?tab=dependencies');
     await user.click(await screen.findByRole('button', { name: "Verbindung hinzufügen" }));
-    await steps.type(screen.getByLabelText("Kennung der Verbindung"), 'dep.test');
+    await steps.type(await screen.findByLabelText("Kennung der Verbindung"), 'dep.test');
     await go('#/sources/devices');
     for (const [id, key] of [['source.a', 'physical.a'], ['source.b', 'physical.b']] as const) {
       await user.click(await screen.findByRole('button', { name: "Quelle hinzufügen" }));
       await user.click(await screen.findByRole('button', { name: "Ohne Gerät anlegen" }));
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Gerät aus Home Assistant hinzufügen' })).not.toBeInTheDocument());
       await screen.findByLabelText('Name');
-      const advanced = screen.getAllByRole('button', { name: 'Erweitert' })[0]!;
+      const advanced = (await screen.findAllByRole('button', { name: 'Erweitert' }))[0]!;
       if (advanced.getAttribute('aria-expanded') !== 'true') await user.click(advanced);
       await waitFor(() => expect(screen.getByLabelText("Quellenkennung")).toHaveValue('source.neu'));
-      await steps.type(screen.getByLabelText("Quellenkennung"), id);
-      await steps.type(screen.getByLabelText("Kennung der Messquelle"), key);
+      await steps.type(await screen.findByLabelText("Quellenkennung"), id);
+      await steps.type(await screen.findByLabelText("Kennung der Messquelle"), key);
     }
     await go('#/sources/bindings');
     for (const [id, source, entity] of [['binding.a', 'source.a', 'sensor.example_1'], ['binding.b', 'source.b', 'input_boolean.cc_alpha_test_b']] as const) {
       await user.click(await screen.findByRole('button', { name: "Verknüpfung hinzufügen" }));
-      await steps.type(screen.getByLabelText("Kennung der Verknüpfung"), id);
+      await waitFor(() => expect(screen.getByLabelText('Kennung der Verknüpfung')).toHaveValue('binding.neu'));
+      await steps.type(await screen.findByLabelText("Kennung der Verknüpfung"), id);
       await user.selectOptions(screen.getByLabelText('Quelle'), source);
-      await steps.type(screen.getByLabelText(/^Gerät oder Wert in Home Assistant \*/), entity);
+      await steps.type(await screen.findByLabelText(/^Gerät oder Wert in Home Assistant \*/), entity);
     }
 
     // Definitions
@@ -107,14 +109,14 @@ export function flow(user: UserEvent) {
 
   /** Activation through the real dialog, after the debounced server validation has accepted the draft. */
   const activateOpenDraft = async (draftId: string) => {
-    await screen.findByText('im Entwurf gespeichert', {}, { timeout: 65_000 });
+    await screen.findByText('Im Entwurf gespeichert', {}, { timeout: 65_000 });
     await go(`#/changes/drafts/${draftId}`);
     await screen.findByText('Hier kannst du deinen Entwurf prüfen und die Änderungen übernehmen.');
     await waitFor(() => {
-      const control = screen.queryByRole('button', { name: 'Übernehmen' }) ?? screen.getByRole('button', { name: 'Prüfen' });
+      const control = screen.queryByRole('button', { name: 'Übernehmen' }) ?? screen.getByRole('button', { name: 'Änderungen prüfen' });
       expect(control).toBeEnabled();
     }, { timeout: 65_000 });
-    const check = screen.queryByRole('button', { name: 'Prüfen' });
+    const check = screen.queryByRole('button', { name: 'Änderungen prüfen' });
     if (check) await user.click(check);
     const button = await screen.findByRole('button', { name: 'Übernehmen' }, { timeout: 65_000 });
     await waitFor(() => { expect(button).toBeEnabled(); expect(button.closest('[data-page-header]')).not.toBeNull(); }, { timeout: 65_000 });

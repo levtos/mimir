@@ -94,6 +94,10 @@ def put(
         draft is None or request.draft_version != draft["draft_version"]
     ):
         raise ValueError("draft_version_conflict")
+    if draft is not None:
+        from .authoring import guard
+
+        guard(state, draft)
     if not existing and (draft is None or not contains(draft["config"], request.object, runtime)):
         raise ValueError("editorial_object_not_found")
     if pending and len(state.tables["editorial_draft"]) >= 10000:

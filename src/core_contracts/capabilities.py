@@ -294,6 +294,10 @@ def enrich_definition_schema(schema: dict[str, Any]) -> dict[str, Any]:
 def capabilities(config: RegistryConfig | None, base: TypeRegistry) -> dict[str, Any]:
     return {
         "capability_version": 1,
+        "authoring_protocol": 2,
+        "draft_lifecycle": True,
+        "continuation": True,
+        "activation_receipts": True,
         "language_versions": [1, 2, 3, 4],
         "machine_deadline_v2": True,
         "api_protocol": 1,

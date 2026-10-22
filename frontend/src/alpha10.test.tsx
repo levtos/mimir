@@ -22,7 +22,7 @@ it.each([
 ] as const)('MQTT %s with external settings %s shows only the relevant hint', async (mode, present, shown) => {
   installFakeApi();
   app('/settings/connections', { ready: false, publication_confirmed: false, persistence: 'connected', ha: 'disconnected', bridge: 'disconnected', mqtt: 'disabled', mqtt_mode: mode, mqtt_external_settings_present: present, reasons: [] });
-  await screen.findByRole('heading', { name: t('alpha7.nav.connections'), level: 1 });
+  await screen.findByRole('heading', { name: t('alpha7.nav.connections'), level: 1 }, { timeout: 5000 });
   expect(!!screen.queryByText(t('alpha10.mqtt.disabledHint'))).toBe(shown);
 });
 

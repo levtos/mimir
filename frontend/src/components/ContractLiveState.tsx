@@ -34,7 +34,8 @@ export function ContractLiveState({ envelope, stale, fields = {} }: { envelope: 
                 <div className="flex flex-wrap items-center gap-2">
                   <FieldStatusBadge field={field} />
                   <QualityBadge quality={field.quality} />
-                  <span className={field.status === 'valid' || field.status === 'held' ? 'font-mono' : 'text-muted'} data-testid={`value-${name}`}>{displayValue(field, typeof fields[name]?.unit === 'string' ? fields[name]?.unit as string : undefined)}</span>
+                  <span className={field.status === 'valid' || field.status === 'held' ? 'font-mono' : 'text-muted'} data-testid={`value-${name}`}>{displayValue(field, typeof fields[name]?.unit === 'string' ? fields[name]?.unit as string : undefined, fields[name])}</span>
+                  {fields[name]?.type === 'enum' && <span className="text-xs text-muted">{uiText('b3.rawValue')}: <code>{String(field.value ?? '—')}</code></span>}
                   {field.freshness && <Badge>{uiText("components.ContractLiveState.frische_b42690")}{codeLabel(field.freshness)}</Badge>}
                 </div>
                 <dl className="grid grid-cols-[max-content_1fr] gap-x-3 text-xs text-muted">

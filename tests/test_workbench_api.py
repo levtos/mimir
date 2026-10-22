@@ -16,7 +16,7 @@ from core_contracts.security import Tokens
 from core_contracts.validation import RegistryValidationError
 from dev.fake_ha import FakeHA
 
-from .conftest import activate
+from .conftest import activate, activation_body
 from .test_declarative import definition, machine_definition, registry
 from .test_phase1a import observation
 
@@ -24,7 +24,7 @@ from .test_phase1a import observation
 async def api_client(runtime, aiohttp_client, tmp_path):
     api = API(runtime, Tokens(tmp_path), str(uuid4()))
     client = await aiohttp_client(api.application())
-    headers = {"Authorization": "Bearer " + api.tokens.values["admin"]}
+    headers = {"X-Authoring-Protocol": "2", "Authorization": "Bearer " + api.tokens.values["admin"]}
     return api, client, headers
 
 
@@ -77,7 +77,12 @@ async def test_drafts_incomplete_roundtrip_occ_delete_and_audit(
     response = await client.post(
         "/api/v1/registry/drafts",
         headers=headers,
-        json={"display_name": "Manual editor", "config": {}, "_actor": {"kind": "spoof"}},
+        json={
+            "display_name": "Manual editor",
+            "config": {},
+            "expected_active_revision": 0,
+            "_actor": {"kind": "spoof"},
+        },
     )
     draft = await response.json()
     assert response.status == 200
@@ -105,7 +110,7 @@ async def test_drafts_incomplete_roundtrip_occ_delete_and_audit(
         await client.post(
             path + "/activate",
             headers=headers,
-            json={"draft_version": 2, "expected_active_revision": 0},
+            json=await activation_body(client, path, headers, 2),
         )
     ).status == 200
     exported = await (await client.get("/api/v1/registry/active/export", headers=headers)).json()
@@ -113,13 +118,12 @@ async def test_drafts_incomplete_roundtrip_occ_delete_and_audit(
         await client.post("/api/v1/registry/validate", headers=headers, json=exported)
     ).status == 200
     assert (await client.delete(path, headers=headers, json={"draft_version": 1})).status == 409
-    assert (await client.delete(path, headers=headers, json={"draft_version": 2})).status == 200
+    assert (await client.delete(path, headers=headers, json={"draft_version": 2})).status == 409
     history = await (await client.get("/api/v1/history/query/diagnostics", headers=headers)).json()
     assert {row["operation"] for row in history["items"]} == {
         "draft_create",
         "draft_update",
         "activate",
-        "draft_delete",
     }
     assert all(row["actor"] == {"kind": "token", "role": "admin"} for row in history["items"])
     assert api.tokens.values["admin"] not in str(history)

@@ -89,15 +89,15 @@ describe('opening another draft', () => {
     await user.click(screen.getByText('edit'));
 
     await user.click(screen.getByRole('button', { name: /Beta/ }));
-    const dialog = await screen.findByRole('alertdialog');
+    const dialog = await screen.findByRole('dialog', { name: 'Entwurf wechseln' });
     expect(within(dialog).getByText(/Beta/)).toBeInTheDocument();
     expect(read()).toMatchObject({ id: 'a', dirty: true, marker: 'lokal' }); // nothing happened yet
 
-    await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Hierbleiben' }));
     expect(read()).toMatchObject({ id: 'a', dirty: true, marker: 'lokal', undo: true });
 
     await user.click(screen.getByRole('button', { name: /Beta/ }));
-    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Verwerfen und wechseln' }));
+    await user.click(within(await screen.findByRole('dialog', { name: 'Entwurf wechseln' })).getByRole('button', { name: 'Ungespeicherte Eingaben verwerfen' }));
     expect(read()).toMatchObject({ id: 'b', dirty: false, marker: null, undo: false });
   });
 
@@ -120,10 +120,10 @@ describe('opening another draft', () => {
     const create = await screen.findByRole('dialog', { name: "Neuer Entwurf" });
     await user.click(within(create).getByRole('radio', { name: "Leere Konfiguration" }));
     await user.click(within(create).getByRole('button', { name: "Entwurf anlegen" }));
-    const ask = await screen.findByRole('alertdialog');
+    const ask = await screen.findByRole('dialog', { name: 'Entwurf wechseln' });
     expect(api.drafts.size).toBe(3); // the new draft exists on the server ...
     expect(read()).toMatchObject({ id: 'a', dirty: true, marker: 'lokal' }); // ... but the edits are untouched
-    await user.click(within(ask).getByRole('button', { name: 'Abbrechen' }));
+    await user.click(within(ask).getByRole('button', { name: 'Hierbleiben' }));
     expect(read()).toMatchObject({ id: 'a', dirty: true, marker: 'lokal', undo: true });
   });
 });

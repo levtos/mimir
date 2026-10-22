@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { useActiveExport, useCapabilities, useRevisions } from '@/lib/queries';
+import { currentDraft } from '@/features/registry/authoring';
+import { useActiveRevision, useActiveExport, useCapabilities, useRevisions } from '@/lib/queries';
 import type { Registry } from '@/lib/types';
 import { typeCatalog, type TypeEntry } from './catalog';
 import { definitionKey } from './model';
@@ -24,6 +25,7 @@ export interface AuthoringSource {
 export function useAuthoringSource(): AuthoringSource {
   const doc = useWorkingDocument();
   const active = useActiveExport();
+  const activeHead = useActiveRevision();
   const caps = useCapabilities();
   const revisions = useRevisions();
   const config = (doc.editing ? doc.config : null) ?? active.data ?? null;
@@ -42,7 +44,7 @@ export function useAuthoringSource(): AuthoringSource {
   }, [revisions.data]);
   return {
     config,
-    editable: doc.editing && doc.config !== null,
+    editable: doc.editing && doc.config !== null && !!doc.draft && currentDraft(doc.draft, activeHead.data?.revision),
     source: doc.editing && doc.config ? 'draft' : active.data ? 'active' : 'none',
     types,
     activatedVersions,

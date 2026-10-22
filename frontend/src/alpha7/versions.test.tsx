@@ -20,16 +20,16 @@ function app(hash: string) {
 const revision = (n: number) => ({ revision: n, checksum: String(n).repeat(64), config: sampleConfig(), created_at: '2026-10-16T12:00:00Z' });
 
 it('keeps the page confirmation mounted when a background configuration update resets validation', async () => {
-  const fake = installFakeApi({ revisions: [revision(1)], drafts: [makeDraft('d1', sampleConfig())] });
+  const fake = installFakeApi({ revisions: [revision(1)], drafts: [makeDraft('d1', sampleConfig(), { base_revision: 1 })] });
   const { client } = app('#/changes/drafts/d1');
-  await screen.findByRole('heading', { name: 'd1', level: 1 });
-  await userEvent.click(await screen.findByRole('button', { name: 'Prüfen' }));
+  await screen.findByRole('heading', { name: 'd1', level: 1 }, { timeout: 5000 });
+  await userEvent.click(await screen.findByRole('button', { name: 'Änderungen prüfen' }));
   await userEvent.click(await screen.findByRole('button', { name: 'Übernehmen' }));
   const dialog = await screen.findByRole('dialog', { name: 'Konfiguration übernehmen' });
   await within(dialog).findByRole('checkbox', { name: /Auswirkungen geprüft/ });
   fake.revisions.push(revision(2));
   await act(async () => { client.setQueryData(keys.active, revision(2)); });
-  await waitFor(() => expect(document.querySelector('[data-page-header] button[data-variant="primary"]')).toHaveTextContent('Prüfen'));
+  await waitFor(() => expect(document.querySelector('[data-page-header] button[data-variant="primary"]')).toHaveTextContent('Auf aktuellen Stand bringen – deine Änderungen bleiben erhalten'));
   await waitFor(() => expect(dialog).toBeVisible());
   expect(fake.calls.some(call => call.path.endsWith('/activate'))).toBe(false);
 });
@@ -38,12 +38,12 @@ it('shows one global save button on the open draft page', async () => {
   installFakeApi({ drafts: [makeDraft('d1', sampleConfig())] }); app('#/changes/drafts/d1');
   await screen.findByRole('heading', { name: 'd1', level: 1 }, { timeout: 5000 });
   expect(screen.getByRole('button', { name: 'Speichern' }).closest('details')).not.toHaveAttribute('open');
-  expect(screen.getAllByText('im Entwurf gespeichert')).toHaveLength(1);
-  expect(screen.getByRole('button', { name: 'Prüfen' })).toHaveAttribute('data-variant', 'primary');
+  expect(screen.getAllByText('Im Entwurf gespeichert')).toHaveLength(1);
+  expect(screen.getByRole('button', { name: 'Änderungen prüfen' })).toHaveAttribute('data-variant', 'primary');
   await userEvent.click(screen.getByLabelText('Weitere Entwurfsaktionen'));
   expect(screen.getAllByRole('button', { name: 'Speichern' })).toHaveLength(1);
   await userEvent.click(screen.getByLabelText('Weitere Entwurfsaktionen'));
-  await userEvent.click(screen.getByRole('button', { name: 'Prüfen' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Änderungen prüfen' }));
   await screen.findByText('Keine Fehler gefunden');
   expect(screen.getAllByText('Keine Fehler')).toHaveLength(1); // only the global check chip
 });
@@ -53,7 +53,7 @@ it('keeps the draft identifier, semantic checksum and deadline details under Tec
   const id = '12345678-1234-4567-8123-123456789abc';
   installFakeApi({ drafts: [makeDraft(id, sampleConfig(), { display_name: 'Neue Geräte' })] }); app(`#/changes/drafts/${id}`);
   await screen.findByRole('heading', { name: 'Neue Geräte', level: 1 }, { timeout: 5000 });
-  await user.click(screen.getByRole('button', { name: 'Prüfen' }));
+  await user.click(screen.getByRole('button', { name: 'Änderungen prüfen' }));
   expect(await screen.findByText('Der Entwurf ist vollständig und fehlerfrei.')).toBeVisible();
   expect(screen.queryByText(id)).not.toBeInTheDocument();
   expect(screen.queryByText('Semantik-Prüfsumme-Version')).not.toBeInTheDocument();
@@ -88,8 +88,8 @@ it('invalidates the confirmation when the optional note changes and sends the no
   await user.type(screen.getByLabelText('Notiz zur neuen Konfiguration (freiwillig)'), 'Temperatursensor ergänzt');
   expect(screen.getByRole('button', { name: 'Jetzt übernehmen' })).toBeDisabled();
   await user.click(confirm); await user.click(screen.getByRole('button', { name: 'Jetzt übernehmen' }));
-  await screen.findByText("Konfiguration 5 ist aktiv");
-  expect(api.calls.find(call => call.path.endsWith('/activate'))?.body).toEqual({ draft_version: 1, expected_active_revision: 4, note: 'Temperatursensor ergänzt' });
+  await screen.findByText("Konfiguration 5 ist übernommen.");
+  expect(api.calls.find(call => call.path.endsWith('/activate'))?.body).toEqual({ draft_version: 1, expected_active_revision: 4, note: 'Temperatursensor ergänzt', comparison_digest: 'd1:1:4', confirmations: ['impact'], request_id: expect.any(String) });
 });
 
 it('cannot confirm a rollback dialog opened for the current version', async () => {

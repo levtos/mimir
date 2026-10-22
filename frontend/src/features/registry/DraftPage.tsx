@@ -1,10 +1,14 @@
+import { ContinuationDialog } from './ContinuationDialog';
+import { ActivateDialog } from './ActivationDialogs';
+import { currentDraft, draftState, CONTINUE, recoverActivation } from './authoring';
+import { useActiveRevision } from '@/lib/queries';
 import { PageLoading } from '@/components/PageLoading';
 import { t as uiText } from '@/i18n';
 import { useQuery } from '@tanstack/react-query';
 import { LayoutPanel, PanelLayout } from '@/components/PanelLayout';
 import { ArrowLeft, CheckCircle2, CircleAlert, Download } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useLocation, useParams } from 'react-router';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/controls';
@@ -52,13 +56,22 @@ function JsonExpert() {
 export default function DraftPage() {
   const { draftId = '' } = useParams();
   const doc = useWorkingDocument();
+  const query = useLocation().search;
   const server = useQuery({ queryKey: ['registry', 'drafts', draftId], queryFn: () => api<Draft>(`registry/drafts/${encodeURIComponent(draftId)}`), retry: false });
   const [switching, setSwitching] = useState(false);
+  const [continuing, setContinuing] = useState(false);
+  const [activationTarget, setActivationTarget] = useState<Draft | null>(null);
+  const active = useActiveRevision();
+  useEffect(() => { if (new URLSearchParams(query).get('continue') === '1' && doc.draft?.draft_id === draftId && !doc.dirty) setContinuing(true); }, [query, doc.draft?.draft_id, doc.dirty, draftId]);
+  const effect = useQuery({ queryKey: ['draft-effect', draftId, doc.draft?.draft_version, active.data?.revision], queryFn: () => api<import('./authoring').ActivationPreview>(`registry/drafts/${draftId}/activation-preview`, { method: 'POST', body: {} }), enabled: doc.draft?.draft_id === draftId && !doc.dirty && doc.validation.result?.valid === true && !doc.validation.stale && doc.draft.lifecycle !== 'completed' && doc.draft.lifecycle !== 'continued' });
+  useEffect(() => { void recoverActivation(draftId).then(result => { if (result) { doc.close(); void server.refetch(); } }).catch(() => undefined); }, [draftId]);
   const isOpen = doc.draft?.draft_id === draftId;
+  const autoOpened = useRef<string | null>(null);
   const blocked = !isOpen && doc.dirty;
 
   useEffect(() => {
-    if (!isOpen && !doc.dirty && server.data) doc.open(server.data);
+    if (isOpen) autoOpened.current = draftId;
+    if (!isOpen && !doc.dirty && server.data && autoOpened.current !== draftId) { autoOpened.current = draftId; doc.open(server.data); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, doc.dirty, server.data]);
 
@@ -87,7 +100,10 @@ export default function DraftPage() {
   if (!isOpen || !doc.draft || !doc.config) return <PageLoading title={uiText('alpha7.nav.drafts')} description={uiText('alpha9.pages.draft')} />;
 
   const { draft, config, validation } = doc;
-  const validNow = validation.state === 'done' && validation.result?.valid === true && !validation.stale;
+  const closed = !!server.data?.lifecycle && server.data.lifecycle !== 'open';
+  const current = currentDraft(server.data ?? draft, active.data?.revision ?? 0);
+  if (closed && !activationTarget) return <><Back /><PageHeader title={draftLabel(draft)} description={uiText('beta3.88e34492c718')} actions={server.data?.completed_revision ? <Link to={`/changes/versions?revision=${server.data.completed_revision}`}><Button variant="primary" onClick={doc.close}>{uiText('beta3.838cb6772119')}</Button></Link> : <Link to={`/changes/drafts/${server.data?.continued_to_draft_id}`}><Button variant="primary">{uiText('beta3.533a922fbb99')}</Button></Link>} /><Notice tone="ok" title={draftState(server.data!, active.data?.revision)}>{server.data?.continued_to_draft_id && <Link to={`/changes/drafts/${server.data.continued_to_draft_id}`}>{uiText('beta3.533a922fbb99')}</Link>}</Notice></>;
+  const validNow = !doc.dirty && validation.state === 'done' && validation.result?.valid === true && !validation.stale;
 
   return (
     <>
@@ -97,11 +113,15 @@ export default function DraftPage() {
         description={uiText('alpha9.pages.draft')}
         actions={
           <>
-            <ReviewDraftButton size="md" checkFirst={!validNow} />
+            {current ? <ReviewDraftButton size="md" checkFirst={!validNow} onReview={setActivationTarget}>{validNow && effect.data?.no_effect ? uiText('b3.complete') : undefined}</ReviewDraftButton> : <Button variant="primary" onClick={() => void (async () => { if (!doc.dirty || await doc.save() === 'saved') setContinuing(true); })()}>{draft.base_status === 'needs_review' ? uiText('beta3.c902a9a3c590') : CONTINUE}</Button>}
             <Button onClick={() => downloadText(`${safeFilename(doc.displayName || draft.draft_id)}.json`, exportRegistry(config))}><Download size={14} /> {uiText("features.registry.DraftPage.export_366489")}</Button>
           </>
         }
       />
+      <Notice tone={current ? 'info' : 'warn'} title={draftState(server.data ?? draft, active.data?.revision ?? 0)}>{!current && <><p>{uiText('b3.baseExplanation', { name: doc.displayName, base: draft.base_revision ?? '–', active: active.data?.revision ?? '–' })}</p><p>{uiText('b3.continueHelp')}</p><Link to="/changes/drafts">{uiText('b3.allDrafts')}</Link></>}</Notice>
+      {activationTarget && <ActivateDialog draft={activationTarget} open onOpenChange={open => !open && setActivationTarget(null)} />}
+      {continuing && <ContinuationDialog draft={draft} onClose={() => setContinuing(false)} />}
+      <fieldset disabled={!current} className="min-w-0">
       <PanelLayout view="registry.draft" defaultOrder={['validation', 'name', 'diff', 'activation', 'editor', 'json']}>
           <LayoutPanel id="validation" title={uiText("features.registry.DraftPage.validierung_d4bf21")} span={2}>
           <div data-pointer="validation" tabIndex={-1}>
@@ -138,6 +158,8 @@ export default function DraftPage() {
               <ul className="space-y-1 text-sm">
                 <li className="flex items-center gap-2">{doc.dirty ? <CircleAlert size={14} className="text-warn" /> : <CheckCircle2 size={14} className="text-ok" />} {uiText("features.registry.DraftPage.gespeichert_5e2338")}</li>
                 <li className="flex items-center gap-2">{validNow ? <CheckCircle2 size={14} className="text-ok" /> : <CircleAlert size={14} className="text-warn" />} {uiText("features.registry.DraftPage.aktuell_gultig_2034ba")}</li>
+                <li>{current ? '✓' : '○'} {uiText('b3.current')}</li>
+                <li>○ {uiText('b3.confirmed')} · {uiText('b3.confirmInDialog')}</li>
               </ul>
 
             </div>
@@ -154,6 +176,7 @@ export default function DraftPage() {
           </Panel>
           </LayoutPanel>
       </PanelLayout>
+      </fieldset>
     </>
   );
 }

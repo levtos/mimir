@@ -31,6 +31,9 @@ TABLES = (
     "registry_revision",
     "registry_activation",
     "registry_draft",
+    "activation_receipt",
+    "draft_continuation",
+    "registry_draft_version",
     "contract_lifecycle",
     "contract_state_current",
     "contract_state_history",
@@ -57,6 +60,8 @@ TABLES = (
     "catalog_import",
 )
 IMMUTABLE = {
+    "registry_draft_version",
+    "activation_receipt",
     "catalog_content_revision",
     "catalog_entry_revision",
     "catalog_request",

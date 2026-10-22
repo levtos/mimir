@@ -322,6 +322,9 @@ def preview(runtime: Any, state: Any, request: dict[str, Any]) -> dict[str, Any]
             raise ValueError("import_target_draft_required")
         if target["draft_version"] != request.get("target_draft_version"):
             raise ValueError("draft_version_conflict")
+        from .authoring import guard
+
+        guard(state, target)
         if target.get("portable"):
             raise ValueError("import_target_has_plan")
         existing = storage_document(validate(target["config"], runtime.types))
@@ -538,11 +541,16 @@ def stage(
     if plan["unresolved"]:
         raise ValueError("import_unresolved_conflicts")
     target = state.tables["registry_draft"].get(plan["target_draft_id"])
-    if target is None and len(state.tables["registry_draft"]) >= 100:
+    from .authoring import base_fields, guard, open_count
+
+    if target:
+        guard(state, target)
+    if target is None and open_count(state) >= 100:
         raise ValueError("draft_limit")
     key = target["draft_id"] if target else str(uuid4())
     draft = {
         **(target or {}),
+        **base_fields(state),
         "draft_id": key,
         "draft_version": target["draft_version"] + 1 if target else 1,
         "config": plan["config"],
@@ -550,9 +558,29 @@ def stage(
         "created_at": target["created_at"] if target else now.isoformat(),
         "updated_at": now.isoformat(),
         "display_name": target.get("display_name", "Import") if target else "Import",
-        "portable": {**plan, "config_digest": checksum(plan["config"]), "actor": actor},
+        "portable": {
+            **plan,
+            "editorial_base": {
+                ObjectRef.model_validate(row["object"]).key: {
+                    field: copy.deepcopy(
+                        state.tables["editorial_current"]
+                        .get(ObjectRef.model_validate(row["object"]).key, {})
+                        .get(field)
+                    )
+                    for field in ("category", "room")
+                }
+                for row in plan["package"]["editorial"]
+            },
+            "config_digest": checksum(plan["config"]),
+            "actor": actor,
+            "status": "prepared",
+            "plan_id": str(uuid4()),
+        },
     }
     state.tables["registry_draft"][key] = draft
+    from .authoring import bind_plan
+
+    bind_plan(draft)
     return draft
 
 
@@ -562,6 +590,13 @@ def apply(
     plan = draft.get("portable")
     if not plan:
         return dict(runtime.latches)
+    if plan.get("status") == "consumed":
+        raise ValueError("import_plan_consumed")
+    if "candidate_digest" in plan and (
+        plan["candidate_digest"] != checksum(draft["config"])
+        or plan.get("draft_version") != draft.get("draft_version")
+    ):
+        raise ValueError("import_plan_conflict")
     if state.active_revision != plan["expected_active_revision"]:
         raise ValueError("import_plan_conflict")
     from .managed_catalog import definition

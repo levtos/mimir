@@ -22,7 +22,7 @@ function app(hash = '#/contracts/list/all') {
   return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><Workbench onSetup={() => {}} live={idleLive()} /></QueryClientProvider>);
 }
 
-it('creates and takes over a temperature contract in six clicks without entering an identifier or transformation', async () => {
+it('creates and takes over a temperature contract through the single draft action without entering an identifier or transformation', async () => {
   const user = userEvent.setup(); const api = fake(); app(); let clicks = 0;
   const click = async (target: HTMLElement) => { clicks++; await user.click(target); };
   // The first task page is lazy-loaded; wait for it before counting user clicks.
@@ -34,12 +34,14 @@ it('creates and takes over a temperature contract in six clicks without entering
   expect(within(wizard).getByLabelText('Frist in Sekunden')).toHaveValue(900);
   expect(within(wizard).getByLabelText('Frist in Sekunden')).toHaveAccessibleDescription('= 15 Minuten');
   await click(within(wizard).getByRole('button', { name: 'Vertrag anlegen' }));
+  await click(await screen.findByRole('link', { name: 'Änderungen ansehen' }));
+  await click(await screen.findByRole('button', { name: 'Änderungen prüfen' }));
   await click(await screen.findByRole('button', { name: 'Übernehmen' }));
   const confirm = await screen.findByRole('dialog', { name: 'Konfiguration übernehmen' });
   await click(await within(confirm).findByRole('checkbox', { name: /Auswirkungen geprüft/ }));
   await click(within(confirm).getByRole('button', { name: 'Jetzt übernehmen' }));
-  await within(confirm).findByText("Konfiguration 1 ist aktiv");
-  expect(clicks).toBe(6); expect(api.revisions).toHaveLength(1);
+  await within(confirm).findByText("Konfiguration 1 ist übernommen.");
+  expect(clicks).toBe(8); expect(api.revisions).toHaveLength(1);
   const result = api.revisions[0]!.config;
   expect(result.dependencies).toHaveLength(1); expect(result.sources).toHaveLength(1); expect(result.bindings).toHaveLength(1); expect(result.contracts).toHaveLength(1);
   expect(result.bindings).toEqual([expect.objectContaining({ transform: { kind: 'type_cast', target: 'number' } })]);

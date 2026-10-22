@@ -4,6 +4,7 @@ from workbench_alpha8 import registry as alpha8_registry
 from workbench_alpha8 import seed as alpha8_seed
 
 from core_contracts.runtime import Runtime
+from core_contracts.testing.authoring import activate_draft
 
 
 async def seed(runtime: Runtime):
@@ -52,7 +53,7 @@ async def seed(runtime: Runtime):
         }
     )
     draft = await runtime.submit("draft_create", {"config": config})
-    await runtime.submit("activate", {**draft, "expected_active_revision": 2})
+    await activate_draft(runtime, draft, expected_active_revision=2)
     for contract in config["contracts"]:
         await runtime.submit(
             "editorial_put",

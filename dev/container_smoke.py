@@ -131,9 +131,9 @@ async def main():
             ).read_text()
         )
         activate_code = (
-            "import urllib.request,json; from pathlib import Path\ntoken=Path('/data/secrets/admin_token').read_text()\ndef post(path,data):\n req=urllib.request.Request('http://127.0.0.1:8787/api/v1/'+path,data=json.dumps(data).encode(),headers={'Authorization':'Bearer '+token,'Content-Type':'application/json'})\n return json.load(urllib.request.urlopen(req))\ndraft=post('registry/drafts',"
+            "import urllib.request,json; from pathlib import Path\ntoken=Path('/data/secrets/admin_token').read_text()\ndef post(path,data):\n req=urllib.request.Request('http://127.0.0.1:8787/api/v1/'+path,data=json.dumps(data).encode(),headers={'Authorization':'Bearer '+token,'Content-Type':'application/json','X-Authoring-Protocol':'2'})\n return json.load(urllib.request.urlopen(req))\ndraft=post('registry/drafts',{'expected_active_revision':0,'config':"
             + repr(registry)
-            + ")\nrevision=post('registry/drafts/'+draft['draft_id']+'/activate',{'draft_version':1,'expected_active_revision':0})\nprint(revision['revision'])"
+            + "})\npreview=post('registry/drafts/'+draft['draft_id']+'/activation-preview',{})\nrevision=post('registry/drafts/'+draft['draft_id']+'/activate',{'draft_version':1,'expected_active_revision':0,'request_id':__import__('uuid').uuid4().hex,'comparison_digest':preview['comparison_digest'],'confirmations':preview['required_confirmations']})\nprint(revision['revision'])"
         )
         assert inside(activate_code) == "1"
         docker("stop", db)

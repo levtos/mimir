@@ -43,7 +43,7 @@ const config = () => JSON.parse(screen.getByTestId('cfg').textContent!) as { def
 
 describe('definition versions are immutable once activated', () => {
   it('locks an activated version, keeps editorial fields editable and creates a new version with instance migration', async () => {
-    const api = installFakeApi({ revisions: [{ revision: 3, config: registry(), checksum: 'c'.repeat(64), created_at: 'x' }], drafts: [makeDraft('d1', registry())] });
+    const api = installFakeApi({ revisions: [{ revision: 3, config: registry(), checksum: 'c'.repeat(64), created_at: 'x' }], drafts: [makeDraft('d1', registry(), { base_revision: 3 })] });
     render(<Harness draft={api.drafts.get('d1') as unknown as Draft} path="/templates/details/test.truth/1" />);
     await user.click(screen.getByText('open-draft'));
     await screen.findByText(/Übernommene Vorlagenversion/);
@@ -80,7 +80,7 @@ describe('definition versions are immutable once activated', () => {
     const cfg = registry();
     const defs = cfg.definitions as JsonObject[];
     defs.push({ ...clone(defs[0]!), type_version: 2 });
-    api.drafts.set('d2', makeDraft('d2', cfg));
+    api.drafts.set('d2', makeDraft('d2', cfg, { base_revision: 1 }));
     render(<Harness draft={api.drafts.get('d2') as unknown as Draft} path="/templates/details/test.truth/2" />);
     await user.click(screen.getByText('open-draft'));
     await user.click(await screen.findByRole('tab', { name: /Ausgaben/ }));

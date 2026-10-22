@@ -4,6 +4,8 @@ import copy
 
 import pytest
 
+from tests.conftest import activate_draft, activation_body
+
 from .test_workbench_api import api_client
 
 
@@ -12,7 +14,11 @@ async def test_version_metadata_survives_recovery_without_changing_configuration
 ):
     _, client, headers = await api_client(runtime, aiohttp_client, tmp_path)
     draft = await (
-        await client.post("/api/v1/registry/drafts", headers=headers, json=config)
+        await client.post(
+            "/api/v1/registry/drafts",
+            headers=headers,
+            json={"config": config, "expected_active_revision": runtime.state.active_revision},
+        )
     ).json()
     path = "/api/v1/registry/drafts/" + draft["draft_id"] + "/activate"
     first = await (
@@ -20,20 +26,29 @@ async def test_version_metadata_survives_recovery_without_changing_configuration
             path,
             headers=headers,
             json={
-                "draft_version": 1,
-                "expected_active_revision": 0,
+                **await activation_body(client, path.removesuffix("/activate"), headers, 1),
                 "note": "  Temperatursensor ergänzt  ",
                 "_actor": {"kind": "forged", "role": "system"},
                 "actor": {"kind": "forged", "role": "system"},
             },
         )
     ).json()
-    saved = copy.deepcopy(first)
+    saved = copy.deepcopy(await runtime.store.get("registry_revision", "1"))
     assert first["note"] == "Temperatursensor ergänzt"
     assert first["actor"] == {"kind": "token", "role": "admin"}
+    draft = await (
+        await client.post(
+            "/api/v1/registry/drafts",
+            headers=headers,
+            json={"config": config, "expected_active_revision": runtime.state.active_revision},
+        )
+    ).json()
+    path = "/api/v1/registry/drafts/" + draft["draft_id"] + "/activate"
     second = await (
         await client.post(
-            path, headers=headers, json={"draft_version": 1, "expected_active_revision": 1}
+            path,
+            headers=headers,
+            json=await activation_body(client, path.removesuffix("/activate"), headers, 1),
         )
     ).json()
     assert "note" not in second
@@ -69,14 +84,6 @@ async def test_version_metadata_survives_recovery_without_changing_configuration
 async def test_invalid_version_note_cannot_create_a_version(runtime, config, note):
     draft = await runtime.submit("draft_create", {"config": config})
     with pytest.raises(ValueError, match="invalid_revision_note"):
-        await runtime.submit(
-            "activate",
-            {
-                "draft_id": draft["draft_id"],
-                "draft_version": 1,
-                "expected_active_revision": 0,
-                "note": note,
-            },
-        )
+        await activate_draft(runtime, draft, note=note)
     assert runtime.state.active_revision == 0
     assert not await runtime.store.rows("registry_revision")

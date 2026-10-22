@@ -15,6 +15,7 @@ from aiohttp import WSMsgType, web
 from pydantic import ValidationError
 
 from . import __version__
+from .authoring import AuthoringError
 from .capabilities import capabilities, configuration_schema, describe_types, reasons
 from .history import HISTORY_TABLES, HistoryQuery
 from .model import canonical
@@ -97,6 +98,10 @@ class API:
                     raise web.HTTPForbidden()
             try:
                 response = await handler(request)
+            except AuthoringError as error:
+                response = web.json_response(
+                    {"error": error.code, "cause": error.code, "details": error.details}, status=409
+                )
             except RegistryValidationError as error:
                 response = web.json_response(
                     {
@@ -283,6 +288,7 @@ class API:
         return {
             "version": __version__,
             "api_protocol": 1,
+            "authoring_protocol": 2,
             "bridge_protocol": 1,
             "config_schema_version": 1,
             "installation_id": self.installation_id,
@@ -320,6 +326,12 @@ class API:
         } or path.startswith(("contracts/", "commands/"))
         if not public and request["role"] != "admin":
             raise web.HTTPForbidden()
+        if (
+            method not in {"GET", "HEAD"}
+            and path.startswith(("registry/drafts", "registry/continuations", "portable/stage"))
+            and request.headers.get("X-Authoring-Protocol") != "2"
+        ):
+            raise AuthoringError("authoring_upgrade_required")
         result: Any
         if path == "info" and method == "GET":
             result = self.info()
@@ -692,8 +704,43 @@ class API:
             result = await runtime.store.rows("registry_revision")
         elif path.startswith("registry/revisions/") and method == "GET":
             result = await runtime.store.get("registry_revision", path.split("/")[-1])
+        elif path.startswith("registry/activation-requests/") and method == "GET":
+            receipt = await runtime.store.get("activation_receipt", path.split("/")[-1])
+            result = (
+                {"status": "completed", "receipt": receipt, "result": receipt["result"]}
+                if receipt
+                else {"status": "not_found"}
+            )
+        elif path.startswith("registry/continuations/"):
+            parts = path.split("/")
+            key = parts[2]
+            if method == "GET" and len(parts) == 3:
+                result = state.tables["draft_continuation"][key]
+            elif len(parts) == 4 and (
+                parts[3] == "decisions"
+                and method == "PUT"
+                or parts[3] in {"finish", "cancel"}
+                and method == "POST"
+            ):
+                result = await runtime.submit(
+                    "continuation_" + parts[3],
+                    {
+                        **await self.object_body(request),
+                        "session_id": key,
+                        "_actor": request["actor"],
+                    },
+                )
+            else:
+                raise web.HTTPNotFound()
         elif path == "registry/drafts" and method == "GET":
-            result = list(state.tables["registry_draft"].values())
+            from .authoring import view
+
+            lifecycle = request.query.get("lifecycle")
+            result = [
+                view(state, d)
+                for d in state.tables["registry_draft"].values()
+                if not lifecycle or (d.get("lifecycle", "open") == "open") == (lifecycle == "open")
+            ]
         elif path == "registry/drafts" and method == "POST":
             document = await request.json()
             payload = (
@@ -701,12 +748,21 @@ class API:
                 if isinstance(document, dict) and "config" in document
                 else {"config": document}
             )
+            if not isinstance(payload["config"], dict):
+                raise ValueError("configuration object required")
+            from .registry import safe_document
+
+            safe_document(payload["config"])
+            if type(payload.get("expected_active_revision")) is not int:
+                raise ValueError("invalid_expected_revision")
             result = await runtime.submit("draft_create", {**payload, "_actor": request["actor"]})
         elif path.startswith("registry/drafts/"):
             parts = path.split("/")
             key = parts[2]
             if len(parts) == 3 and method == "GET":
-                result = state.tables["registry_draft"][key]
+                from .authoring import view
+
+                result = view(state, state.tables["registry_draft"][key])
             elif len(parts) == 3 and method == "PUT":
                 result = await runtime.submit(
                     "draft_update",
@@ -728,6 +784,34 @@ class API:
             elif len(parts) == 4 and parts[3] == "validate" and method == "POST":
                 result = await runtime.submit(
                     "validate", state.tables["registry_draft"][key]["config"]
+                )
+                from .authoring import view
+
+                draft_view = view(state, state.tables["registry_draft"][key])
+                result.update(
+                    content_valid=result["valid"],
+                    base_current=draft_view["base_current"],
+                    lifecycle=draft_view.get("lifecycle"),
+                    base_status=draft_view.get("base_status"),
+                )
+            elif (
+                len(parts) == 4
+                and parts[3] in {"activation-preview", "complete", "continuations", "reconcile"}
+                and method == "POST"
+            ):
+                operation = {
+                    "activation-preview": "draft_preview",
+                    "complete": "draft_complete",
+                    "continuations": "continuation_start",
+                    "reconcile": "draft_reconcile",
+                }[parts[3]]
+                result = await runtime.submit(
+                    operation,
+                    {
+                        **await self.object_body(request),
+                        "draft_id": key,
+                        "_actor": request["actor"],
+                    },
                 )
             elif len(parts) == 4 and parts[3] == "activate" and method == "POST":
                 result = await runtime.submit(

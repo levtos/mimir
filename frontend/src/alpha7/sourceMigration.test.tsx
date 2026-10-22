@@ -86,7 +86,7 @@ it('discards a delayed validation result after the working draft changes', async
   const user = userEvent.setup(); const config = original(); const api = installFakeApi({ revisions: [revision(config)] });
   let release: (() => void) | undefined;
   api.routes.push({ match: /^registry\/validate$/, respond: async () => { await new Promise<void>(resolve => { release = resolve; }); return reply(200, { valid: true, issues: [] }); } });
-  const draft = makeDraft('migration', config);
+  const draft = makeDraft('migration', config, { base_revision: 1 });
   function Subject() {
     const doc = useWorkingDocument();
     return <><button onClick={() => doc.open(draft)}>Open</button><button onClick={() => doc.setAt('/other', true)}>Change</button>{doc.config && <SourceMigrationDialog sourceId={String(objects(config.sources)[0]!.source_id)} onClose={() => {}} />}</>;

@@ -1,3 +1,5 @@
+import { currentDraft, draftState } from './authoring';
+import { ConfigurationContent } from './ConfigurationContent';
 import { t as uiText } from '@/i18n';
 import { Copy, Download, FilePlus2, FolderOpen, GitCompare, History, Pencil, RotateCcw, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -38,7 +40,12 @@ function DraftsTab() {
     } else if (opening && doc.switchRequest === null && doc.draft?.draft_id !== opening.draft_id) setOpening(null);
   }, [opening, doc.draft?.draft_id, doc.switchRequest, navigate]);
   const [error, setError] = useState('');
-  const list = drafts.data ?? [];
+  const active = useActiveRevision();
+  const [completed, setCompleted] = useState(false);
+  const [staleOnly, setStaleOnly] = useState(false);
+  const all = drafts.data ?? [];
+  const openCount = all.filter(d => (d.lifecycle ?? 'open') === 'open').length;
+  const list = all.filter(d => ((d.lifecycle ?? 'open') !== 'open') === completed).filter(d => !staleOnly || !currentDraft(d, active.data?.revision ?? 0));
 
   const open = (draft: Draft) => {
     if (doc.requestOpen(draft) !== 'pending') navigate(`/changes/drafts/${encodeURIComponent(draft.draft_id)}`);
@@ -47,10 +54,11 @@ function DraftsTab() {
 
   return (
     <>
-    <PageHeader title={uiText('alpha7.nav.drafts')} description={uiText('alpha9.pages.drafts')} actions={<Button variant="primary" disabled={list.length >= 100} disabledReason={uiText('alpha7.import.limit')} onClick={() => setCreating(true)}><FilePlus2 size={15} />{uiText('features.registry.RegistryPage.neuer_draft_610fb2')}</Button>} />
+    <PageHeader title={uiText('alpha7.nav.drafts')} description={uiText('alpha9.pages.drafts')} actions={<Button variant="primary" disabled={openCount >= 100} disabledReason={uiText('alpha7.import.limit')} onClick={() => setCreating(true)}><FilePlus2 size={15} />{uiText('features.registry.RegistryPage.neuer_draft_610fb2')}</Button>} />
+    <div className="flex flex-wrap gap-2"><Button aria-pressed={!completed} onClick={() => setCompleted(false)}>{uiText('beta3.6bdbd1fb5da3')}</Button><Button aria-pressed={completed} onClick={() => setCompleted(true)}>{uiText('beta3.467e01ba533e')}</Button>{!completed && <Button aria-pressed={staleOnly} onClick={() => setStaleOnly(!staleOnly)}>{staleOnly ? uiText('beta3.fe1a5c4bbaa7') : uiText('beta3.d9075b29ee27')}</Button>}</div>
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted">{list.length} {uiText("features.registry.RegistryPage.von_100_drafts_drafts_sind_niemals_live_sie_durf_c3fc1f")}</p>
+        <p className="text-sm text-muted">{openCount} {uiText("features.registry.RegistryPage.von_100_drafts_drafts_sind_niemals_live_sie_durf_c3fc1f")}</p>
       </div>
       {error && <Notice tone="bad" title={uiText("features.registry.RegistryPage.aktion_fehlgeschlagen_3a20cc")}>{error}</Notice>}
       <Panel>
@@ -58,7 +66,7 @@ function DraftsTab() {
           <Spinner />
         ) : list.length === 0 ? (
           <Empty title={uiText("features.registry.RegistryPage.noch_keine_drafts_a1dbb9")}>
-            {uiText("features.registry.RegistryPage.legen_sie_einen_leeren_draft_an_kopieren_sie_die_ecb749")}</Empty>
+            {completed ? uiText('beta3.a32d6f4f66ce') : uiText('beta3.0616d1ac83b2')}</Empty>
         ) : (
           <ul className="divide-y divide-line">
             {list.map((draft) => (
@@ -69,13 +77,13 @@ function DraftsTab() {
                     {doc.draft?.draft_id === draft.draft_id && <Badge tone="accent">{doc.dirty ? uiText("features.registry.RegistryPage.geoffnet_ungespeichert_62ba6c") : uiText("features.registry.RegistryPage.geoffnet_ec5e95")}</Badge>}
                   </p>
                   <Collapsible title={uiText('alpha7.draft.advanced')}><p className="mono break-all text-xs text-muted">{draft.draft_id}</p></Collapsible>
-                  <p className="text-xs text-muted">{uiText("features.registry.RegistryPage.v_4c9448")}{draft.draft_version} {uiText("features.registry.RegistryPage.basis_revision_690542")}{draft.base_revision ?? '–'} {uiText("features.registry.RegistryPage.erstellt_555e13")}{formatTime(draft.created_at)} {uiText("features.registry.RegistryPage.geandert_4147a3")}{formatTime(draft.updated_at)}</p>
+                  <p className="text-sm">{draftState(draft, active.data?.revision ?? 0)}</p><p className="text-xs text-muted">{uiText("features.registry.RegistryPage.v_4c9448")}{draft.draft_version} {uiText("features.registry.RegistryPage.basis_revision_690542")}{draft.base_revision ?? '–'} {uiText("features.registry.RegistryPage.erstellt_555e13")}{formatTime(draft.created_at)} {uiText("features.registry.RegistryPage.geandert_4147a3")}{formatTime(draft.updated_at)}</p>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  <Button size="sm" onClick={() => open(draft)}><Pencil size={13} /> {uiText("features.registry.RegistryPage.bearbeiten_84e45e")}</Button>
+                  <Button size="sm" onClick={() => open(draft)}><Pencil size={13} /> {completed ? uiText('beta3.8e31363947a6') : currentDraft(draft, active.data?.revision ?? 0) ? uiText('beta3.84e45ee73411') : uiText('beta3.98040289d15a')}</Button>
                   <Button size="sm" onClick={() => setCopyOf(draft)}><Copy size={13} /> {uiText("features.registry.RegistryPage.duplizieren_9d400c")}</Button>
                   <Button size="sm" onClick={() => downloadText(`${safeFilename(draftLabel(draft))}.json`, exportRegistry(draft.config))}><Download size={13} /> {uiText("features.registry.RegistryPage.export_366489")}</Button>
-                  <Button size="sm" variant="danger" onClick={() => setDeleting(draft)}><Trash2 size={13} /> {uiText("features.registry.RegistryPage.loschen_6c2d35")}</Button>
+                  <Button size="sm" variant="danger" disabled={completed} onClick={() => setDeleting(draft)}><Trash2 size={13} /> {uiText("features.registry.RegistryPage.loschen_6c2d35")}</Button>
                 </div>
               </li>
             ))}
@@ -125,6 +133,8 @@ function RevisionsTab() {
   const [comparing, setComparing] = useState(false);
   const [selecting, setSelecting] = useState(false);
   const navigate = useNavigate();
+  const revisionQuery = useLocation().search;
+  useEffect(() => { const number = Number(new URLSearchParams(revisionQuery).get('revision')); const row = revisions.data?.find(item => item.revision === number); if (row) setViewing(row); else if (!revisionQuery) setViewing(null); }, [revisionQuery, revisions.data]);
   const operations = useMemo(() => new Map((activations.data?.pages.flatMap((p) => p.items) ?? []).map((a) => [Number(a.revision), String(a.operation)])), [activations.data]);
   const rows = [...(revisions.data ?? [])].sort((a, b) => b.revision - a.revision);
   const activeNumber = active.data?.revision ?? 0;
@@ -178,9 +188,10 @@ function RevisionsTab() {
         )}
       </Panel>
       {viewing && (
-        <Dialog open onOpenChange={(o) => !o && setViewing(null)} size="xl" title={uiText("features.registry.RegistryPage.revision_v0_5db9ad", { v0: (viewing.revision) })}>
+        <Dialog open onOpenChange={(o) => { if (!o) { setViewing(null); navigate('/changes/versions', { replace: true }); } }} size="xl" title={uiText("features.registry.RegistryPage.revision_v0_5db9ad", { v0: (viewing.revision) })}>
           <Collapsible title={uiText('alpha7.versions.advanced')}><p className="mb-2 text-sm text-muted">{uiText('alpha10.checksumHelp')}</p><p className="mono break-all text-xs">{viewing.checksum}</p></Collapsible>
-          <pre className="max-h-[60vh] overflow-auto rounded-[var(--radius-md)] bg-sunken p-3 text-xs">{canonicalJson(viewing.config)}</pre>
+          <ConfigurationContent config={viewing.config} />
+          <Collapsible title={uiText('alpha10.technical')}><pre className="max-h-[60vh] overflow-auto rounded-[var(--radius-md)] bg-sunken p-3 text-xs">{canonicalJson(viewing.config)}</pre></Collapsible>
         </Dialog>
       )}
       {rolling && <RollbackDialog key={rolling.revision} revision={rolling} open onOpenChange={(o) => !o && setRolling(null)} />}

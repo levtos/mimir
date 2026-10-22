@@ -224,7 +224,11 @@ async def test_request_failures_are_safe_and_not_error_logs(
     assert not any(r.levelno >= logging.ERROR for r in caplog.records)
     for index in range(100):
         await runtime.submit("draft_create", {"draft_id": f"limit_{index}", "config": {}})
-    response = await client.post("/api/v1/registry/drafts", headers=headers, json={"config": {}})
+    response = await client.post(
+        "/api/v1/registry/drafts",
+        headers=headers,
+        json={"config": {}, "expected_active_revision": 0},
+    )
     assert (await response.json())["error"] == "draft_limit"
     assert not any(r.levelno >= logging.ERROR for r in caplog.records)
     runtime.store.available = False

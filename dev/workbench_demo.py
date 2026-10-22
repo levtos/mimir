@@ -38,6 +38,7 @@ from core_contracts.persistence import MemoryStore
 from core_contracts.runtime import Runtime
 from core_contracts.security import Tokens
 from core_contracts.setup import Setup
+from core_contracts.testing.authoring import activate_draft
 from core_contracts.testing.contract_types import type_registry
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -156,7 +157,7 @@ async def main() -> None:
             (ROOT / "docs" / "alpha4" / "example-registry.json").read_text(encoding="utf-8")
         )
         draft = await runtime.submit("draft_create", {"config": document})
-        await runtime.submit("activate", {**draft, "expected_active_revision": 0})
+        await activate_draft(runtime, draft, expected_active_revision=0)
         runtime.first_snapshot = True
 
     if args.feed:

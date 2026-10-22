@@ -273,7 +273,9 @@ def test_noncanonical_map_rejected_at_entry(config, kind, item, key):
 async def test_every_valid_draft_id_is_addressable(runtime, aiohttp_client, tmp_path, draft_id):
     _, client, headers = await api_client(runtime, aiohttp_client, tmp_path)
     response = await client.post(
-        "/api/v1/registry/drafts", headers=headers, json={"draft_id": draft_id, "config": {}}
+        "/api/v1/registry/drafts",
+        headers=headers,
+        json={"draft_id": draft_id, "config": {}, "expected_active_revision": 0},
     )
     assert response.status == 200
     path = "/api/v1/registry/drafts/" + draft_id

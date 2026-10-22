@@ -12,6 +12,7 @@ from core_contracts.clock import FakeClock
 from core_contracts.evidence import Observation
 from core_contracts.persistence import MemoryStore
 from core_contracts.runtime import Runtime
+from core_contracts.testing.authoring import activate_draft
 from core_contracts.testing.contract_types import type_registry
 
 
@@ -35,7 +36,7 @@ async def main():
         "interval_s": 3600,
     }
     draft = await runtime.submit("draft_create", {"config": registry})
-    await runtime.submit("activate", {**draft, "expected_active_revision": 0})
+    await activate_draft(runtime, draft, expected_active_revision=0)
     await runtime.submit(
         "observation",
         Observation(

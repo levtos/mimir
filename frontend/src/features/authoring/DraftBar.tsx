@@ -1,3 +1,7 @@
+import { Link } from 'react-router';
+import { countSentence } from '@/lib/valueText';
+import { draftState } from '@/features/registry/authoring';
+import { useActiveRevision } from '@/lib/queries';
 import { t as uiText } from '@/i18n';
 import { CheckCircle2, CircleAlert, Loader2, MoreHorizontal, Redo2, Save, Undo2 } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
@@ -8,6 +12,8 @@ import { ConfirmDialog, Dialog } from '@/components/ui/dialog';
 import { Notice, Spinner } from '@/components/ui/layout';
 import { formatTime } from '@/lib/format';
 import { canonicalJson } from '@/lib/json';
+import { fieldLabel } from '@/i18n/codes';
+import { locateIssue } from './locate';
 import { describeError } from '@/lib/api';
 import { useDrafts } from '@/lib/queries';
 import { changedObjectCount } from '@/lib/diff';
@@ -22,7 +28,8 @@ export const draftLabel = (draft: Pick<Draft, 'draft_id' | 'display_name'>): str
 /** Choose (or create) the working draft. Opening another draft with unsaved edits asks first. */
 export function DraftPicker({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const doc = useWorkingDocument();
-  const drafts = useDrafts();
+  const allDrafts = useDrafts();
+  const drafts = { ...allDrafts, data: allDrafts.data?.filter(d => (d.lifecycle ?? 'open') === 'open') };
   const [creating, setCreating] = useState(false);
   const pick = (draft: Draft) => {
     // Re-selecting the open draft is a no-op; another draft asks first if edits would be lost.
@@ -60,18 +67,7 @@ export function DraftPicker({ open, onOpenChange }: { open: boolean; onOpenChang
 /** Asks before unsaved changes of the open draft are dropped by opening another one. */
 export function SwitchDialog() {
   const doc = useWorkingDocument();
-  const target = doc.switchRequest;
-  return (
-    <ConfirmDialog
-      open={target !== null}
-      onOpenChange={(o) => !o && doc.cancelSwitch()}
-      title={uiText("features.authoring.DraftBar.ungespeicherte_anderungen_verwerfen_2630c0")}
-      description={<>„{doc.draft ? draftLabel({ draft_id: doc.draft.draft_id, display_name: doc.displayName }) : ''}{uiText("features.authoring.DraftBar.hat_ungespeicherte_anderungen_beim_wechsel_zu_52f14b")}{target ? draftLabel(target) : ''}{uiText("features.authoring.DraftBar.gehen_sie_samt_ruckgangig_verlauf_verloren_f437b8")}</>}
-      confirmLabel={uiText("features.authoring.DraftBar.verwerfen_und_wechseln_88c2d1")}
-      tone="danger"
-      onConfirm={doc.confirmSwitch}
-    />
-  );
+  return <Dialog open={doc.switchRequest !== null} onOpenChange={open => !open && doc.cancelSwitch()} title={uiText('beta3.7872db271b81')} description={<>{uiText('beta3.9e20711b60e7')} {doc.switchRequest && draftLabel(doc.switchRequest)}</>} footer={<><Button onClick={doc.cancelSwitch}>{uiText('beta3.5b9c81fe9755')}</Button><Button onClick={doc.confirmSwitch}>{uiText('beta3.fc07c17bc2e1')}</Button><Button variant="primary" disabled={doc.saving} onClick={() => void (async () => { if (await doc.save() === 'saved') doc.confirmSwitch(); })()}>{uiText('beta3.2c515692b9be')}</Button></>} />;
 }
 
 /** Version conflict (OCC): never overwrites silently; the user picks explicitly. */
@@ -81,14 +77,15 @@ export function ConflictDialog() {
   const location = useLocation();
   const conflict = doc.conflict;
   const [busy, setBusy] = useState(false);
-  const [confirmOverwrite, setConfirmOverwrite] = useState(false);
-  useEffect(() => setConfirmOverwrite(false), [conflict]);
+  const [choices, setChoices] = useState<Record<string, string>>({});
+  useEffect(() => setChoices({}), [conflict]);
   if (!conflict) return null;
   const same = canonicalJson(conflict.server.config) === canonicalJson(doc.config);
   const run = async (choice: Parameters<typeof doc.resolveConflict>[0]) => {
     setBusy(true);
     try {
-      const createdId = await doc.resolveConflict(choice);
+      const decisions = Object.fromEntries((conflict.comparison?.conflicts ?? []).map(c => [c.path, { digests: c.digests, choice: choices[c.path] ?? '' }]));
+      const createdId = await doc.resolveConflict(choice, decisions);
       if (createdId && location.pathname.startsWith('/changes/drafts/')) navigate(`/changes/drafts/${encodeURIComponent(createdId)}`, { replace: true });
     } finally {
       setBusy(false);
@@ -103,17 +100,17 @@ export function ConflictDialog() {
       footer={
         <>
           <Button disabled={busy} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => run('cancel')}>{uiText("features.authoring.DraftBar.abbrechen_f7ff11")}</Button>
-          <Button disabled={busy} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => run('keep-local-as-new')}>{uiText("features.authoring.DraftBar.meine_anderungen_als_neuen_draft_sichern_ef820d")}</Button>
           <Button disabled={busy} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => run('take-server')}>{uiText("features.authoring.DraftBar.server_stand_ubernehmen_2f2a5e")}</Button>
-          <Button variant="danger" disabled={busy} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => (confirmOverwrite ? void run('overwrite') : setConfirmOverwrite(true))}>
-            {confirmOverwrite ? uiText("features.authoring.DraftBar.wirklich_uberschreiben_ad728b") : uiText("features.authoring.DraftBar.server_stand_uberschreiben_613729")}
+          <Button variant="primary" disabled={busy || !conflict.comparison || conflict.comparison.conflicts.some(c => !choices[c.path])} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => void run('merge')}>
+            {uiText('b3.mergeInputs')}
           </Button>
         </>
       }
     >
       <div className="flex flex-col gap-3 text-sm">
         {same ? <Notice tone="info">{uiText("features.authoring.DraftBar.beide_stande_sind_inhaltlich_gleich_ein_ubernehm_d8a22e")}</Notice> : <Notice tone="warn" title={uiText("features.authoring.DraftBar.die_stande_unterscheiden_sich_0b65e1")}>{uiText("features.authoring.DraftBar.server_stand_ubernehmen_verwirft_ihre_lokalen_an_59393c")}</Notice>}
-        {confirmOverwrite && <Notice tone="bad" title={uiText("features.authoring.DraftBar.uberschreiben_bestatigen_a69a90")}>{uiText("features.authoring.DraftBar.die_zwischenzeitlichen_anderungen_am_server_draf_1417b3")}</Notice>}
+        <p>{uiText('b3.mergeExplanation')}</p>
+        {conflict.comparison?.conflicts.map(row => <fieldset className="min-w-0 rounded border border-line p-3" key={row.path}><legend>{fieldLabel(row.path.split('/').at(-1) ?? '')}</legend><p>{uiText('b3.lastRead')}: {JSON.stringify(row.base)}</p>{(['draft', 'current'] as const).map(side => <label className="flex min-h-11 items-center gap-2 break-all" key={side}><input type="radio" name={row.path} checked={choices[row.path] === side} onChange={() => setChoices({ ...choices, [row.path]: side })} />{uiText(side === 'draft' ? 'b3.localInput' : 'b3.savedInput')}: {JSON.stringify(row[side])}</label>)}</fieldset>)}
       </div>
     </Dialog>
   );
@@ -140,19 +137,24 @@ export function ValidationChip() {
   </>;
 }
 
-export function ReviewDraftButton({ children, size = 'sm', variant = 'primary', checkFirst = false }: { children?: React.ReactNode; size?: 'sm' | 'md'; variant?: 'primary' | 'secondary' | 'ghost'; checkFirst?: boolean }) {
+export function ReviewDraftButton({ children, size = 'sm', variant = 'primary', checkFirst = false, onReview }: { children?: React.ReactNode; size?: 'sm' | 'md'; variant?: 'primary' | 'secondary' | 'ghost'; checkFirst?: boolean; onReview?: (draft: Draft) => void }) {
   const doc = useWorkingDocument();
+  const navigate = useNavigate();
   const [target, setTarget] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const invalid = !doc.dirty && !doc.validation.stale && doc.validation.state === 'done' && doc.validation.issues.length > 0;
+  const checking = !doc.dirty && doc.validation.state === 'checking';
+  const requiresCheck = checkFirst || doc.dirty;
+  const label = checking ? uiText('b3.checking') : invalid ? uiText('b3.fixErrors') : !doc.dirty && doc.validation.state === 'failed' ? uiText('b3.checkAgain') : requiresCheck ? uiText('beta3.f539371f8846') : children ?? uiText('alpha7.draft.apply');
   const review = async () => {
     setBusy(true); setError('');
-    try { setTarget(await doc.prepareActivation()); }
+    try { const saved = await doc.prepareActivation(); if (onReview) onReview(saved); else setTarget(saved); }
     catch (failure) { setError(describeError(failure)); }
     finally { setBusy(false); }
   };
   return <>
-    <Button size={size} variant={variant} disabled={!doc.draft || busy || doc.saving || checkFirst && doc.validation.state === 'checking'} disabledReason={uiText('alpha7.copy.validationRunning')} onClick={() => checkFirst ? void doc.validateNow() : void review()}>{busy ? uiText('alpha7.draft.preparingReview') : children ?? uiText(checkFirst ? 'features.authoring.DraftBar.prufen_a1ca13' : 'alpha7.draft.apply')}</Button>
+    <Button size={size} variant={variant} disabled={!doc.draft || busy || doc.saving || checking} disabledReason={uiText('alpha7.copy.validationRunning')} onClick={() => { if (invalid) { const issue = doc.validation.issues[0]!; const where = locateIssue(issue.path, doc.config); navigate(`${where.to}${where.to.includes('?') ? '&' : '?'}focus=${encodeURIComponent(issue.path)}`); } else if (requiresCheck) void (async () => { if (!doc.dirty || await doc.save() === 'saved') await doc.validateNow(); })(); else void review(); }}>{busy ? uiText('alpha7.draft.preparingReview') : label}</Button>
     {!doc.draft && <span className="text-xs text-muted">{uiText('alpha7.draft.noDraft')}</span>}
     {error && <span role="alert" className="text-xs text-bad">{error}</span>}
     {target && <ActivateDialog draft={target} open onOpenChange={open => !open && setTarget(null)} />}
@@ -161,6 +163,9 @@ export function ReviewDraftButton({ children, size = 'sm', variant = 'primary', 
 
 export function DraftBar() {
   const doc = useWorkingDocument();
+  const active = useActiveRevision();
+  const navigate = useNavigate();
+  const closeDraft = () => { doc.close(); if (detailPage) navigate('/changes/drafts'); };
   const detailPage = useLocation().pathname.startsWith('/changes/drafts/');
   const saveStatusId = useId();
   const [picker, setPicker] = useState(false);
@@ -194,22 +199,23 @@ export function DraftBar() {
       {doc.draft && doc.editing ? (
         <>
           <span className="min-w-0 text-xs text-muted"><span title={draftLabel({ draft_id: doc.draft.draft_id, display_name: doc.displayName })} className="block max-w-40 truncate">{draftLabel({ draft_id: doc.draft.draft_id, display_name: doc.displayName })}</span><span id={saveStatusId} role="status" className="block">{uiText(doc.saving ? 'alpha7.draft.saving' : doc.dirty ? 'alpha7.draft.notSaved' : 'alpha7.draft.saved')}</span></span>
-          <span aria-label={uiText('alpha7.draft.changeCount')} className="text-sm font-medium">{invalid ? <>–<span className="block text-xs font-normal text-muted">{uiText('post1.draft.countAfterErrors')}</span></> : changes === null ? '…' : uiText(changes === 1 ? 'alpha7.draft.oneChange' : 'alpha7.draft.changes', { count: changes })}</span>
+          <span aria-label={uiText('alpha7.draft.changeCount')} className="text-sm font-medium">{invalid ? <>–<span className="block text-xs font-normal text-muted">{uiText('post1.draft.countAfterErrors')}</span></> : changes === null ? '…' : countSentence(changes, 'changes')}</span>
           <ValidationChip />
-          {!detailPage && <><Button size="sm" onClick={() => void doc.validateNow()} disabled={doc.validation.state === 'checking'} disabledReason={uiText('alpha7.copy.validationRunning')}>{uiText("features.authoring.DraftBar.prufen_a1ca13")}</Button><ReviewDraftButton variant="secondary" /></>}
+          {!detailPage && <Link className="min-h-11 underline" to={`/changes/drafts/${doc.draft.draft_id}`}>{uiText('beta3.8afb05d4c53f')}</Link>}
+          <span role="status">{draftState(doc.draft, active.data?.revision)}</span>
           <details className="relative" onClick={event => { if ((event.target as HTMLElement).closest('button')) event.currentTarget.open = false; }}><summary aria-label={uiText('alpha7.draft.more')} className="grid size-8 cursor-pointer list-none place-items-center rounded-lg hover:bg-raised"><MoreHorizontal size={16} /></summary><div className="absolute right-0 top-9 z-30 flex min-w-48 flex-col items-start gap-1 rounded-lg border border-line bg-panel p-2 shadow-xl">
             <Button size="sm" variant="ghost" disabled={!doc.dirty || doc.saving} aria-describedby={saveStatusId} onClick={() => void doc.save()} title={uiText('features.authoring.DraftBar.strg_s_bda7e5')}><Save size={13} />{uiText('features.authoring.DraftBar.speichern_f6b2ff')}</Button>
             {doc.canUndo && <Button size="sm" variant="ghost" onClick={doc.undo}><Undo2 size={13} />{uiText('features.authoring.DraftBar.ruckgangig_dd7bd2')}</Button>}
             {doc.canRedo && <Button size="sm" variant="ghost" onClick={doc.redo}><Redo2 size={13} />{uiText('features.authoring.DraftBar.wiederholen_e0ef00')}</Button>}
             <Button size="sm" variant="ghost" onClick={() => setPicker(true)}>{uiText('alpha7.draft.switch')}</Button>
-            <Button size="sm" variant="ghost" onClick={() => doc.dirty ? setClosing(true) : doc.close()}>{uiText('features.authoring.DraftBar.draft_schlie_en_e8650e')}</Button>
+            <Button size="sm" variant="ghost" onClick={() => doc.dirty ? setClosing(true) : closeDraft()}>{uiText('features.authoring.DraftBar.draft_schlie_en_e8650e')}</Button>
           </div></details>
         </>
       ) : doc.dirty ? <span className="text-xs text-muted">{uiText('alpha7.draft.kept')}</span> : null}
       <DraftPicker open={picker} onOpenChange={setPicker} />
       <ConflictDialog />
       <SwitchDialog />
-      <ConfirmDialog open={closing} onOpenChange={setClosing} title={uiText("features.authoring.DraftBar.draft_schlie_en_f5ae17")} description={uiText("features.authoring.DraftBar.es_gibt_ungespeicherte_anderungen_sie_gehen_verl_002e77")} confirmLabel={uiText("features.authoring.DraftBar.verwerfen_und_schlie_en_6dcb36")} tone="danger" onConfirm={() => { setClosing(false); doc.close(); }} />
+      <ConfirmDialog open={closing} onOpenChange={setClosing} title={uiText("features.authoring.DraftBar.draft_schlie_en_f5ae17")} description={uiText("features.authoring.DraftBar.es_gibt_ungespeicherte_anderungen_sie_gehen_verl_002e77")} confirmLabel={uiText("features.authoring.DraftBar.verwerfen_und_schlie_en_6dcb36")} tone="danger" onConfirm={() => { setClosing(false); closeDraft(); }} />
       {doc.saveError && <span role="alert" className="text-xs text-bad">{doc.saveError}</span>}
     </div>
   );

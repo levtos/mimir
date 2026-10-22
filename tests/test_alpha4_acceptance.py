@@ -164,7 +164,7 @@ async def test_data_only_cascade_full_manual_first_acceptance(
 ):
     tokens, identity = Tokens(tmp_path), str(uuid4())
     server = await aiohttp_server(API(runtime, tokens, identity).application())
-    headers = {"Authorization": "Bearer " + tokens.values["admin"]}
+    headers = {"X-Authoring-Protocol": "2", "Authorization": "Bearer " + tokens.values["admin"]}
 
     async def request(server, method, path, **kwargs):
         async with aiohttp.ClientSession(headers=headers) as http:
@@ -177,16 +177,25 @@ async def test_data_only_cascade_full_manual_first_acceptance(
     async def author(document, target=server, revision=0):
         report = await request(target, "POST", "registry/validate", json=document)
         assert report["valid"] and report["diff"]["analysis"] == "static"
-        draft = await request(target, "POST", "registry/drafts", json={"config": {}})
+        draft = await request(
+            target,
+            "POST",
+            "registry/drafts",
+            json={"config": {}, "expected_active_revision": revision},
+        )
         path = "registry/drafts/" + draft["draft_id"]
         await request(target, "PUT", path, json={"config": document, "draft_version": 1})
         await request(target, "POST", path + "/validate", json={})
+        preview = await request(target, "POST", path + "/activation-preview", json={})
         await request(
             target,
             "POST",
             path + "/activate",
             json={
                 "draft_version": 2,
+                "request_id": str(uuid4()),
+                "comparison_digest": preview["comparison_digest"],
+                "confirmations": preview["required_confirmations"],
                 "expected_active_revision": revision,
             },
         )
