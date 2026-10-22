@@ -24,7 +24,7 @@ export function fieldsForContract(contract: JsonObject, config: Registry | null,
 
 export function contractValue(envelope: Envelope | null, fields: Record<string, FieldSchema>): string {
   if (!envelope) return t('alpha7.contract.noValue');
-  return Object.entries(envelope.fields).map(([name, field]) => `${Object.keys(envelope.fields).length > 1 ? `${fieldLabel(name)}: ` : ''}${displayValue(field, str(fields[name]?.unit))}`).join(' · ');
+  return Object.entries(envelope.fields).map(([name, field]) => `${Object.keys(envelope.fields).length > 1 ? `${fieldLabel(name)}: ` : ''}${displayValue(field, str(fields[name]?.unit), fields[name])}`).join(' · ');
 }
 
 export const CONTRACT_CATEGORIES = ['healthy', 'degraded', 'unknown', 'off', 'draft'] as const;

@@ -743,10 +743,14 @@ async def test_mqtt_internal_queuefull_invalidates_only_mqtt_bindings(runtime, c
 async def test_safe_admin_validation_details(runtime, config, aiohttp_client, tmp_path):
     api = API(runtime, Tokens(tmp_path), str(uuid4()))
     client = await aiohttp_client(api.application())
-    headers = {"Authorization": "Bearer " + api.tokens.values["admin"]}
+    headers = {"X-Authoring-Protocol": "2", "Authorization": "Bearer " + api.tokens.values["admin"]}
     config["contracts"][0].update(type_id="test.state_machine", parameters={"sessions": False})
     draft = await (
-        await client.post("/api/v1/registry/drafts", json=config, headers=headers)
+        await client.post(
+            "/api/v1/registry/drafts",
+            json={"config": config, "expected_active_revision": 0},
+            headers=headers,
+        )
     ).json()
     response = await client.post(
         f"/api/v1/registry/drafts/{draft['draft_id']}/validate", json={}, headers=headers

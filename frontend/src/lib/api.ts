@@ -59,7 +59,7 @@ export function issuesFromBody(body: ErrorBody | null | undefined): Issue[] {
   if (!body) return [];
   if (Array.isArray(body.issues) && body.issues.length > 0) return body.issues;
   // Structural Pydantic failures carry only locations; show them at the same field.
-  return (body.details ?? [])
+  return (Array.isArray(body.details) ? body.details : [])
     .filter((d) => Array.isArray(d.location))
     .map((d) => ({
       code: `schema.${d.type ?? 'invalid'}`,
@@ -84,7 +84,7 @@ export async function api<T = Json>(path: string, options: RequestOptions = {}):
     await reserveRequest(options.signal);
     response = await fetch(`./api/v1/${path}`, {
       method,
-      headers: options.body === undefined ? {} : { 'Content-Type': 'application/json' },
+      headers: options.body === undefined ? { 'X-Authoring-Protocol': '2' } : { 'Content-Type': 'application/json', 'X-Authoring-Protocol': '2' },
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
       signal: options.signal,
     });
@@ -103,6 +103,23 @@ export async function api<T = Json>(path: string, options: RequestOptions = {}):
 }
 
 const MESSAGES: Record<string, string> = {
+  authoring_upgrade_required: uiText('b3.error.authoring_upgrade_required'),
+  draft_base_conflict: uiText('b3.error.draft_base_conflict'),
+  draft_base_unknown: uiText('b3.error.draft_base_unknown'),
+  draft_closed: uiText('b3.error.draft_closed'),
+  import_plan_conflict: uiText('b3.error.import_plan_conflict'),
+  catalog_content_conflict: uiText('b3.error.catalog_content_conflict'),
+  editorial_version_conflict: uiText('b3.error.editorial_version_conflict'),
+  comparison_expired: uiText('b3.error.comparison_expired'),
+  confirmation_required: uiText('b3.error.confirmation_required'),
+  request_identity_conflict: uiText('b3.error.request_identity_conflict'),
+  continuation_version_conflict: uiText('b3.error.continuation_version_conflict'),
+  continuation_closed: uiText('b3.error.continuation_closed'),
+  continuation_unresolved: uiText('b3.error.continuation_unresolved'),
+  continuation_limit: uiText('b3.error.continuation_limit'),
+  catalog_definition_conflict: uiText('b3.error.catalog_definition_conflict'),
+  invalid_request_id: uiText('b3.error.invalid_request_id'),
+
   draft_limit: uiText("lib.api.es_sind_bereits_100_entwurfe_vorhanden_entfernen_f89be6"),
   draft_identity_conflict: uiText("lib.api.diese_entwurfs_id_ist_bereits_vergeben_2355ad"),
   sensitive_document: uiText("lib.api.geheimnisse_sind_in_der_konfiguration_nicht_erla_dfcfff"),

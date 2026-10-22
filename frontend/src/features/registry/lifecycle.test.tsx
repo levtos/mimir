@@ -80,25 +80,22 @@ describe('draft lifecycle: working document and OCC', () => {
     expect(api.drafts.get('d1')!.config).toMatchObject({ marker: 'other-session' });
   });
 
-  it('can keep local changes as a new draft instead of overwriting', async () => {
+  it('keeps local changes and requires a choice for conflicting saved input', async () => {
     const api = installFakeApi({ drafts: [makeDraft('d1', sampleConfig())] });
     mountSurface(api);
     await user.click(screen.getByText('open'));
     await user.click(screen.getByText('edit'));
     api.touchDraft('d1', { config: sampleConfig({ marker: 'other-session' }) });
     await user.click(screen.getByText('save'));
-    await user.click(await screen.findByRole('button', { name: /als neuen Entwurf sichern/ }));
-    await waitFor(() => expect(api.drafts.size).toBe(2));
+    const merge = await screen.findByRole('button', { name: 'Änderungen zusammenführen' });
+    expect(merge).toBeDisabled();
+    expect(screen.getAllByRole('radio').every(r => !(r as HTMLInputElement).checked)).toBe(true);
     expect(api.drafts.get('d1')!.config).toMatchObject({ marker: 'other-session' });
-    const copy = [...api.drafts.values()].find((d) => d.draft_id !== 'd1')!;
-    expect(copy.config).toMatchObject({ marker: 'edited' });
-    await waitFor(() => expect(state().id).toBe(copy.draft_id));
-    expect(state().dirty).toBe(false);
-    expect(copy.display_name).toContain('(Kopie)');
-    await user.click(screen.getByText('edit'));
-    await user.click(screen.getByText('save'));
+    await user.click(screen.getByRole('radio', { name: /Deine Eingabe/ }));
+    await user.click(merge);
     await waitFor(() => expect(state().dirty).toBe(false));
-    expect(api.drafts.get(copy.draft_id)!.display_name).toBe(copy.display_name);
+    expect(api.drafts.size).toBe(1);
+    expect(api.drafts.get('d1')!.config).toMatchObject({ marker: 'edited' });
   });
 
   it('taking the server state discards local edits only after the explicit choice', async () => {
@@ -112,17 +109,15 @@ describe('draft lifecycle: working document and OCC', () => {
     await waitFor(() => expect(state()).toMatchObject({ dirty: false, marker: 'other-session', version: 2 }));
   });
 
-  it('overwriting needs a second explicit confirmation click and then re-bases on the server version', async () => {
+  it('merges independent changes against the last read version without replacing the server input', async () => {
     const api = installFakeApi({ drafts: [makeDraft('d1', sampleConfig())] });
     mountSurface(api);
     await user.click(screen.getByText('open'));
     await user.click(screen.getByText('edit'));
-    api.touchDraft('d1', { config: sampleConfig({ marker: 'other-session' }) });
+    api.touchDraft('d1', { config: sampleConfig({ independent: 'other-session' }) });
     await user.click(screen.getByText('save'));
-    await user.click(await screen.findByRole('button', { name: /Gespeicherten Stand überschreiben/ }));
-    expect(api.drafts.get('d1')!.config).toMatchObject({ marker: 'other-session' }); // first click changes nothing
-    await user.click(screen.getByRole('button', { name: 'Wirklich überschreiben' }));
-    await waitFor(() => expect(api.drafts.get('d1')!.config).toMatchObject({ marker: 'edited' }));
+    await user.click(await screen.findByRole('button', { name: 'Änderungen zusammenführen' }));
+    await waitFor(() => expect(api.drafts.get('d1')!.config).toMatchObject({ marker: 'edited', independent: 'other-session' }));
     const puts = api.calls.filter((c) => c.method === 'PUT');
     expect(puts.at(-1)!.body).toMatchObject({ draft_version: 2 }); // the version the user just saw
   });
@@ -184,8 +179,8 @@ describe('activation requires an explicit, version-checked confirmation', () => 
     expect(screen.getByRole('checkbox', { name: /Ich habe die Auswirkungen geprüft/ }).closest('footer')).not.toBeNull();
     expect(button).toBeEnabled();
     await user.click(button);
-    await screen.findByText("Konfiguration 5 ist aktiv");
-    expect(api.calls.find((c) => c.path.endsWith('/activate'))!.body).toEqual({ draft_version: 1, expected_active_revision: 4 });
+    await screen.findByText("Konfiguration 5 ist übernommen.");
+    expect(api.calls.find((c) => c.path.endsWith('/activate'))!.body).toEqual({ draft_version: 1, expected_active_revision: 4, comparison_digest: 'd1:1:4', confirmations: ['impact'], note: '', request_id: expect.any(String) });
   });
 
   it('reports an active-revision conflict honestly and activates nothing', async () => {
@@ -195,11 +190,10 @@ describe('activation requires an explicit, version-checked confirmation', () => 
     await screen.findByText(/Hier siehst du die geplanten Änderungen/);
     await user.click(screen.getByRole('checkbox', { name: /Ich habe die Auswirkungen geprüft/ }));
     await user.click(screen.getByRole('button', { name: "Jetzt übernehmen" }));
-    await screen.findByText("Konflikt – nichts wurde übernommen");
-    expect(screen.queryByText(/ist aktiv/)).toBeNull();
+    await screen.findByText("Dein Entwurf braucht den aktuellen Stand.");
+    expect(screen.queryByText(/ist übernommen/)).toBeNull();
     expect(api.revisions).toHaveLength(1);
-    await user.click(screen.getByRole('button', { name: /erneut prüfen/ }));
-    await screen.findByText(/Hier siehst du die geplanten Änderungen/);
+    expect(screen.getByRole('link', { name: 'Auf aktuellen Stand bringen – deine Änderungen bleiben erhalten' })).toHaveAttribute('href', '/changes/drafts/d1?continue=1');
   });
 
   it('rollback creates a new revision from history and also needs confirmation', async () => {
@@ -261,7 +255,7 @@ describe('T1B-03: the check, the diff and the activation always concern the same
     expect(validated(api)).toEqual(['registry/drafts/b/validate']);
     await user.click(within(dialog).getByRole('checkbox', { name: /Auswirkungen geprüft/ }));
     await user.click(within(dialog).getByRole('button', { name: "Jetzt übernehmen" }));
-    await within(dialog).findByText(/ist aktiv/);
+    await within(dialog).findByText(/ist übernommen/);
     expect(api.calls.find((c) => c.path.endsWith('/activate'))!.path).toBe('registry/drafts/b/activate');
     expect(api.revisions[0]!.config).toMatchObject({ marker: 'B' });
   });
@@ -283,7 +277,7 @@ describe('T1B-03: the check, the diff and the activation always concern the same
     expect(within(dialog).getByRole('button', { name: "Jetzt übernehmen" })).toBeDisabled();
     await user.click(within(dialog).getByRole('checkbox', { name: /Auswirkungen geprüft/ }));
     await user.click(within(dialog).getByRole('button', { name: "Jetzt übernehmen" }));
-    await within(dialog).findByText(/ist aktiv/);
+    await within(dialog).findByText(/ist übernommen/);
     expect(api.calls.filter((c) => c.path.endsWith('/activate')).map((c) => c.path)).toEqual(['registry/drafts/b/activate']);
   });
 
@@ -321,7 +315,7 @@ describe('T1B-03: the check, the diff and the activation always concern the same
     await user.click(screen.getByRole('checkbox', { name: /Auswirkungen geprüft/ }));
     expect(screen.getByRole('button', { name: "Jetzt übernehmen" })).toBeEnabled();
     act(() => sockets[0]!.onmessage!({ data: JSON.stringify({ type: 'snapshot', epoch_id: 'e', publication_seq: 9, registry_revision: 2, publication_confirmed: true, contracts: {} }) }));
-    await screen.findByText('Prüfergebnis veraltet');
+    await screen.findByText('Dein Entwurf braucht den aktuellen Stand.');
     expect(screen.getByRole('button', { name: "Jetzt übernehmen" })).toBeDisabled();
     expect(screen.queryByRole('checkbox', { name: /Auswirkungen geprüft/ })).toBeNull();
   });

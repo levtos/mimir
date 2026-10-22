@@ -14,6 +14,7 @@ from core_contracts.clock import FakeClock
 from core_contracts.persistence import PersistenceUnavailable, PostgresStore
 from core_contracts.runtime import Runtime
 from core_contracts.testing.contract_types import type_registry
+from tests.conftest import activate_draft
 
 from .conftest import activate
 from .test_core import NOW
@@ -51,7 +52,7 @@ async def test_alpha10_catalog_and_import_survive_reopen_with_atomic_history(dat
         package = await export(runtime)
         preview = await plan(runtime, package)
         imported = await stage(runtime, package, preview)
-        await runtime.submit("activate", {**imported, "expected_active_revision": 1})
+        await activate_draft(runtime, imported, expected_active_revision=1)
     finally:
         await runtime.stop()
         await store.close()

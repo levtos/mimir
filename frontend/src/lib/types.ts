@@ -81,6 +81,12 @@ export interface Envelope {
 export type Registry = JsonObject;
 
 export interface Draft {
+  lifecycle?: 'open' | 'completed' | 'continued';
+  base_status?: 'known' | 'needs_review';
+  base_current?: boolean;
+  completed_revision?: number;
+  continued_to_draft_id?: string;
+  continuation_session_id?: string;
   draft_id: string;
   draft_version: number;
   config: Registry;

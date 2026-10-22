@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from uuid import uuid4
 
 import pytest
 
@@ -57,6 +58,33 @@ async def runtime():
 
 async def activate(runtime, config):
     draft = await runtime.submit("draft_create", {"config": config})
+    return await activate_draft(runtime, draft)
+
+
+async def activate_draft(runtime, draft, **overrides):
+    preview = await runtime.submit("draft_preview", {"draft_id": draft["draft_id"]})
     return await runtime.submit(
-        "activate", {**draft, "expected_active_revision": runtime.state.active_revision}
+        "activate",
+        {
+            "draft_id": draft["draft_id"],
+            "draft_version": draft["draft_version"],
+            "request_id": str(uuid4()),
+            "comparison_digest": preview["comparison_digest"],
+            "confirmations": preview["required_confirmations"],
+            "expected_active_revision": runtime.state.active_revision,
+            **overrides,
+        },
     )
+
+
+async def activation_body(client, path, headers, version):
+    preview = await (
+        await client.post(path + "/activation-preview", headers=headers, json={})
+    ).json()
+    return {
+        "request_id": str(uuid4()),
+        "draft_version": version,
+        "expected_active_revision": preview["expected_active_revision"],
+        "comparison_digest": preview["comparison_digest"],
+        "confirmations": preview["required_confirmations"],
+    }

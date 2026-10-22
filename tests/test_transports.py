@@ -14,7 +14,7 @@ from core_contracts.registry import validate
 from core_contracts.security import Tokens
 from dev.fake_ha import FakeHA
 
-from .conftest import activate
+from .conftest import activate, activation_body
 from .test_runtime import obs
 
 
@@ -26,16 +26,22 @@ async def test_api_auth_and_registry(runtime, config, aiohttp_client, tmp_path):
     assert (await client.get("/health/live")).status == 200
     assert (await client.get("/health/ready")).status == 503
     consumer = {"Authorization": "Bearer " + tokens.values["consumer"]}
-    admin = {"Authorization": "Bearer " + tokens.values["admin"]}
+    admin = {"X-Authoring-Protocol": "2", "Authorization": "Bearer " + tokens.values["admin"]}
     assert (await client.get("/api/v1/sources", headers=consumer)).status == 403
-    draft = await (await client.post("/api/v1/registry/drafts", headers=admin, json=config)).json()
+    draft = await (
+        await client.post(
+            "/api/v1/registry/drafts",
+            headers=admin,
+            json={"config": config, "expected_active_revision": runtime.state.active_revision},
+        )
+    ).json()
     path = "/api/v1/registry/drafts/" + draft["draft_id"]
     assert (await client.post(path + "/validate", headers=admin, json={})).status == 200
     assert (
         await client.post(
             path + "/activate",
             headers=admin,
-            json={"draft_version": 1, "expected_active_revision": 0},
+            json=await activation_body(client, path, admin, 1),
         )
     ).status == 200
     assert (

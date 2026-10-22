@@ -4,6 +4,7 @@ import pytest
 
 from core_contracts.editorial import EditorialWrite
 from core_contracts.registry import fingerprints
+from tests.conftest import activate_draft
 
 from .conftest import activate
 from .test_runtime import obs
@@ -97,9 +98,7 @@ async def test_new_object_metadata_is_bound_to_draft_version_and_activated_atomi
         list(runtime.state.tables["editorial_draft"].values())[0]["draft_version"]
         == changed["draft_version"]
     )
-    await runtime.submit(
-        "activate", {**changed, "expected_active_revision": runtime.state.active_revision}
-    )
+    await activate_draft(runtime, changed, expected_active_revision=runtime.state.active_revision)
     assert (
         runtime.state.tables["editorial_current"]["contract:example.new"]["category"] == "climate"
     )
@@ -116,9 +115,7 @@ async def test_invalid_activation_and_discard_cannot_partially_publish_metadata(
         "draft_create", {"config": data, "editorial": [request("example.bad")]}
     )
     with pytest.raises(ValueError):
-        await runtime.submit(
-            "activate", {**draft, "expected_active_revision": runtime.state.active_revision}
-        )
+        await activate_draft(runtime, draft, expected_active_revision=runtime.state.active_revision)
     assert not runtime.state.tables["editorial_current"]
     assert runtime.state.tables["editorial_draft"]
     await runtime.submit("draft_delete", draft)

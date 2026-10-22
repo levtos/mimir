@@ -11,6 +11,7 @@ import { asArray, asObject, str, type FieldSchema } from '@/features/authoring/m
 import { isObject, type JsonObject } from '@/lib/json';
 import { formatDuration, formatTime } from '@/lib/format';
 import { api } from '@/lib/api';
+import { valueText } from '@/lib/valueText';
 import { displayValue } from '@/lib/status';
 import { POLL_MS, useHistory } from '@/lib/queries';
 import type { Envelope, FieldValue, HistoryItem, Registry } from '@/lib/types';
@@ -46,7 +47,7 @@ export function MiniHistory({ points, schema, name, current, now = Date.now() }:
     const x = 110 + (Date.parse(point.at) - first) / (last - first || 1) * 870; const y = 132 - (value - low) / range * 100;
     segments.at(-1)!.push({ x, y });
   }
-  const label = (value: number) => boolean ? t(value ? 'lib.status.ja_cde9e5' : 'lib.status.nein_90ebc1') : categories.length ? categories[value] ?? '' : displayValue({ status: 'valid', value, quality: 'healthy', evidence: [], reasons: [] }, typeof schema?.unit === 'string' ? schema.unit : undefined);
+  const label = (value: number) => boolean ? t(value ? 'lib.status.ja_cde9e5' : 'lib.status.nein_90ebc1') : categories.length ? valueText(categories[value], schema) : displayValue({ status: 'valid', value, quality: 'healthy', evidence: [], reasons: [] }, typeof schema?.unit === 'string' ? schema.unit : undefined);
   const path = (segment: { x: number; y: number }[]) => segment.flatMap((point, index) => boolean && index > 0 ? [`${point.x},${segment[index - 1]!.y}`, `${point.x},${point.y}`] : [`${point.x},${point.y}`]).join(' ');
   return <div className="space-y-2">
     <h3 className="text-sm font-medium">{fieldLabel(name)}</h3>
@@ -56,7 +57,7 @@ export function MiniHistory({ points, schema, name, current, now = Date.now() }:
       {segments.filter(segment => segment.length).map((segment, index) => <g key={index}><polyline data-interpolation={boolean ? 'step' : 'linear'} points={path(segment)} fill="none" stroke="currentColor" strokeWidth="2" />{segment.map((point, n) => <circle key={n} cx={point.x} cy={point.y} r="3" fill="currentColor" />)}</g>)}
     </svg> : <p className="text-sm text-muted">{t('alpha7.contract.noHistoryValue')}</p>}
     {drawn.length > 0 && <div className="flex justify-between gap-4 text-xs text-muted"><time dateTime={drawn[0]!.at}>{formatTime(drawn[0]!.at)}</time><time dateTime={drawn.at(-1)!.at}>{formatTime(drawn.at(-1)!.at)}</time></div>}
-    <details className="text-xs"><summary className="cursor-pointer text-muted">{t('alpha7.contract.historyTable')}</summary><table className="mt-2 w-full text-left"><caption className="sr-only">{t('alpha7.contract.historyTable')}</caption><thead><tr><th>{t('alpha7.contract.time')}</th><th>{t('alpha7.contract.value')}</th></tr></thead><tbody>{points.slice(-8).reverse().map((point, index) => <tr key={index}><td className="py-1">{formatTime(point.at)}</td><td>{point.field ? displayValue(point.field, typeof schema?.unit === 'string' ? schema.unit : undefined) : t('alpha7.contract.noValue')}</td></tr>)}</tbody></table></details>
+    <details className="text-xs"><summary className="cursor-pointer text-muted">{t('alpha7.contract.historyTable')}</summary><table className="mt-2 w-full text-left"><caption className="sr-only">{t('alpha7.contract.historyTable')}</caption><thead><tr><th>{t('alpha7.contract.time')}</th><th>{t('alpha7.contract.value')}</th></tr></thead><tbody>{points.slice(-8).reverse().map((point, index) => <tr key={index}><td className="py-1">{formatTime(point.at)}</td><td>{point.field ? displayValue(point.field, typeof schema?.unit === 'string' ? schema.unit : undefined, schema) : t('alpha7.contract.noValue')}</td></tr>)}</tbody></table></details>
   </div>;
 }
 
@@ -86,7 +87,7 @@ export function ContractSummary({ envelope, stale, fields, config, machine }: { 
     <Panel><PanelHeader title={t('alpha7.contract.now')} aside={<ContractStateChip envelope={envelope} enabled={envelope.enabled} stale={stale} />} />
       <div className="flex flex-wrap gap-x-12 gap-y-5 p-6">{Object.entries(envelope.fields).map(([name, field]) => <div key={name}>
         {Object.keys(envelope.fields).length > 1 && <p className="mb-1 text-sm text-muted">{fieldLabel(name)}</p>}
-        <p className="text-4xl font-semibold tabular-nums" data-testid={`value-${name}`}>{displayValue(field, typeof fields[name]?.unit === 'string' ? fields[name].unit : undefined)}</p>
+        <p className="text-4xl font-semibold tabular-nums" data-testid={`value-${name}`}>{displayValue(field, typeof fields[name]?.unit === 'string' ? fields[name].unit : undefined, fields[name])}</p>
         {field.value_origin && <p className="mt-2 text-sm text-muted">{t('alpha9.valueOrigin.label')}: {t(`alpha9.valueOrigin.${field.value_origin.kind}`)}</p>}
         {!!field.input_origins?.length && <p className="mt-1 text-xs text-muted">{t('alpha9.valueOrigin.inputs', { kinds: [...new Set(field.input_origins.map(origin => t(`alpha9.valueOrigin.${origin.kind}`)))].join(', ') })}</p>}
         {field.plausibility === 'suspicious' && <p className="mt-2 text-sm text-warn">{t('alpha9.sensor.suspicious')}</p>}

@@ -12,7 +12,7 @@ describe('api client', () => {
     await api('registry/drafts', { method: 'POST', body: { a: 1 } });
     const [url, init] = fetch.mock.calls[0]!;
     expect(url).toBe('./api/v1/registry/drafts');
-    expect(init.headers).toEqual({ 'Content-Type': 'application/json' });
+    expect(init.headers).toEqual({ 'Content-Type': 'application/json', 'X-Authoring-Protocol': '2' });
     expect(JSON.stringify(init)).not.toMatch(/authorization|bearer/i);
   });
 

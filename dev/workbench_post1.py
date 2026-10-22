@@ -4,6 +4,7 @@ from copy import deepcopy
 
 from core_contracts.evidence import Observation
 from core_contracts.runtime import Runtime
+from core_contracts.testing.authoring import activate_draft
 
 
 def registry():
@@ -92,7 +93,7 @@ def registry():
 async def seed(runtime: Runtime):
     config = registry()
     draft = await runtime.submit("draft_create", {"config": config})
-    await runtime.submit("activate", {**draft, "expected_active_revision": 0})
+    await activate_draft(runtime, draft, expected_active_revision=0)
     await runtime.submit("bridge_state", ("connected", "connected"))
     runtime.first_snapshot = True
     for seq, (key, value) in enumerate(

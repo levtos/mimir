@@ -12,6 +12,7 @@ import { objectKey, type EditorialRow } from '@/features/editorial/model';
  * Validation outcome is injectable; the real engine is covered by backend tests.
  */
 export interface FakeDraft {
+  lifecycle?: 'open' | 'completed' | 'continued';
   draft_id: string;
   draft_version: number;
   config: JsonObject;
@@ -50,6 +51,7 @@ export interface FakeApi {
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
 export function installFakeApi(initial: { revisions?: FakeRevision[]; drafts?: FakeDraft[] } = {}): FakeApi {
+  const savedVersions = new Map<string, FakeDraft>((initial.drafts ?? []).map(d => [`${d.draft_id}:${d.draft_version}`, structuredClone(d)]));
   const api: FakeApi = {
     drafts: new Map((initial.drafts ?? []).map((d) => [d.draft_id, d])),
     editorial: new Map(), pendingEditorial: new Map(),
@@ -60,6 +62,7 @@ export function installFakeApi(initial: { revisions?: FakeRevision[]; drafts?: F
     touchDraft(id, patch) {
       const draft = api.drafts.get(id)!;
       api.drafts.set(id, { ...draft, ...patch, draft_version: patch.draft_version ?? draft.draft_version + 1 });
+      const next = api.drafts.get(id)!; savedVersions.set(`${id}:${next.draft_version}`, structuredClone(next));
     },
     failNext: [],
     routes: [],
@@ -67,6 +70,7 @@ export function installFakeApi(initial: { revisions?: FakeRevision[]; drafts?: F
     fetch: vi.fn(),
   };
   let counter = 0;
+  const receipts = new Map<string, FakeRevision>();
   const stamp = () => new Date(Date.UTC(2026, 9, 12, 12, 0, counter++)).toISOString();
 
   const handle = async (url: string, init?: RequestInit): Promise<Response> => {
@@ -109,16 +113,35 @@ export function installFakeApi(initial: { revisions?: FakeRevision[]; drafts?: F
       api.drafts.set(id, draft);
       return json(200, draft);
     }
-    const draftMatch = path.match(/^registry\/drafts\/([^/]+)(?:\/(validate|activate))?$/);
+    if (path.startsWith('registry/activation-requests/')) { const result = receipts.get(path.split('/').at(-1)!); return json(200, result ? { status: 'completed', result } : { status: 'not_found' }); }
+    const draftMatch = path.match(/^registry\/drafts\/([^/]+)(?:\/(validate|activate|activation-preview|complete|reconcile))?$/);
     if (draftMatch) {
       const id = decodeURIComponent(draftMatch[1]!);
       const draft = api.drafts.get(id);
       if (!draft) return json(404, {});
+      if (draftMatch[2] === 'reconcile') {
+        if (body.expected_server_version !== draft.draft_version) return json(409, { error: 'draft_version_conflict' });
+        const base = savedVersions.get(`${id}:${body.draft_version}`)!;
+        const conflicts: unknown[] = [];
+        const merge = (b: any, d: any, c: any, path: string): any => {
+          const equal = (x: any, y: any) => JSON.stringify(x) === JSON.stringify(y);
+          if (equal(d, c) || equal(b, c)) return d;
+          if (equal(b, d)) return c;
+          if ([b, d, c].every(x => x && typeof x === 'object' && !Array.isArray(x))) return Object.fromEntries([...new Set([...Object.keys(b), ...Object.keys(d), ...Object.keys(c)])].map(k => [k, merge(b[k], d[k], c[k], `${path}/${k}`)]));
+          const digests = [b, d, c].map(x => JSON.stringify(x) ?? 'missing');
+          const decision = body.decisions?.[path];
+          if (decision && equal(decision.digests, digests)) return decision.choice === 'draft' ? d : c;
+          conflicts.push({ path, base: b, draft: d, current: c, digests }); return c;
+        };
+        const config = merge(base.config, body.config, draft.config, '');
+        return json(200, { config, display_name: body.display_name, conflicts, draft_version: draft.draft_version });
+      }
       if (!draftMatch[2] && method === 'GET') return json(200, draft);
       if (!draftMatch[2] && method === 'PUT') {
         if (body.draft_version !== draft.draft_version) return json(409, { error: 'draft_version_conflict', details: [] });
         const next = { ...draft, config: body.config, draft_version: draft.draft_version + 1, updated_at: stamp(), display_name: body.display_name ?? draft.display_name };
         api.drafts.set(id, next);
+        savedVersions.set(`${id}:${next.draft_version}`, structuredClone(next));
         for (const entry of body.editorial ?? []) {
           const table = api.pendingEditorial.get(id) ?? new Map<string, EditorialRow>(); const key = objectKey(entry.object);
           table.set(key, { object: entry.object, category: entry.category, room: entry.room, editorial_version: entry.expected_editorial_version + 1 });
@@ -133,6 +156,7 @@ export function installFakeApi(initial: { revisions?: FakeRevision[]; drafts?: F
         return json(200, { deleted: true, draft_id: id });
       }
       if (draftMatch[2] === 'validate') return validation(draft.config);
+      if (draftMatch[2] === 'activation-preview') return json(200, { expected_active_revision: api.active(), comparison_digest: `${id}:${draft.draft_version}:${api.active()}`, no_effect: false, required_confirmations: ['impact'], retention: { before: null, after: null, changed: false, shortening: [] } });
       if (draftMatch[2] === 'activate') {
         if (body.expected_active_revision !== api.active()) return json(409, { error: 'active_revision_conflict', details: [] });
         if (body.draft_version !== draft.draft_version) return json(409, { error: 'draft_version_conflict', details: [] });
@@ -140,6 +164,8 @@ export function installFakeApi(initial: { revisions?: FakeRevision[]; drafts?: F
         if (issues.length) return json(400, { error: 'invalid_request', valid: false, issues, details: [] });
         const revision = { revision: api.active() + 1, config: draft.config, checksum: `sum-${api.active() + 1}`.padEnd(64, '0'), created_at: stamp(), actor: { kind: 'ingress', role: 'admin' }, ...(body.note ? { note: body.note } : {}) };
         api.revisions.push(revision);
+        draft.lifecycle = 'completed';
+        receipts.set(body.request_id, revision);
         for (const [key, row] of api.pendingEditorial.get(id) ?? []) api.editorial.set(key, row);
         api.pendingEditorial.delete(id);
         api.activations.push({ revision: revision.revision, at: revision.created_at, operation: 'activate' });

@@ -17,6 +17,7 @@ from core_contracts.evidence import Observation
 from core_contracts.persistence import MemoryStore
 from core_contracts.registry import validate
 from core_contracts.runtime import Runtime
+from core_contracts.testing.authoring import activate_draft
 from core_contracts.testing.contract_types import type_registry
 
 PREFIX = "test.alpha1."
@@ -106,7 +107,7 @@ async def simulate():
     await runtime.start()
     try:
         draft = await runtime.submit("draft_create", dict(config=document))
-        await runtime.submit("activate", {**draft, "expected_active_revision": 0})
+        await activate_draft(runtime, draft, expected_active_revision=0)
 
         async def send(name, value, availability="available"):
             await runtime.submit(

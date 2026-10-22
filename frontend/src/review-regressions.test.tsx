@@ -46,7 +46,7 @@ describe('late responses never replace another working document', () => {
     await user.click(screen.getByText('Edit'));
     await user.click(screen.getByText('Save'));
     await user.click(screen.getByRole('button', { name: /^b/ }));
-    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Verwerfen und wechseln' }));
+    await user.click(within(await screen.findByRole('dialog', { name: 'Entwurf wechseln' })).getByRole('button', { name: 'Ungespeicherte Eingaben verwerfen' }));
     await user.click(screen.getByText('Edit'));
     await act(async () => pending.resolve(reply(200, makeDraft('a', sampleConfig({ marker: 'local' }), { draft_version: 2 }))));
     expect(doc()).toMatchObject({ id: 'b', version: 1, dirty: true, config: { marker: 'local' } });
@@ -93,7 +93,7 @@ describe('activation checks the exact immutable candidate and base', () => {
     await waitFor(() => expect(api.calls.some((c) => c.path.endsWith('/validate'))).toBe(true));
     api.revisions.push({ revision: 1, config: sampleConfig(), checksum: 'a'.repeat(64), created_at: 'x' });
     await act(async () => pending.resolve(reply(200, { valid: true, issues: [] })));
-    await screen.findByText('Prüfergebnis veraltet');
+    await screen.findByText('Dein Entwurf braucht den aktuellen Stand.');
     expect(screen.getByRole('button', { name: "Jetzt übernehmen" })).toBeDisabled();
   });
 
@@ -112,7 +112,7 @@ describe('activation checks the exact immutable candidate and base', () => {
     await act(async () => pending.resolve(reply(200, { valid: false, issues: [] })));
     await user.click(screen.getByRole('checkbox', { name: /Auswirkungen geprüft/ }));
     await user.click(screen.getByRole('button', { name: "Jetzt übernehmen" }));
-    await screen.findByText("Konfiguration 1 ist aktiv");
+    await screen.findByText("Konfiguration 1 ist übernommen.");
     expect(api.calls.filter((c) => c.path.endsWith('/activate')).map((c) => c.path)).toEqual(['registry/drafts/b/activate']);
   });
 });

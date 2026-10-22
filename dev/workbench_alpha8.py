@@ -7,6 +7,7 @@ from workbench_post1 import seed as previous_seed
 
 from core_contracts.evidence import Observation
 from core_contracts.runtime import Runtime
+from core_contracts.testing.authoring import activate_draft
 
 
 def registry():
@@ -137,7 +138,7 @@ async def seed(runtime: Runtime):
     await previous_seed(runtime)
     config = registry()
     draft = await runtime.submit("draft_create", {"config": config})
-    await runtime.submit("activate", {**draft, "expected_active_revision": 1})
+    await activate_draft(runtime, draft, expected_active_revision=1)
     now = runtime.clock.now_utc()
     await runtime.submit(
         "observation",

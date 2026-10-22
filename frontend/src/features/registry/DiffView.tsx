@@ -6,6 +6,7 @@ import { Notice } from '@/components/ui/layout';
 import { ContractLink } from '@/components/status-parts';
 import type { Diff } from '@/lib/types';
 import { changedObjectCount } from '@/lib/diff';
+import { countSentence } from '@/lib/valueText';
 
 const GROUP_LABELS: Record<string, string> = {
   dependencies: uiText("features.registry.DiffView.dependencies_2e41b1"),
@@ -47,7 +48,7 @@ export function DiffView({ diff, against }: { diff: Diff; against?: string }) {
   const migrating = diff.fingerprint_version.context_migration && diff.fingerprint_version.before !== null;
   return (
     <div className="flex flex-col gap-4">
-      <p aria-label={uiText('alpha7.draft.changeCount')} className="text-sm font-medium">{uiText(changedObjectCount(diff) === 1 ? 'alpha7.draft.oneChange' : 'alpha7.draft.changes', { count: changedObjectCount(diff) })}</p>
+      <p aria-label={uiText('alpha7.draft.changeCount')} className="text-sm font-medium">{countSentence(changedObjectCount(diff), 'changes')}</p>
       <p className="text-xs text-muted">
         {uiText('alpha7.diff.explanation')} {against && uiText('alpha7.diff.comparison', { against })}</p>
       {nothing && <Notice tone="info" title={uiText("features.registry.DiffView.keine_anderung_gegenuber_der_aktiven_revision_b4a476")} />}

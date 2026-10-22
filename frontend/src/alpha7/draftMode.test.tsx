@@ -4,11 +4,21 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it } from 'vitest';
 import { Workbench } from '@/Workbench';
 import { installFakeApi, reply } from '../../test/fakeApi';
+import type { UserEvent } from '@testing-library/user-event';
 import { idleLive } from '../../test/harness';
 
 function app(hash = '#/sources/devices') {
   window.location.hash = hash;
   return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><Workbench onSetup={() => {}} live={idleLive()} /></QueryClientProvider>);
+}
+async function draftPage(user: UserEvent) {
+  await user.click(await screen.findByRole('link', { name: 'Änderungen ansehen' }));
+}
+async function review(user: UserEvent) {
+  await draftPage(user);
+  const check = screen.queryByRole('button', { name: 'Änderungen prüfen' });
+  if (check) await user.click(check);
+  await user.click(await screen.findByRole('button', { name: 'Übernehmen' }, { timeout: 5000 }));
 }
 beforeEach(() => { sessionStorage.clear(); localStorage.clear(); });
 
@@ -26,7 +36,8 @@ it.each([
 it('makes a successful explicit check visible', async () => {
   const user = userEvent.setup(); installFakeApi(); app();
   await user.click(await screen.findByRole('button', { name: 'Bearbeiten' }));
-  await user.click(await screen.findByRole('button', { name: 'Prüfen' }));
+  await draftPage(user);
+  await user.click(await screen.findByRole('button', { name: 'Änderungen prüfen' }));
   expect(await screen.findByText('Keine Fehler')).toBeVisible();
 });
 
@@ -62,10 +73,11 @@ it('opens the error list in place and gives visible feedback after an explicit c
   fake.routes.push({ match: /^registry\/validate$/, method: 'POST', respond: () => reply(200, { valid: false, issues: [{ code: 'config_incomplete', path: '/contracts', message: 'raw technical message' }] }) });
   app();
   await user.click(await screen.findByRole('button', { name: 'Bearbeiten' }));
-  await user.click(await screen.findByRole('button', { name: 'Prüfen' }));
+  await draftPage(user);
+  await user.click(await screen.findByRole('button', { name: 'Änderungen prüfen' }));
   await user.click(await screen.findByRole('button', { name: '1 Fehler' }));
   expect(await screen.findByRole('dialog', { name: 'Prüfergebnis' })).toBeVisible();
-  expect(window.location.hash).toMatch(/^#\/sources\/devices(?:\?|$)/);
+  expect(window.location.hash).toMatch(/^#\/changes\/drafts\//);
 });
 
 it('saves the candidate and opens confirmation from the bar without activating or leaving the page', async () => {
@@ -73,24 +85,24 @@ it('saves the candidate and opens confirmation from the bar without activating o
   await user.click(await screen.findByRole('button', { name: 'Quelle hinzufügen' }));
   await user.click(await screen.findByRole('button', { name: 'Ohne Gerät anlegen' }));
   await screen.findByLabelText('Name');
-  await user.click(screen.getByRole('button', { name: 'Übernehmen' }));
+  await review(user);
   const dialog = await screen.findByRole('dialog', { name: 'Konfiguration übernehmen' });
   await within(dialog).findByRole('checkbox', { name: /Auswirkungen geprüft/ });
   await waitFor(() => expect([...fake.drafts.values()][0]!.draft_version).toBeGreaterThan(1));
   expect(fake.revisions).toHaveLength(0);
-  expect(window.location.hash).toMatch(/^#\/sources\/devices(?:\?|$)/);
+  expect(window.location.hash).toMatch(/^#\/changes\/drafts\//);
 });
 
 it('shows the committed activation acknowledgement while cache refreshes are still pending', async () => {
   const user = userEvent.setup(); const fake = installFakeApi(); app();
   await user.click(await screen.findByRole('button', { name: 'Bearbeiten' }));
-  await user.click(await screen.findByRole('button', { name: 'Übernehmen' }));
+  await review(user);
   const dialog = await screen.findByRole('dialog', { name: 'Konfiguration übernehmen' });
   await user.click(await within(dialog).findByRole('checkbox', { name: /Auswirkungen geprüft/ }));
   let release: ((response: Response) => void) | undefined;
   fake.routes.push({ match: /^registry\/active$/, respond: () => new Promise(resolve => { release = resolve; }) });
   await user.click(within(dialog).getByRole('button', { name: 'Jetzt übernehmen' }));
-  expect(await within(dialog).findByText("Konfiguration 1 ist aktiv")).toBeVisible();
+  expect(await within(dialog).findByText("Konfiguration 1 ist übernommen.")).toBeVisible();
   expect(fake.revisions).toHaveLength(1);
   release?.(reply(200, fake.revisions[0]));
 });

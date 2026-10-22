@@ -1,6 +1,6 @@
 # ADR 0029 – Entwurfsabschluss, Übernahmebelege und sichere Weiterführung
 
-- Status: **Entwurf für Bennis A1-Review; nicht beschlossen, nicht implementiert.**
+- Status: **Angenommen** – Go von Benni für A2 b3 am 22.10.2026.
 - Datum: 22.10.2026.
 - Auftrag: [Wuschel #35](https://github.com/Levtos/wuschel/issues/35).
 - Basis: `c8d4dff35048f0c69290ea500b0609e89d531a60`, nach PR #34.
@@ -8,7 +8,7 @@
   [Konzept §§3–4](../beta/ux/konzept-2026-10-22.md),
   [ADR 0026](0026-import-export.md), [ADR 0028](0028-grenze-wuschel-engines.md).
 
-## Problem und Entscheidungsvorschlag
+## Problem und Entscheidung
 
 Eine im Entwurf gespeicherte Grundlage ist heute nicht als Übernahmesperre
 durchgesetzt. Die vom Frontend gesendete aktuelle Revision kann einen alten
@@ -16,7 +16,7 @@ Gesamtstand daher zur Vollersetzung freigeben (F1). Importpläne bleiben nach
 Übernahme am weiter editierbaren Entwurf und werden bei späterer Änderung
 weitergetragen (F2). Ein erneutes Prüfen löst diesen Lebenszyklusfehler nicht.
 
-Vorgeschlagen wird ein persistenter Entwurfs-Lebenszyklus mit unveränderlichem
+Beschlossen ist ein persistenter Entwurfs-Lebenszyklus mit unveränderlichem
 Abschluss, genau zuordenbarem Übernahmebeleg und eigenem Weiterführungsweg.
 Wuschel bleibt alleiniger Eigentümer von Registry/Plan und ihrer Prüfung.
 Die Oberfläche beschreibt den Serverzustand und bietet passende Aktionen.
@@ -54,11 +54,19 @@ Eine Aktivierungsrevision enthält künftig selbst den Verweis auf den erzeugend
 Entwurf, dessen Version und Übernahmebeleg. Laufzeit-Nachweise werden dafür
 nicht in ein portables Konfigurationspaket übernommen.
 
-Vorschlag zur Kompatibilität: Authoring-Protokoll 2 für die neue Bestätigungs-
+Kompatibilität: Authoring-Protokoll 2 für die neue Bestätigungs-
 und Belegsemantik. Alte schreibende Clients werden sichtbar zum Neuladen
 aufgefordert; kein unsicherer Legacy-Schreibpfad ohne F1/F2. Bestehende lesende
 Consumer-Schnittstellen und englische Vertragswerte bleiben unverändert.
-Diese Änderung muss Benni mit A1 bestätigen; es gibt in diesem PR keinen API-Code.
+Benni hat diese Änderung mit dem A2-b3-Go bestätigt. Der Header
+`X-Authoring-Protocol: 2` ist für die betroffenen Authoring-Schreibwege Pflicht.
+
+Gespeicherte Eingabeversionen liegen unveränderlich in `registry_draft_version`.
+Beim gleichzeitigen Bearbeiten desselben Entwurfs vergleicht der Server die
+zuletzt gelesene gespeicherte Version, die lokale Eingabe und die neue
+gespeicherte Version. `reconcile` ist nur eine Vorschau; der folgende Save
+braucht weiterhin die geprüfte aktuelle `draft_version`. Er setzt niemals die
+aktive Grundlage neu. Fehlende historische Eingabeversion wird nicht geraten.
 
 Mutation eines erledigten Entwurfs ist gesperrt. Wiederöffnen ist lesend;
 „Bearbeiten“ beginnt auf dem aktiven Stand oder mit ausdrücklich ausgewähltem
@@ -102,6 +110,12 @@ nur diese späteren Änderungen weitergeführt. Sonst bleiben Original und beide
 heutiger Änderungsabsicht. Kein stilles Archivieren, Löschen oder erneuter Import.
 Spätere Migration erfolgt wiederanlauffähig über die App, ohne direkte DB-Reparatur.
 
+Der freigegebene zusätzliche Belegpfad nutzt den Digest des gestagten
+`portable.config`, dessen kanonische Prüfsumme in einer nach dem Staging
+aktivierten Registryrevision und zusätzlich die nachgewiesenen Editorial- und
+Katalogwirkungen des Pakets. Nur zusammen erlauben diese Belege Basis B und
+Planverbrauch; siehe [A1 §5.1](../beta/ux/A1.md#51-verbindliche-ergänzung-für-a2-b3-benni-22102026).
+
 ## Alternativen und Folgen
 
 - Nur im Frontend ausblenden: schützt API und alte Fenster nicht; abgelehnt.
@@ -112,19 +126,19 @@ Spätere Migration erfolgt wiederanlauffähig über die App, ohne direkte DB-Rep
 - Entwurf nach Commit in separatem Schritt erledigen: Antwortverlust erzeugt
   wieder einen offenen ausführbaren Plan; abgelehnt.
 
-Der Vorschlag benötigt begrenzte persistente Metadaten/Belege und eine Migration.
+Die Entscheidung benötigt persistente Metadaten/Belege und eine Migration.
 Er verhindert Datenverlust und Wiederholung, erhöht aber den Authoring-Vertrag.
 Beleg-/Provenienzreferenzen dürfen nicht vor den zugehörigen historischen
 Konfigurationen gelöscht werden. Eine spätere Aufräumregel ist ein eigener
 expliziter Vertrag, kein implizites Löschen in diesem Paket.
 
-## Tests, Gates und offene Entscheidung
+## Tests und Gates
 
-Geplant: UX-1-01…09, UX-2-01…12, UX-5-11; Commit-Fehler an jedem Teil,
+Prüfumfang: UX-1-01…09, UX-2-01…12, UX-5-09…12; Commit-Fehler,
 Antwortverlust nach Commit, Restart/Wiederholung, zwei Fenster, geänderte
 Katalog-/Editorialstände, fehlende Basis, Ersatzimport-Entfernungen und zwei
 spätere Änderungen im Altimport. Ausschließlich synthetische Daten.
 
-Empfohlener Schnitt: b3. Erst Review und A2-Go erlauben Code. Die Frage zur
-Authoring-Schnittstelle ist in UX-A1 §14 gesammelt. Kein Merge dieses Design-PRs,
-kein Release und keine Installationsänderung aus dieser ADR.
+Schnitt: b3. Umsetzung und konkrete Nachweise stehen in
+[A2-b3](../beta/ux/A2-b3.md). Nach dem PR und seinen Prüfungen gilt STOPP:
+kein Merge, Tag, Release oder Installationsschritt ohne neues Go.

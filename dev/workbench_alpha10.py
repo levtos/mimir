@@ -3,6 +3,7 @@
 from uuid import uuid4
 
 from core_contracts.runtime import Runtime
+from core_contracts.testing.authoring import activate_draft
 
 
 async def seed(runtime: Runtime) -> None:
@@ -53,7 +54,7 @@ async def seed(runtime: Runtime) -> None:
         ],
     }
     draft = await runtime.submit("draft_create", {"config": config})
-    await runtime.submit("activate", {**draft, "expected_active_revision": 0})
+    await activate_draft(runtime, draft, expected_active_revision=0)
     await runtime.submit(
         "catalog_write",
         {

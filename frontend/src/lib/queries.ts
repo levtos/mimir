@@ -162,8 +162,17 @@ export function useDraftMutations() {
   return {
     create: useMutation({
       retry: false,
-      mutationFn: (input: { config: Registry; display_name?: string; draft_id?: string }) =>
-        api<Draft>('registry/drafts', { method: 'POST', body: input }),
+      mutationFn: async (input: { config: Registry; display_name?: string; draft_id?: string; expected_active_revision?: number; from_active?: boolean }) => {
+        const { from_active, ...body } = input;
+        for (let attempt = 0; ; attempt++) {
+          const head = from_active || input.expected_active_revision === undefined ? await api<RevisionRow | null>('registry/active') : null;
+          try {
+            return await api<Draft>('registry/drafts', { method: 'POST', body: { ...body, config: from_active && head ? head.config : input.config, expected_active_revision: from_active ? head?.revision ?? 0 : input.expected_active_revision ?? head?.revision ?? 0 } });
+          } catch (error) {
+            if (!from_active || attempt >= 1 || !(error instanceof ApiError) || error.code !== 'active_revision_conflict') throw error;
+          }
+        }
+      },
       onSuccess: refresh,
     }),
     update: useMutation({
@@ -174,6 +183,7 @@ export function useDraftMutations() {
           body: {
             config: input.config,
             draft_version: input.draft.draft_version,
+            preservation_save: true,
             ...(input.display_name !== undefined ? { display_name: input.display_name } : {}),
             ...(input.editorial ? { editorial: input.editorial } : {}),
           },
@@ -211,8 +221,8 @@ export function useActivation() {
   return {
     activate: useMutation({
       retry: false,
-      mutationFn: (input: { draft: Draft; expectedActiveRevision: number; note?: string }) =>
-        api<RevisionRow>(`registry/drafts/${encodeURIComponent(input.draft.draft_id)}/activate`, {
+      mutationFn: (input: { draft: Draft; expectedActiveRevision: number; note?: string; run?: () => Promise<RevisionRow> }) =>
+        input.run ? input.run() : api<RevisionRow>(`registry/drafts/${encodeURIComponent(input.draft.draft_id)}/activate`, {
           method: 'POST',
           body: {
             draft_version: input.draft.draft_version,

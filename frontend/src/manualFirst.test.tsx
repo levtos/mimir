@@ -56,7 +56,7 @@ describe('Alpha-4 example registry: complete manual-first flow', () => {
     expect(savedConfig()).toEqual(registry); // exact, including the object value, the machine and the nested rules
 
     const dialog = await f.activateOpenDraft([...api.drafts.keys()][0]!);
-    await within(dialog).findByText("Konfiguration 1 ist aktiv");
+    await within(dialog).findByText("Konfiguration 1 ist übernommen.");
     expect(api.revisions[0]!.config).toEqual(registry);
   }, 240_000);
 

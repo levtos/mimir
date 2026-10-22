@@ -1,3 +1,4 @@
+import { currentDraft } from '@/features/registry/authoring';
 import { t as uiText } from '@/i18n';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api, ApiError, describeError, type Issue } from '@/lib/api';
@@ -7,6 +8,9 @@ import { IssuesProvider } from './issues';
 import type { Draft, Registry, ValidationResult } from '@/lib/types';
 import { emptyRegistry } from './model';
 import { defaultDraftName } from './draftName';
+import { Dialog } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Link } from 'react-router';
 import type { EditorialEntry } from '@/features/editorial/model';
 
 /**
@@ -32,6 +36,7 @@ export interface ValidationView {
 
 export interface Conflict {
   server: Draft;
+  comparison?: { conflicts: { path: string; base: unknown; draft: unknown; current: unknown; digests: string[] }[] };
 }
 
 export interface WorkingDocument {
@@ -69,7 +74,7 @@ export interface WorkingDocument {
   save: () => Promise<'saved' | 'conflict' | 'error'>;
   saveError: string | null;
   validateNow: () => Promise<void>;
-  resolveConflict: (choice: 'take-server' | 'keep-local-as-new' | 'overwrite' | 'cancel') => Promise<string | void>;
+  resolveConflict: (choice: 'take-server' | 'merge' | 'cancel', decisions?: Record<string, { digests: string[]; choice: string }>) => Promise<string | void>;
 }
 
 const Context = createContext<WorkingDocument | null>(null);
@@ -103,6 +108,9 @@ interface Snapshot {
 const IDLE: ValidationView = { state: 'idle', result: null, issues: [], stale: false, error: null };
 
 export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }: { children: ReactNode; validateDebounceMs?: number }) {
+  const [candidates, setCandidates] = useState<Draft[] | null>(null);
+  const [selectedDraft, setSelectedDraft] = useState<string | null>(null);
+  const choose = useRef<((draft: Draft | null | undefined) => void) | null>(null);
   const { create, update } = useDraftMutations();
   const active = useActiveRevision();
   const activeRevision = active.data === undefined ? undefined : active.data?.revision ?? 0;
@@ -133,13 +141,13 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
     if (latest.current.draft?.draft_id === draft.draft_id && !options?.reload) { setEditing(true); return; }
     documentId.current += 1;
     clearTimeout(retryTimer.current);
-    rememberDraftId(draft.draft_id);
+    rememberDraftId((draft.lifecycle ?? 'open') === 'open' ? draft.draft_id : null);
     validatedFor.current = null;
     runId.current += 1;
     setValidation(IDLE);
     setSaveError(null);
     setConflict(null);
-    setEditing(true);
+    setEditing((draft.lifecycle ?? 'open') === 'open');
     const opened = { draft, config: clone(draft.config), name: draft.display_name ?? '', past: [], future: [] };
     latest.current = opened;
     setSnap(opened);
@@ -147,22 +155,33 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
 
   /** Creating a draft is shared by all pages and never navigates or activates. */
   const ensureDraft = useCallback((): Promise<Registry> => {
-    if (latest.current.draft && latest.current.config) {
-      setEditing(true);
-      return Promise.resolve(clone(latest.current.config));
-    }
     if (startingRef.current) return startingRef.current;
     const owner = ++documentId.current;
     setStarting(true);
     const request = (async () => {
-      let config: Registry;
-      try { config = await api<Registry>('registry/active/export'); }
-      catch (error) {
-        if (!(error instanceof ApiError) || error.code !== 'no_active_registry') throw error;
-        config = emptyRegistry();
+      const head = await api<import('@/lib/types').RevisionRow | null>('registry/active');
+      const current = latest.current;
+      if (current.draft && current.config) {
+        const saved = await api<Draft>(`registry/drafts/${current.draft.draft_id}`);
+        if (currentDraft(saved, head?.revision ?? 0)) {
+          if (owner !== documentId.current || latest.current.draft?.draft_id !== current.draft.draft_id || !latest.current.config) throw new Error(uiText('alpha7.draft.changedDuringAction'));
+          setEditing(true); return clone(latest.current.config);
+        }
       }
+      if (current.draft && current.config && (!deepEqual(current.config, current.draft.config) || current.name !== (current.draft.display_name ?? ''))) {
+        throw new Error(uiText('alpha7.draft.saveBeforeReview'));
+      }
+      const all = await api<Draft[]>('registry/drafts');
+      const available = (Array.isArray(all) ? all : []).filter(d => currentDraft(d, head?.revision ?? 0));
+      if (available.length || current.draft) {
+        const selected = await new Promise<Draft | null | undefined>(resolve => { choose.current = resolve; setSelectedDraft(null); setCandidates(available); });
+        if (selected === undefined) throw new Error(uiText('alpha7.draft.changedDuringAction'));
+        if (owner !== documentId.current) throw new Error(uiText('alpha7.draft.changedDuringAction'));
+        if (selected) { open(selected); return clone(selected.config); }
+      }
+      const config = head?.config ?? emptyRegistry();
       if (owner !== documentId.current) throw new Error(uiText('alpha7.draft.changedDuringAction'));
-      const created = await create.mutateAsync({ config, display_name: defaultDraftName() });
+      const created = await create.mutateAsync({ config, from_active: true, display_name: defaultDraftName() });
       if (owner !== documentId.current) throw new Error(uiText('alpha7.draft.changedDuringAction'));
       open(created);
       return clone(created.config);
@@ -222,12 +241,12 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
 
   const edit = useCallback((updater: (config: Registry) => Registry) => {
     setSnap((current) => {
-      if (!current.config) return current;
+      if (!current.config || !current.draft || !currentDraft(current.draft, activeRevision)) return current;
       const next = updater(current.config);
       if (next === current.config || deepEqual(next, current.config)) return current;
       return { ...current, config: next, past: [...current.past, current.config].slice(-HISTORY_LIMIT), future: [] };
     });
-  }, []);
+  }, [activeRevision]);
 
   const setDisplayName = useCallback((name: string) => setSnap((c) => (c.draft ? { ...c, name } : c)), []);
   const setAtPointer = useCallback((pointer: string, value: Json | undefined) => edit((config) => setAt(config, pointer, value) as Registry), [edit]);
@@ -324,7 +343,8 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
         try {
           const server = await api<Draft>(`registry/drafts/${encodeURIComponent(draft.draft_id)}`);
           if (owner !== documentId.current) return 'error' as const;
-          setConflict({ server });
+          const comparison = await api<NonNullable<Conflict['comparison']>>(`registry/drafts/${encodeURIComponent(draft.draft_id)}/reconcile`, { method: 'POST', body: { draft_version: draft.draft_version, expected_server_version: server.draft_version, config, display_name: name } });
+          setConflict({ server, comparison });
           return 'conflict' as const;
         } catch {
           /* fall through to a plain error */
@@ -377,7 +397,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
   }, [save]);
 
   const resolveConflict = useCallback(
-    async (choice: 'take-server' | 'keep-local-as-new' | 'overwrite' | 'cancel') => {
+    async (choice: 'take-server' | 'merge' | 'cancel', decisions: Record<string, { digests: string[]; choice: string }> = {}) => {
       const current = conflict;
       const { config, draft } = latest.current;
       if (!current || !config || !draft || current.server.draft_id !== draft.draft_id || savingRef.current) return;
@@ -387,26 +407,20 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
         setConflict(null);
         return open(current.server, { reload: true });
       }
-      if (choice === 'keep-local-as-new') {
-        const created = await create.mutateAsync({ config, display_name: uiText('draft.copyName', { name: latest.current.name || draft.draft_id }).slice(0, 256) });
-        if (owner !== documentId.current) return;
-        setConflict(null);
-        open(created, { reload: true });
-        return created.draft_id;
-      }
-      // Explicit overwrite: re-base on the server version the user has just seen.
       try {
-        const saved = await update.mutateAsync({ draft: current.server, config, display_name: latest.current.name });
+        const merged = await api<{ config: Registry; display_name: string; conflicts: NonNullable<Conflict['comparison']>['conflicts'] }>(`registry/drafts/${encodeURIComponent(draft.draft_id)}/reconcile`, { method: 'POST', body: { draft_version: draft.draft_version, expected_server_version: current.server.draft_version, config, display_name: latest.current.name, decisions } });
+        if (merged.conflicts.length) { setConflict({ ...current, comparison: merged }); return; }
+        const saved = await update.mutateAsync({ draft: current.server, config: merged.config, display_name: merged.display_name });
         if (owner !== documentId.current) return;
         setConflict(null);
-        setSnap((c) => ({ ...c, draft: saved }));
+        open(saved, { reload: true });
       } catch (error) {
         if (owner !== documentId.current) return;
         setSaveError(describeError(error));
         setConflict(null);
       }
     },
-    [conflict, create, open, update],
+    [conflict, open, update],
   );
 
   const value = useMemo<WorkingDocument>(
@@ -451,6 +465,10 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
   return (
     <Context.Provider value={value}>
       <IssuesProvider value={validation.issues}>{children}</IssuesProvider>
+      <Dialog open={candidates !== null} onOpenChange={open => { if (!open) { choose.current?.(undefined); setCandidates(null); } }} title={uiText('beta3.6b56c9782abb')} description={uiText('beta3.df29192a8ae6')} footer={<><Button onClick={() => { choose.current?.(null); setCandidates(null); }}>{uiText('beta3.eeb949e516a4')}</Button>{!!candidates?.length && <Button variant="primary" disabled={candidates.length > 1 && selectedDraft === null} onClick={() => { const chosen = candidates.length === 1 ? candidates[0] : candidates.find(d => d.draft_id === selectedDraft); if (chosen) { choose.current?.(chosen); setCandidates(null); } }}>{candidates.length === 1 ? uiText('beta3.a6832204437f') : uiText('beta3.8ec4b93a19e1')}</Button>}</>}>
+        {snap.draft && !currentDraft(snap.draft, activeRevision) && <Link to={`/changes/drafts/${snap.draft.draft_id}`} onClick={() => { choose.current?.(undefined); setCandidates(null); }}>{uiText('beta3.2159c0ff29be')}</Link>}
+        {candidates?.map(draft => <label key={draft.draft_id} className="my-3 flex min-h-11 items-center gap-2">{candidates.length > 1 && <input type="radio" name="working-draft" checked={selectedDraft === draft.draft_id} onChange={() => setSelectedDraft(draft.draft_id)} />}<span>{draft.display_name} {uiText('beta3.d06ef8770435')}{draft.base_revision} · {draft.updated_at}</span></label>)}
+      </Dialog>
     </Context.Provider>
   );
 }
@@ -459,6 +477,10 @@ export function useWorkingDocument(): WorkingDocument {
   const value = useContext(Context);
   if (!value) throw new Error(uiText("features.authoring.WorkingDocument.workingdocumentprovider_fehlt_950e4e"));
   return value;
+}
+
+export function useOptionalWorkingDocument(): WorkingDocument | null {
+  return useContext(Context);
 }
 
 /** Read a subtree of the working document. */

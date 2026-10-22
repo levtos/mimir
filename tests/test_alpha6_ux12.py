@@ -6,6 +6,7 @@ from pathlib import Path
 from aiohttp import ClientSession
 
 from core_contracts.adapters.ha import BridgeAdapter
+from tests.conftest import activation_body
 
 from .test_workbench_api import api_client
 
@@ -33,13 +34,17 @@ async def test_ux12_typed_ingestion_and_machine_recovery(runtime, aiohttp_client
     report = await response.json()
     assert report["valid"], report
     response = await client.post(
-        "/api/v1/registry/drafts", headers=headers, json={"config": document}
+        "/api/v1/registry/drafts",
+        headers=headers,
+        json={"config": document, "expected_active_revision": 0},
     )
     draft = await response.json()
     response = await client.post(
         f"/api/v1/registry/drafts/{draft['draft_id']}/activate",
         headers=headers,
-        json={"draft_version": draft["draft_version"], "expected_active_revision": 0},
+        json=await activation_body(
+            client, f"/api/v1/registry/drafts/{draft['draft_id']}", headers, draft["draft_version"]
+        ),
     )
     assert response.status == 200, await response.json()
     config = runtime.config

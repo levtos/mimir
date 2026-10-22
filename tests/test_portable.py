@@ -4,7 +4,7 @@ from uuid import uuid4
 import pytest
 
 from core_contracts.portable import strict_json
-from tests.conftest import activate
+from tests.conftest import activate, activate_draft
 
 from .test_managed_catalog import configured, request
 
@@ -55,7 +55,7 @@ async def test_whole_roundtrip_contains_metadata_and_catalog_not_runtime(runtime
     assert preview["unresolved"] == []
     imported = await stage(runtime, package, preview)
     assert runtime.state.active_revision == 1
-    await runtime.submit("activate", {**imported, "expected_active_revision": 1})
+    await activate_draft(runtime, imported, expected_active_revision=1)
     assert runtime.state.active_revision == 2
     assert (
         runtime.state.tables["editorial_current"]["contract:fixture.echo"]["editorial_version"] == 1
@@ -85,7 +85,7 @@ async def test_plan_and_activation_races_leave_contents_unchanged(runtime, confi
     imported = await stage(runtime, package, preview)
     await runtime.submit("catalog_write", {"request": request(runtime, revision=1)})
     # Identical request changes no head, so activation remains valid.
-    await runtime.submit("activate", {**imported, "expected_active_revision": 1})
+    await activate_draft(runtime, imported, expected_active_revision=1)
 
 
 @pytest.mark.asyncio
@@ -102,7 +102,7 @@ async def test_staging_is_idempotent_and_activation_rejects_changed_catalog_head
     await runtime.submit("catalog_write", {"request": request(runtime, [change()])})
     before = runtime.state.model_dump()
     with pytest.raises(ValueError, match="catalog_content_conflict"):
-        await runtime.submit("activate", {**imported, "expected_active_revision": 1})
+        await activate_draft(runtime, imported, expected_active_revision=1)
     assert runtime.state.model_dump() == before
 
 
@@ -207,9 +207,7 @@ async def test_imported_draft_can_adjust_binding_before_activation(runtime, conf
     edited = copy.deepcopy(imported["config"])
     edited["bindings"][0]["adapter"]["ha_entity_id"] = "sensor.synthetic_other"
     saved = await runtime.submit("draft_update", {**imported, "config": edited})
-    await runtime.submit(
-        "activate", {**saved, "expected_active_revision": runtime.state.active_revision}
-    )
+    await activate_draft(runtime, saved, expected_active_revision=runtime.state.active_revision)
     assert runtime.config.bindings[0].adapter.ha_entity_id == "sensor.synthetic_other"
 
 
@@ -240,7 +238,7 @@ async def test_large_catalog_cross_row_master_is_one_atomic_import(runtime, conf
         preview = await plan(target, package)
         imported = await stage(target, package, preview)
         assert not target.state.tables["catalog_head"]
-        await target.submit("activate", {**imported, "expected_active_revision": 0})
+        await activate_draft(target, imported, expected_active_revision=0)
         assert len(await target.store.rows("catalog_content_revision")) == 1
         assert len(next(iter(target.state.tables["catalog_head"].values()))["entries"]) == 200
     finally:

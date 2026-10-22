@@ -4,6 +4,8 @@ import type { Connection } from './live';
 import type { FieldStatus, FieldValue, ServiceState } from './types';
 import { formatDuration, formatMeasurement, formatNumber, formatTime } from './format';
 import { codeLabel, fieldLabel } from '@/i18n/codes';
+import { valueText } from './valueText';
+import type { FieldSchema } from '@/features/authoring/model';
 
 /**
  * Honest status vocabulary. "unknown" is a status, never `false`/`off`, and
@@ -25,7 +27,7 @@ export const QUALITY: Record<'healthy' | 'degraded', { label: string; tone: Tone
 };
 
 /** Value text that never turns a missing value into a plausible-looking one. */
-export function displayValue(field: FieldValue, unit?: string): string {
+export function displayValue(field: FieldValue, unit?: string, schema?: FieldSchema): string {
   if (field.status === 'unknown') return uiText("lib.status.unbekannt_a418e6");
   if (field.status === 'unresolved') return uiText("lib.status.ungelost_1a4c83");
   if (field.status === 'not_applicable') return uiText("lib.status.nicht_anwendbar_d9b971");
@@ -33,6 +35,7 @@ export function displayValue(field: FieldValue, unit?: string): string {
   if (value === null || value === undefined) return '—';
   if (typeof value === 'boolean') return value ? uiText("lib.status.ja_cde9e5") : uiText("lib.status.nein_90ebc1");
   if (typeof value === 'number') return unit === 's' ? formatDuration(value) : formatMeasurement(value, unit);
+  if (schema?.type === 'enum') return valueText(value, schema);
   return structuredValue(value);
 }
 
