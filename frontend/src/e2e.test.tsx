@@ -163,7 +163,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
 
     // 6. Rollback to revision 1 through the UI: a NEW revision with the historical content.
     await f.go('#/changes/versions');
-    const rev1 = (await within(screen.getByRole('main')).findByText("Konfiguration 1", {}, { timeout: 65_000 })).closest('li')!;
+    const rev1 = (await within(await screen.findByRole('main', {}, { timeout: 65_000 })).findByText("Konfiguration 1", {}, { timeout: 65_000 })).closest('li')!;
     const rollbackButton = await within(rev1).findByRole('button', { name: 'Auf diese Konfiguration zurücksetzen' }, { timeout: 65_000 });
     await waitFor(() => expect(rollbackButton).toBeEnabled(), { timeout: 65_000 });
     await user.click(rollbackButton);
