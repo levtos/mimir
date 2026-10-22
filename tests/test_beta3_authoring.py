@@ -33,6 +33,11 @@ async def test_UX_1_01_04_atomic_completion_immutable_and_receipt(runtime, confi
     receipt = await runtime.store.get("activation_receipt", request["request_id"])
     assert closed["lifecycle"] == "completed" and closed["completed_revision"] == result["revision"]
     assert receipt["result_checksum"] == result["checksum"]
+    for table in ("registry_revision", "registry_activation"):
+        saved = await runtime.store.get(table, str(result["revision"]))
+        assert saved["draft_id"] == draft["draft_id"]
+        assert saved["draft_version"] == draft["draft_version"]
+        assert saved["activation_request_id"] == request["request_id"]
     for operation in ("draft_update", "draft_delete", "activate"):
         with pytest.raises(AuthoringError, match="draft_closed"):
             await runtime.submit(

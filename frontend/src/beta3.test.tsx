@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkingDocumentProvider } from '@/features/authoring/WorkingDocument';
 import { ContinuationDialog } from '@/features/registry/ContinuationDialog';
-import { CONTINUE, activateWithReceipt, currentDraft, draftState, type ActivationPreview } from '@/features/registry/authoring';
+import { CONTINUE, activateWithReceipt, recoverActivation, currentDraft, draftState, type ActivationPreview } from '@/features/registry/authoring';
 import { LiveProvider } from '@/lib/live-context';
 import { countSentence, valueText } from '@/lib/valueText';
 import type { FieldSchema } from '@/features/authoring/model';
@@ -76,6 +76,24 @@ describe('b3 UX-1, UX-2 and UX-5-09..12', () => {
     expect(result.revision).toBe(1); expect(uncertain).toHaveBeenCalledOnce(); expect(fake.activations).toHaveLength(1);
     expect(fake.calls.filter(c => c.path.endsWith('/activate'))).toHaveLength(1);
     await waitFor(() => expect(sessionStorage.getItem('wuschel.activation.d1')).toBeNull());
+  });
+
+  it('UX-1-09 keeps the result uncertain while receipt lookup is unavailable, then recovers without another activation', async () => {
+    const user = userEvent.setup(); const draft = makeDraft('d1', sampleConfig());
+    const fake = installFakeApi({ drafts: [draft] });
+    const handle = fake.fetch.getMockImplementation() as (url: string, init?: RequestInit) => Promise<Response>;
+    fake.routes.push({ match: /activation-requests\//, respond: () => reply(503, { error: 'unavailable' }) });
+    fake.fetch.mockImplementation(async (url: string, init?: RequestInit) => { const response = await handle(url, init); if (url.endsWith('/activate')) throw new TypeError('synthetic response loss'); return response; });
+    mount(<ActivateDialog draft={draft} open onOpenChange={() => {}} />);
+    await user.click(await screen.findByRole('checkbox', { name: /Auswirkungen geprüft/ }));
+    await user.click(screen.getByRole('button', { name: 'Jetzt übernehmen' }));
+    await screen.findAllByText(t('beta3.3f9ccef22d20'));
+    expect(screen.queryByText('Aktion fehlgeschlagen')).toBeNull();
+    expect(screen.queryByText('Konflikt – nichts wurde übernommen')).toBeNull();
+    expect(fake.activations).toHaveLength(1);
+    fake.routes.length = 0;
+    expect((await recoverActivation('d1'))?.revision).toBe(1);
+    expect(fake.calls.filter(c => c.path.endsWith('/activate'))).toHaveLength(1);
   });
 
   it('UX-5-12 translates declared states consistently while preserving free text and 0/1/n', () => {

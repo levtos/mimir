@@ -16,6 +16,7 @@ async function draftPage(user: UserEvent) {
 }
 async function review(user: UserEvent) {
   await draftPage(user);
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Übernehmen' }) ?? screen.getByRole('button', { name: 'Änderungen prüfen' })).toBeEnabled());
   const check = screen.queryByRole('button', { name: 'Änderungen prüfen' });
   if (check) await user.click(check);
   await user.click(await screen.findByRole('button', { name: 'Übernehmen' }, { timeout: 5000 }));
@@ -80,10 +81,11 @@ it('opens the error list in place and gives visible feedback after an explicit c
   expect(window.location.hash).toMatch(/^#\/changes\/drafts\//);
 });
 
-it('saves the candidate and opens confirmation from the bar without activating or leaving the page', async () => {
+it('saves the candidate and opens confirmation from the single draft action without activating', async () => {
   const user = userEvent.setup(); const fake = installFakeApi(); app();
   await user.click(await screen.findByRole('button', { name: 'Quelle hinzufügen' }));
   await user.click(await screen.findByRole('button', { name: 'Ohne Gerät anlegen' }));
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Gerät aus Home Assistant hinzufügen' })).not.toBeInTheDocument());
   await screen.findByLabelText('Name');
   await review(user);
   const dialog = await screen.findByRole('dialog', { name: 'Konfiguration übernehmen' });

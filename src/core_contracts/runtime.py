@@ -1297,11 +1297,29 @@ class Runtime:
                 "created_at": now.isoformat(),
                 "actor": payload.get("_actor", {"kind": "internal", "role": "system"}),
                 **({"note": note} if note else {}),
+                **(
+                    {
+                        "draft_id": draft["draft_id"],
+                        "draft_version": draft["draft_version"],
+                        "activation_request_id": payload["request_id"],
+                    }
+                    if operation == "activate"
+                    else {}
+                ),
             }
             state.tables["registry_activation"][str(revision)] = {
                 "revision": revision,
                 "at": now.isoformat(),
                 "operation": operation,
+                **(
+                    {
+                        "draft_id": draft["draft_id"],
+                        "draft_version": draft["draft_version"],
+                        "activation_request_id": payload["request_id"],
+                    }
+                    if operation == "activate"
+                    else {}
+                ),
             }
             self._audit(
                 state, operation, payload, revision=revision, **({"note": note} if note else {})

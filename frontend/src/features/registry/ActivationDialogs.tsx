@@ -200,7 +200,7 @@ export function ActivateDialog({ draft, open, onOpenChange }: { draft: Draft; op
           {check.state === 'error' && <Link to={`/changes/drafts/${draft.draft_id}`} onClick={() => onOpenChange(false)}>{CONTINUE}</Link>}
           <Field label={uiText('alpha7.versions.note')} hint={uiText('alpha7.versions.noteHelp')}>{(props) => <Input {...props} maxLength={256} value={note} disabled={activate.isPending} onChange={(e) => { setNote(e.target.value); setConfirmedFor(null); }} />}</Field>
           {check.state === 'ok' && check.result.warnings?.map((warning) => <Notice key={warning.path} tone="warn" title={validationLabel(warning)}>{warning.object_id}</Notice>)}
-          <Outcome error={activate.error} draftId={draft.draft_id} close={() => onOpenChange(false)} onRecheck={() => { activate.reset(); setConfirmedFor(null); void restart(); }} />
+          {!uncertain && <Outcome error={activate.error} draftId={draft.draft_id} close={() => onOpenChange(false)} onRecheck={() => { activate.reset(); setConfirmedFor(null); void restart(); }} />}
         </div>
       )}
     </Dialog>
