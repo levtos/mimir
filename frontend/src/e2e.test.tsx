@@ -301,10 +301,15 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     await user.click(await screen.findByRole('button', { name: 'Quelle mit anderem Typ anlegen' }, { timeout: 65_000 }));
     const moving = await screen.findByRole('dialog', { name: 'Quelle umziehen' });
     await user.selectOptions(within(moving).getByLabelText('Neue Werteart'), 'text');
-    const check = within(moving).getByRole('button', { name: 'Umzug prüfen' });
-    await waitFor(() => expect(check).toBeEnabled(), { timeout: 65_000 }); await user.click(check);
-    await within(moving).findByText(/Direkt umgestellte Verträge: 1/, {}, { timeout: 65_000 });
-    await user.click(within(moving).getByRole('button', { name: "Im Entwurf speichern" }));
+    const currentMove = () => screen.getByRole('dialog', { name: 'Quelle umziehen' });
+    await waitFor(() => {
+      const current = currentMove();
+      expect(within(current).getByLabelText('Neue Werteart')).toHaveValue('text');
+      expect(within(current).getByRole('button', { name: 'Umzug prüfen' }), current.textContent ?? '').toBeEnabled();
+    }, { timeout: 65_000 });
+    await user.click(within(currentMove()).getByRole('button', { name: 'Umzug prüfen' }));
+    await within(currentMove()).findByText(/Direkt umgestellte Verträge: 1/, {}, { timeout: 65_000 });
+    await user.click(within(currentMove()).getByRole('button', { name: "Im Entwurf speichern" }));
     await takeover();
     const after = (await raw<JsonObject>('registry/active/export')).body;
     expect(objects(after.sources)).toHaveLength(2);
