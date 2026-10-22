@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import logging
 from copy import deepcopy
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
 
 from .model import checksum
+from .persistence import PersistenceUnavailable
 from .registry import storage_document, validate
+
+LOGGER = logging.getLogger(__name__)
 
 
 class AuthoringError(ValueError):
@@ -490,15 +494,17 @@ def archive_versions(before: Any, after: Any) -> None:
     """Append only saved input snapshots; lifecycle changes do not rewrite a version."""
     for key, draft in after.tables["registry_draft"].items():
         previous = before.tables["registry_draft"].get(key)
-        if previous and previous["draft_version"] == draft["draft_version"]:
+        if previous and previous.get("draft_version") == draft.get("draft_version"):
             continue
-        for row in (previous, draft):
-            if row:
-                version_key = f"{key}:{row['draft_version']}"
-                after.tables["registry_draft_version"][version_key] = {
-                    k: deepcopy(row.get(k))
-                    for k in ("draft_id", "draft_version", "config", "display_name")
-                }
+        version_key = f"{key}:{draft['draft_version']}"
+        after.tables["registry_draft_version"][version_key] = version_snapshot(draft)
+
+
+def version_snapshot(draft: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: deepcopy(draft.get(key))
+        for key in ("draft_id", "draft_version", "config", "display_name")
+    }
 
 
 async def reconcile(runtime: Any, state: Any, payload: dict[str, Any]) -> dict[str, Any]:
@@ -827,18 +833,42 @@ async def rebuild_plan(
 
 
 async def migrate(runtime: Any, state: Any, now: Any) -> None:
-    for key, original in list(state.tables["registry_draft"].items()):
-        if original.get("authoring_version") == 2:
-            continue
-        probe = state.clone()
+    for key in list(state.tables["registry_draft"]):
+        original = state.tables["registry_draft"][key]
         try:
-            await _migrate_rows(runtime, probe, now, key)
-        except ValueError, KeyError, TypeError:
+            # Preserve earlier drafts' uncommitted archive appends in this transaction.
+            probe = state.model_copy(deep=True)
+            if original.get("authoring_version") != 2:
+                await _migrate_rows(runtime, probe, now, key)
+            # Legacy rows may predate the input archive. Backfill only their current
+            # saved version; historical inputs cannot be reconstructed or guessed.
+            draft_keys = {key} | (
+                probe.tables["registry_draft"].keys() - state.tables["registry_draft"].keys()
+            )
+            for draft_key in draft_keys:
+                draft = probe.tables["registry_draft"][draft_key]
+                version_key = f"{draft_key}:{draft['draft_version']}"
+                if version_key not in probe.tables[
+                    "registry_draft_version"
+                ] and not await runtime.store.get("registry_draft_version", version_key):
+                    probe.tables["registry_draft_version"][version_key] = version_snapshot(draft)
+        except PersistenceUnavailable:
+            raise
+        except Exception as error:
             # An incomplete legacy document must not prevent application startup.
             # No partial continuation or invented proof escapes the probe.
             original.update(authoring_version=2, lifecycle="open", base_status="needs_review")
+            LOGGER.warning(
+                "draft_migration_failed",
+                extra={"draft_id": key, "error_type": type(error).__name__},
+            )
         else:
-            for table in ("registry_draft", "draft_continuation", "editorial_draft"):
+            for table in (
+                "registry_draft",
+                "draft_continuation",
+                "editorial_draft",
+                "registry_draft_version",
+            ):
                 state.tables[table] = probe.tables[table]
 
 

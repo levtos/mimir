@@ -1,5 +1,6 @@
 """UX-1/UX-2 and UX-5-09..12: synthetic writer, crash and migration contracts."""
 
+import asyncio
 from copy import deepcopy
 from uuid import uuid4
 
@@ -7,6 +8,7 @@ import pytest
 
 from core_contracts.authoring import AuthoringError, comparison, merge, migrate
 from core_contracts.model import checksum
+from core_contracts.persistence import PersistenceUnavailable
 from core_contracts.registry import storage_document, validate
 from tests.conftest import activate, activate_draft
 from tests.test_portable import export, plan, stage
@@ -193,7 +195,7 @@ async def test_UX_5_11_comparison_and_confirmation_expire(runtime, config):
 
 
 async def legacy_import(runtime, config):
-    # Full staged snapshot, activated as configuration 2; no real database involved.
+    # Synthetic staged snapshot, activated as configuration 2 (also reused by PostgreSQL tests).
     document = deepcopy(config)
     document["sources"][0]["freshness"] = {
         "mode": "report_heartbeat",
@@ -345,6 +347,28 @@ async def test_UX_1_08_bad_legacy_content_does_not_block_startup_or_discard_inpu
     await migrate(runtime, state, runtime.clock.now_utc())
     result = state.tables["registry_draft"][old["draft_id"]]
     assert result["base_status"] == "needs_review" and result["config"] == old["config"]
+
+
+@pytest.mark.parametrize(
+    "failure", [PersistenceUnavailable, asyncio.CancelledError, KeyboardInterrupt]
+)
+async def test_migration_propagates_persistence_failure_and_abort(
+    runtime, config, monkeypatch, failure
+):
+    from core_contracts import authoring
+
+    draft = await runtime.submit("draft_create", {"config": config})
+    state = runtime.state.clone()
+    state.tables["registry_draft"][draft["draft_id"]].pop("authoring_version")
+    before = deepcopy(state.tables)
+
+    async def fail(*args):
+        raise failure("synthetic failure")
+
+    monkeypatch.setattr(authoring, "_migrate_rows", fail)
+    with pytest.raises(failure):
+        await migrate(runtime, state, runtime.clock.now_utc())
+    assert state.tables == before
 
 
 async def test_UX_2_08_rebuild_import_plan_against_new_active_without_replaying_consumed_effects(

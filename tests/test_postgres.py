@@ -596,7 +596,13 @@ async def test_history_is_durable_bounded_ordered_and_not_loaded(database, confi
         )
         assert await store.writer.fetchval("SELECT count(*) FROM contract_state_history") == 111
         assert await store.writer.fetchval("SHOW tcp_keepalives_idle") == "15"
-        assert await store.writer.fetchval("SHOW tcp_user_timeout") == "30000"
+        server_build = (await store.writer.fetchval("SELECT version()")).lower()
+        windows_server = any(name in server_build for name in ("visual c++", "mingw", "windows"))
+        # PostgreSQL on Windows does not support TCP_USER_TIMEOUT and reports zero.
+        # Check the server platform, which may differ from the test client's platform.
+        assert await store.writer.fetchval("SHOW tcp_user_timeout") == (
+            "0" if windows_server else "30000"
+        )
         assert await store.writer.fetchval("SHOW idle_session_timeout") == "1min"
     finally:
         await runtime.stop()
