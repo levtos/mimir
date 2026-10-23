@@ -242,7 +242,8 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
   const edit = useCallback((updater: (config: Registry) => Registry) => {
     setSnap((current) => {
       if (!current.config || !current.draft || !currentDraft(current.draft, activeRevision)) return current;
-      const next = updater(current.config);
+      const changed = updater(current.config);
+      const next = current.config.config_schema_version === 4 ? upgradeFreshness(changed) : changed;
       if (next === current.config || deepEqual(next, current.config)) return current;
       return { ...current, config: next, past: [...current.past, current.config].slice(-HISTORY_LIMIT), future: [] };
     });
@@ -327,6 +328,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
   }, [dirty]);
 
   const save = useCallback(async () => {
+    if (invalidDurations.size) { setSaveError(uiText('b4.time.precision')); return 'error' as const; }
     const { draft, config, name } = latest.current;
     if (!draft || !config || savingRef.current) return 'error' as const;
     const owner = documentId.current;
@@ -360,10 +362,12 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
 
   /** Save a local edit atomically, with pending metadata when creating objects. */
   const editAndSave = useCallback(async (updater: (config: Registry) => Registry, editorial: EditorialEntry[] = []) => {
+    if (invalidDurations.size) throw new Error(uiText('b4.time.precision'));
     const current = latest.current;
     if (!current.draft || !current.config || savingRef.current) throw new Error(uiText('alpha7.draft.saveBeforeReview'));
     const owner = documentId.current;
-    const next = updater(current.config);
+    const changed = updater(current.config);
+    const next = current.config.config_schema_version === 4 ? upgradeFreshness(changed) : changed;
     savingRef.current = true; setSaving(true); setSaveError(null);
     try {
       const saved = await update.mutateAsync({ draft: current.draft, config: next, display_name: current.name, editorial });
@@ -383,6 +387,7 @@ export function WorkingDocumentProvider({ children, validateDebounceMs = 2000 }:
 
   /** Confirmation always receives the exact saved candidate, even after an async save. */
   const prepareActivation = useCallback(async (): Promise<Draft> => {
+    if (invalidDurations.size) throw new Error(uiText('b4.time.precision'));
     const current = latest.current;
     const owner = documentId.current;
     if (!current.draft || !current.config) throw new Error(uiText('alpha7.draft.noDraft'));
@@ -488,3 +493,5 @@ export function useDocAt<T extends Json | undefined>(pointer: string): T {
   const { config } = useWorkingDocument();
   return getAt(config, pointer) as T;
 }
+import { invalidDurations } from '@/components/SecondsField';
+import { upgradeFreshness } from '@/features/sources/freshness';

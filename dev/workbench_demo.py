@@ -107,7 +107,11 @@ async def main() -> None:
         if args.post1 or args.alpha8 or args.alpha9 or args.alpha10
         else SystemClock()
     )
-    runtime = Runtime(MemoryStore(), clock, type_registry())
+    from core_contracts.openings import register as register_openings
+
+    types = type_registry()
+    register_openings(types)
+    runtime = Runtime(MemoryStore(), clock, types)
     await runtime.start()
     session = ClientSession()
     # This adapter only normalizes synthetic local records; its network methods are never called.

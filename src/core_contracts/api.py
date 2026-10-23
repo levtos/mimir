@@ -343,6 +343,11 @@ class API:
             result = reasons()
         elif path == "registry/schema" and method == "GET":
             result = configuration_schema()
+        elif path == "registry/freshness" and method == "POST":
+            from .freshness_templates import effective_freshness
+            from .registry import validate
+
+            result = effective_freshness(validate(await self.object_body(request), runtime.types))
         elif path in {"portable/export", "portable/preview", "portable/stage"} and method == "POST":
             from .portable import strict_json
 

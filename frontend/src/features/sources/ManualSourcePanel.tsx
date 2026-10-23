@@ -13,6 +13,7 @@ import { isObject, type Json, type JsonObject } from '@/lib/json';
 import { formatTime } from '@/lib/format';
 import { displayValue } from '@/lib/status';
 import { ForecastValuesEditor, newForecastPoint, OriginIntervalFields } from '@/editors/ValueOriginEditor';
+import { effectiveRule } from './freshness';
 
 export function ManualSourcePanel({ sourceId }: { sourceId: string }) {
   const active = useActiveRevision(); const client = useQueryClient(); const config = active.data?.config;
@@ -22,8 +23,9 @@ export function ManualSourcePanel({ sourceId }: { sourceId: string }) {
   const [originMetadata, setOriginMetadata] = useState<JsonObject>({});
   const current = useQuery({ queryKey: ['evidence', sourceId], queryFn: () => api<JsonObject[]>(`evidence/${encodeURIComponent(sourceId)}`), enabled: !!source, retry: false });
   const entry = asObject(current.data?.[0]?.manual);
-  const start = Date.parse(str(entry.valid_from)); const duration = Number(asObject(source?.freshness).interval_s);
-  const end = Math.min(entry.valid_until ? Date.parse(str(entry.valid_until)) : Infinity, asObject(source?.freshness).mode === 'periodic_ttl' && Number.isFinite(start) ? start + duration*1000 : Infinity);
+  const rule = effectiveRule(config ?? {}, source ?? {});
+  const start = Date.parse(str(entry.valid_from)); const duration = Number(rule.interval_s);
+  const end = Math.min(entry.valid_until ? Date.parse(str(entry.valid_until)) : Infinity, rule.mode === 'periodic_ttl' && Number.isFinite(start) ? start + duration*1000 : Infinity);
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const next = Math.min(...[start, end].filter(at => Number.isFinite(at) && at > now)); if (!Number.isFinite(next)) return; const timer = window.setTimeout(() => setNow(Date.now()), Math.min(2147483647, next-Date.now()+10)); return () => window.clearTimeout(timer); }, [start, end, now]);
   const [value, setValue] = useState<Json>(schema.type === 'number' ? 0 : schema.type === 'bool' ? false : schema.type === 'object' ? {} : '');
@@ -42,7 +44,7 @@ export function ManualSourcePanel({ sourceId }: { sourceId: string }) {
   }
   const affected = contracts.filter(contract => reached.has(str(contract.contract_id)));
   if (!source) return null;
-  const unbounded = asObject(source.freshness).mode === 'event_stateful' && !until;
+  const unbounded = rule.mode === 'event_stateful' && !until;
   const settled = (response: JsonObject) => { setResult(t(response.status === 'accepted' ? 'alpha9.manual.recorded' : 'alpha9.manual.failed')); setPending(null); setRetryAvailable(false); void client.invalidateQueries({ queryKey: ['evidence', sourceId] }); };
   const submit = async (body: JsonObject) => {
     setRetryAvailable(false);

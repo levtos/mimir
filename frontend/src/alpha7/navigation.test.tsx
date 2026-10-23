@@ -73,7 +73,7 @@ describe('P1: separate module routes and retained links', () => {
   it('previews a file before staging its own draft, preserving the active configuration', async () => {
     const user = userEvent.setup();
     const fake = installFakeApi();
-    fake.routes.push({ match: /^portable\/preview$/, method: 'POST', respond: () => reply(200, { plan_digest: 'synthetic', added: 0, reused: 0, conflicts: [], unresolved: [], editorial_versions: {}, package: { editorial: [] } }) });
+    fake.routes.push({ match: /^portable\/preview$/, method: 'POST', respond: () => reply(200, { config: emptyRegistry(), plan_digest: 'synthetic', added: 0, reused: 0, conflicts: [], unresolved: [], editorial_versions: {}, package: { config: emptyRegistry(), editorial: [] } }) });
     fake.routes.push({ match: /^portable\/stage$/, method: 'POST', respond: () => { const draft = makeDraft('imported', emptyRegistry()); fake.drafts.set(draft.draft_id, draft); return reply(200, draft); } });
     app('#/contracts/import/json?source=backup');
     await screen.findByRole('heading', { name: 'Import & Export', level: 1 });

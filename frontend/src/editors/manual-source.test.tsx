@@ -13,7 +13,7 @@ it('edits manual limits without JSON and offers only valid manual freshness mode
   expect(screen.queryByTestId('extras-Source')).toBeNull();
   const mode = screen.getByLabelText('Modus');
   expect([...mode.querySelectorAll('option')].map(option => option.value)).toEqual(['periodic_ttl', 'event_stateful']);
-  expect(screen.getAllByText('= 5 Minuten')).toHaveLength(1);
+  expect(screen.getAllByText('5 Minuten')).toHaveLength(1);
   const user = userEvent.setup();
   const minimum = screen.getByLabelText(t('alpha9.manual.manual_minimum'));
   await user.type(minimum, '-10');

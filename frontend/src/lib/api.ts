@@ -77,7 +77,7 @@ export interface RequestOptions {
 }
 
 /** Same-origin call below the (relative) Ingress prefix. No credentials are kept in the browser. */
-export async function api<T = Json>(path: string, options: RequestOptions = {}): Promise<T> {
+async function request(path: string, options: RequestOptions): Promise<Response> {
   const method = options.method ?? 'GET';
   let response: Response;
   try {
@@ -98,8 +98,18 @@ export async function api<T = Json>(path: string, options: RequestOptions = {}):
     const code = body?.error ?? 'invalid_response';
     throw new ApiError(response.status, code, issuesFromBody(body), `${code} (${response.status})`);
   }
+  return response;
+}
+
+export async function api<T = Json>(path: string, options: RequestOptions = {}): Promise<T> {
+  const response = await request(path, options);
   if (response.status === 204) return null as T;
   return (await response.json()) as T;
+}
+
+/** Preserve portable format-1 numeric spelling and its historical digests. */
+export async function apiText(path: string, options: RequestOptions = {}): Promise<string> {
+  return (await request(path, options)).text();
 }
 
 const MESSAGES: Record<string, string> = {

@@ -6,12 +6,13 @@ from functools import cache, lru_cache
 from itertools import islice
 from typing import Annotated, Any, Literal, Self
 
-from pydantic import Field, model_validator
+from pydantic import Field, SerializerFunctionWrapHandler, model_serializer, model_validator
 
 from .adapters import AdapterConfig
 from .catalog_models import ManagedCatalog
 from .declarative_models import MAX_DEFINITIONS, DeclarativeDefinition
 from .evidence import Freshness
+from .freshness_templates import FreshnessSelection, FreshnessTemplate, SensorKind
 from .ha_context import ContextProducer
 from .lifecycle import Lifecycle
 from .model import Model, canonical, semantic_fingerprint
@@ -35,6 +36,13 @@ class Source(Model):
     source_type: Literal["state", "attribute", "event", "numeric", "text", "boolean"]
     source_origin: str
     freshness: Freshness
+    freshness_selection: FreshnessSelection | None = Field(
+        default=None, exclude_if=lambda v: v is None
+    )
+    sensor_kind: SensorKind | None = Field(default=None, exclude_if=lambda v: v is None)
+    sensor_kind_origin: Literal["declared", "confirmed"] | None = Field(
+        default=None, exclude_if=lambda v: v is None
+    )
     dependency_id: str
     physical_source_key: str = Field(min_length=1)
     display_name: str = ""
@@ -54,6 +62,13 @@ class Source(Model):
     )
     manual_minimum: float | None = Field(default=None, exclude_if=lambda value: value is None)
     manual_maximum: float | None = Field(default=None, exclude_if=lambda value: value is None)
+
+    @model_serializer(mode="wrap")
+    def selection_document(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        result: dict[str, Any] = handler(self)
+        if self.freshness_selection is not None:
+            result.pop("freshness", None)
+        return result
 
     @model_validator(mode="after")
     def manual_declaration(self) -> Self:
@@ -161,8 +176,79 @@ class Catalog(Model):
 
 
 class RegistryConfig(Model):
-    config_schema_version: Literal[1, 2, 3]
-    fingerprint_version: Literal[1, 2, 3] = 1
+    config_schema_version: Literal[1, 2, 3, 4]
+    fingerprint_version: Literal[1, 2, 3, 4] = 1
+    freshness_templates: tuple[FreshnessTemplate, ...] = Field(
+        default=(), max_length=256, exclude_if=lambda v: not v
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_freshness(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+        import copy
+
+        document = copy.deepcopy(value)
+        modern = document.get("config_schema_version") == 4
+        if modern and document.get("fingerprint_version") != 4:
+            raise ValueError("registry_fingerprint_4_required")
+        if not modern and document.get("fingerprint_version") == 4:
+            raise ValueError("registry_schema_4_required")
+        template_rows = document.get("freshness_templates", [])
+        source_rows = document.get("sources", [])
+        if not isinstance(template_rows, (list, tuple)) or not isinstance(
+            source_rows, (list, tuple)
+        ):
+            return document
+        parsed_templates = [FreshnessTemplate.model_validate(row) for row in template_rows]
+        templates = {row.template_id: row for row in parsed_templates}
+        if len(templates) != len(document.get("freshness_templates", [])):
+            raise ValueError("duplicate_freshness_template")
+        if not modern and templates:
+            raise ValueError("registry_schema_4_required")
+        for source in source_rows:
+            if not isinstance(source, dict):
+                continue
+            selection = source.get("freshness_selection")
+            if modern:
+                if not isinstance(selection, dict) or not selection or "freshness" in source:
+                    raise ValueError("freshness_selection_exclusive")
+                if selection.get("kind") == "shared":
+                    template_id = selection.get("template_id")
+                    if not isinstance(template_id, str):
+                        raise ValueError("freshness_template_missing")
+                    template = templates.get(template_id)
+                    if template is None:
+                        raise ValueError("freshness_template_missing")
+                    if source.get("sensor_kind") != template.sensor_kind or source.get(
+                        "sensor_kind_origin"
+                    ) not in {"confirmed", "declared"}:
+                        raise ValueError("sensor_kind_confirmation_required")
+                    if source.get("origin") == "manual":
+                        raise ValueError("manual_freshness_must_be_own")
+                    rule = template.rule.model_dump(mode="json")
+                    rule["liveness_source"] = selection.get("liveness_source")
+                    if rule["mode"] != "liveness_source" and rule["liveness_source"]:
+                        raise ValueError("unexpected_liveness_source")
+                    source["freshness"] = rule
+                elif selection.get("kind") == "own":
+                    comparison = selection.get("comparison_template_id")
+                    if comparison is not None and not isinstance(comparison, str):
+                        raise ValueError("freshness_template_missing")
+                    if comparison and comparison not in templates:
+                        raise ValueError("freshness_template_missing")
+                    source["freshness"] = selection.get("rule")
+                else:
+                    raise ValueError("freshness_selection_invalid")
+            elif (
+                selection is not None
+                or source.get("sensor_kind") is not None
+                or source.get("sensor_kind_origin") is not None
+            ):
+                raise ValueError("registry_schema_4_required")
+        return document
+
     history_retention: RetentionPolicy | None = Field(
         default=None, exclude_if=lambda value: value is None
     )
@@ -181,7 +267,7 @@ class RegistryConfig(Model):
         if (
             any(isinstance(c, ManagedCatalog) for c in self.catalogs)
             or any(d.language_version == 4 for d in self.definitions)
-        ) and (self.config_schema_version != 3 or self.fingerprint_version != 3):
+        ) and (self.config_schema_version < 3 or self.fingerprint_version < 3):
             raise ValueError("registry_schema_3_required")
         if len({producer.producer_id for producer in self.context_producers}) != len(
             self.context_producers
@@ -360,6 +446,8 @@ def topological(config: RegistryConfig) -> list[Contract]:
 
 
 def fingerprints(config: RegistryConfig, types: TypeRegistry) -> dict[str, str]:
+    if config.fingerprint_version == 4:
+        return context_compatibility(config, types)
     types = registry_types(config, types)
     result: dict[str, str] = {}
     for source in config.sources:
@@ -441,6 +529,84 @@ def fingerprints(config: RegistryConfig, types: TypeRegistry) -> dict[str, str]:
     return result
 
 
+def observation_fingerprints(config: RegistryConfig) -> dict[str, str]:
+    """No assessment or authoring provenance may invent a new observation."""
+    result = {}
+    for source in config.sources:
+        document = source.model_dump(mode="json")
+        for field in (
+            "freshness",
+            "freshness_selection",
+            "sensor_kind",
+            "sensor_kind_origin",
+            "display_name",
+        ):
+            document.pop(field, None)
+        bindings = [
+            b.model_dump(mode="json", exclude={"display_name"})
+            for b in config.bindings
+            if b.source_id == source.source_id
+        ]
+        used = {
+            b.transform.catalog_id
+            for b in config.bindings
+            if b.source_id == source.source_id and b.transform
+        }
+        result[source.source_id] = semantic_fingerprint(
+            {
+                "source": document,
+                "bindings": bindings,
+                "catalogs": [
+                    c.model_dump(exclude={"lifecycle", "reactivation_note"})
+                    for c in config.catalogs
+                    if c.catalog_id in used
+                ],
+            }
+        )
+    return result
+
+
+def assessment_fingerprints(config: RegistryConfig) -> dict[str, str]:
+    observations = observation_fingerprints(config)
+    return {
+        source.source_id: semantic_fingerprint(
+            {
+                "rule": source.freshness.model_dump(),
+                "dependency": next(
+                    d.model_dump()
+                    for d in config.dependencies
+                    if d.dependency_id == source.dependency_id
+                ),
+                "liveness": observations.get(source.freshness.liveness_source or ""),
+            }
+        )
+        for source in config.sources
+    }
+
+
+def context_compatibility(config: RegistryConfig, types: TypeRegistry) -> dict[str, str]:
+    """Keep only interval-neutral, semantically identical contexts; normal gap rules still run."""
+    import copy
+
+    from .freshness_templates import upgrade_document
+
+    document = upgrade_document(storage_document(config))
+    # Reuse the proven transitive v3 graph and type/parameter compatibility.
+    document["config_schema_version"] = 3
+    document["fingerprint_version"] = 3
+    document.pop("freshness_templates", None)
+    for row, source in zip(document["sources"], config.sources, strict=True):
+        row.pop("freshness_selection", None)
+        row.pop("sensor_kind", None)
+        row.pop("sensor_kind_origin", None)
+        row.pop("display_name", None)
+        rule = copy.deepcopy(source.freshness.model_dump(mode="json"))
+        if rule["mode"] in {"report_heartbeat", "periodic_ttl"}:
+            rule["interval_s"] = 1.0
+        row["freshness"] = rule
+    return fingerprints(RegistryConfig.model_validate(document), types)
+
+
 def changed_paths(before: Any, after: Any, path: str = "") -> Iterator[str]:
     if before == after:
         return
@@ -480,6 +646,7 @@ def diff(
         ("catalogs", "catalog_id"),
         ("contracts", "contract_id"),
         ("definitions", "type_id"),
+        ("freshness_templates", "template_id"),
     ):
 
         def entries(config: RegistryConfig | None) -> dict[str, Any]:
@@ -525,8 +692,8 @@ def diff(
                 changed_sources.update(
                     item[key]["source_id"] for item in (previous, current) if key in item
                 )
-    old_fp = fingerprints(before, types) if before and types else {}
-    new_fp = fingerprints(after, types) if types else {}
+    old_fp = context_compatibility(before, types) if before and types else {}
+    new_fp = context_compatibility(after, types) if types else {}
     fingerprint_changed = sorted(
         k for k in old_fp.keys() | new_fp.keys() if old_fp.get(k) != new_fp.get(k)
     )
@@ -534,6 +701,20 @@ def diff(
         {s.source_id for s in before.sources} if before else set()
     )
     changed_sources.update(key for key in fingerprint_changed if key in source_ids)
+    effective_changes: list[str] = []
+    if after.config_schema_version in (1, 2, 3, 4):
+        old_observations = observation_fingerprints(before) if before else {}
+        new_observations = observation_fingerprints(after)
+        old_assessments = assessment_fingerprints(before) if before else {}
+        new_assessments = assessment_fingerprints(after)
+        effective_changes = sorted(
+            key for key in source_ids if old_assessments.get(key) != new_assessments.get(key)
+        )
+        changed_sources = {
+            key
+            for key in source_ids
+            if old_observations.get(key) != new_observations.get(key) or key in effective_changes
+        }
     direct = set(result["added"] + result["changed"] + result["removed"])
     for config in (before, after):
         if not config:
@@ -628,6 +809,19 @@ def diff(
         source_identity_changes=sorted(identity_changes),
         binding_identity_changes=binding_identities,
         changed_source_fingerprints=sorted(key for key in fingerprint_changed if key in source_ids),
+        effective_freshness_changes=effective_changes,
+        freshness_effects=[
+            {
+                "source_id": key,
+                "before": previous_sources[key].freshness.model_dump(mode="json")
+                if key in previous_sources
+                else None,
+                "after": current_sources[key].freshness.model_dump(mode="json")
+                if key in current_sources
+                else None,
+            }
+            for key in effective_changes
+        ],
         possibly_invalidated_contexts=stateful,
         restore={
             "reinitialize_contracts": stateful,

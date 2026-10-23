@@ -20,7 +20,7 @@ import { draftLabel, ReviewDraftButton } from '@/features/authoring/DraftBar';
 import { downloadText, exportRegistry, parseRegistryJson, safeFilename } from '@/features/authoring/importExport';
 import { asArray } from '@/features/authoring/model';
 import { useWorkingDocument } from '@/features/authoring/WorkingDocument';
-import { api } from '@/lib/api';
+import { api, describeError } from '@/lib/api';
 import type { Draft } from '@/lib/types';
 import { DiffView } from './DiffView';
 import { IssueList } from './IssueList';
@@ -61,6 +61,7 @@ export default function DraftPage() {
   const [switching, setSwitching] = useState(false);
   const [continuing, setContinuing] = useState(false);
   const [activationTarget, setActivationTarget] = useState<Draft | null>(null);
+  const [exportError, setExportError] = useState('');
   const active = useActiveRevision();
   useEffect(() => { if (new URLSearchParams(query).get('continue') === '1' && doc.draft?.draft_id === draftId && !doc.dirty) setContinuing(true); }, [query, doc.draft?.draft_id, doc.dirty, draftId]);
   const effect = useQuery({ queryKey: ['draft-effect', draftId, doc.draft?.draft_version, active.data?.revision], queryFn: () => api<import('./authoring').ActivationPreview>(`registry/drafts/${draftId}/activation-preview`, { method: 'POST', body: {} }), enabled: doc.draft?.draft_id === draftId && !doc.dirty && doc.validation.result?.valid === true && !doc.validation.stale && doc.draft.lifecycle !== 'completed' && doc.draft.lifecycle !== 'continued' });
@@ -114,11 +115,12 @@ export default function DraftPage() {
         actions={
           <>
             {current ? <ReviewDraftButton size="md" checkFirst={!validNow} onReview={setActivationTarget}>{validNow && effect.data?.no_effect ? uiText('b3.complete') : undefined}</ReviewDraftButton> : <Button variant="primary" onClick={() => void (async () => { if (!doc.dirty || await doc.save() === 'saved') setContinuing(true); })()}>{draft.base_status === 'needs_review' ? uiText('beta3.c902a9a3c590') : CONTINUE}</Button>}
-            <Button onClick={() => downloadText(`${safeFilename(doc.displayName || draft.draft_id)}.json`, exportRegistry(config))}><Download size={14} /> {uiText("features.registry.DraftPage.export_366489")}</Button>
+            <Button disabled={config.config_schema_version === 4 && doc.dirty} onClick={() => { if (config.config_schema_version !== 4) downloadText(`${safeFilename(doc.displayName || draft.draft_id)}.json`, exportRegistry(config)); else void api('portable/export', { method: 'POST', body: { draft_id: draft.draft_id, draft_version: draft.draft_version, expected_active_revision: active.data?.revision ?? 0 } }).then(result => downloadText(`${safeFilename(doc.displayName || draft.draft_id)}.json`, JSON.stringify(result, null, 2))).catch(error => setExportError(describeError(error))); }}><Download size={14} /> {uiText("features.registry.DraftPage.export_366489")}</Button>
           </>
         }
       />
       <Notice tone={current ? 'info' : 'warn'} title={draftState(server.data ?? draft, active.data?.revision ?? 0)}>{!current && <><p>{uiText('b3.baseExplanation', { name: doc.displayName, base: draft.base_revision ?? '–', active: active.data?.revision ?? '–' })}</p><p>{uiText('b3.continueHelp')}</p><Link to="/changes/drafts">{uiText('b3.allDrafts')}</Link></>}</Notice>
+      {exportError && <Notice tone="bad">{exportError}</Notice>}
       {activationTarget && <ActivateDialog draft={activationTarget} open onOpenChange={open => !open && setActivationTarget(null)} />}
       {continuing && <ContinuationDialog draft={draft} onClose={() => setContinuing(false)} />}
       <fieldset disabled={!current} className="min-w-0">

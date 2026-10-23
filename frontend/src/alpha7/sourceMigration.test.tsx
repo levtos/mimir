@@ -14,7 +14,7 @@ import { installFakeApi, makeDraft, reply, sampleConfig } from '../../test/fakeA
 import { idleLive } from '../../test/harness';
 
 const device: HaEntity = { entity_id: 'sensor.zimmer', display_name: 'Zimmer', unit: '°C', device_class: 'temperature', state_class: 'measurement', current_value: '21.5', attributes: [] };
-const original = () => planDevice(sampleConfig(), device, { contract: 'new' }).config;
+const original = () => planDevice(sampleConfig(), device, { contract: 'new', freshness: { mode: 'periodic_ttl', interval_s: 900, future_tolerance_s: 1 } }).config;
 const revision = (config: JsonObject): RevisionRow => ({ revision: 1, created_at: '2026-10-16T10:00:00Z', checksum: 'sum', config });
 const options = (config: JsonObject): MigrationOptions => ({ sourceId: 'source.neu', name: 'Neue Temperatur', schema: { type: 'text', required: true, physical_state: false }, adapter: { kind: 'ha_state', ha_entity_id: device.entity_id }, contracts: objects(config.contracts).map(contract => String(contract.contract_id)), adaptPassthrough: true });
 beforeEach(() => { sessionStorage.clear(); localStorage.clear(); });

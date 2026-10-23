@@ -48,6 +48,8 @@ interface CollectionProps {
   onMove?: (id: string) => void;
 }
 
+import { freshnessLabel } from './freshness';
+
 function Collection({ name, idKey, singular, make, render, subtitle, usage, onMove }: CollectionProps) {
   const src = useAuthoringSource();
   const doc = useWorkingDocument();
@@ -62,14 +64,17 @@ function Collection({ name, idKey, singular, make, render, subtitle, usage, onMo
   }, [pendingSelection, src.editable, list]);
   const [removing, setRemoving] = useState<number | null>(null);
   const [addError, setAddError] = useState('');
+  const [filterParams, setFilterParams] = useSearchParams();
+  const templateFilter = filterParams.get('freshness');
+  const [deviationsOnly, setDeviationsOnly] = useState(false);
 
   const ids = list.map((item) => str(item[idKey]));
   const items = list.map((item, index) => ({
     key: String(index),
     label: name === 'sources' ? str(item.display_name) || ha.entities.find(entity => asArray(config.bindings).filter(isObject).some(binding => binding.source_id === item.source_id && isObject(binding.adapter) && binding.adapter.ha_entity_id === entity.entity_id))?.display_name || str(item[idKey]) : str(item[idKey]),
-    sub: name === 'sources' ? `${str(item[idKey])} · ${subtitle(item)}` : subtitle(item),
+    sub: name === 'sources' ? `${str(item[idKey])} · ${freshnessLabel(config, item)}` : subtitle(item),
     errors: issues.filter((i) => i.path === `/${name}/${index}` || i.path.startsWith(`/${name}/${index}/`)).length,
-  }));
+  })).filter(item => { if (name !== 'sources') return true; const source = list[Number(item.key)]!; const selection = asObject(source.freshness_selection); return (!templateFilter || selection.template_id === templateFilter || selection.comparison_template_id === templateFilter) && (!deviationsOnly || freshnessLabel(config, source).includes(uiText('b4.differs'))); });
   const add = async () => {
     setAddError('');
     try {
@@ -92,6 +97,7 @@ function Collection({ name, idKey, singular, make, render, subtitle, usage, onMo
       {name !== 'sources' && <PageHeader title={uiText(`alpha7.nav.${name}`)} description={uiText(`alpha9.pages.${name}`)} actions={<Button variant="primary" disabled={doc.starting || doc.saving} disabledReason={uiText('alpha7.copy.inProgress')} onClick={() => void add()}>{uiText(`alpha9.actions.add${name === 'bindings' ? 'Binding' : name === 'catalogs' ? 'Catalog' : 'Dependency'}`)}</Button>} />}
       {name !== 'sources' && <ReadOnlyNotice what={singular} />}
       {addError && <p role="alert" className="mb-3 text-sm text-bad">{addError}</p>}
+      {name === 'sources' && <div className="mb-3 flex flex-wrap gap-3"><label className="inline-flex min-h-11 items-center gap-2"><input type="checkbox" checked={deviationsOnly} onChange={event => setDeviationsOnly(event.target.checked)} />{uiText('b4.differs')}</label>{templateFilter && <Button onClick={() => { const next = new URLSearchParams(filterParams); next.delete('freshness'); setFilterParams(next); }}>{uiText('b4.clearFilter')}</Button>}</div>}
       <MasterDetail
         title={singular}
         items={items}
@@ -215,6 +221,7 @@ export default function SourcesPage() {
                 }}
                 render={(item, pointer, onChange, config) => (
                   <SourceEditor
+                    freshnessConfig={config}
                     sources={asArray(config.sources).filter(isObject)}
                     value={item}
                     pointer={pointer}

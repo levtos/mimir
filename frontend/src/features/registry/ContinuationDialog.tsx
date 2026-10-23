@@ -6,18 +6,21 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Notice } from '@/components/ui/layout';
 import { api, describeError } from '@/lib/api';
-import type { Draft } from '@/lib/types';
+import type { Draft, Registry } from '@/lib/types';
+import { freshnessChoiceLabel } from '@/features/sources/freshness';
 import { useWorkingDocument } from '@/features/authoring/WorkingDocument';
 import { CONTINUE } from './authoring';
 import { fieldLabel, codeLabel } from '@/i18n/codes';
 
 interface Conflict { path: string; kind: string; base: unknown; draft: unknown; current: unknown; digests: string[]; presence?: Record<string, { present: boolean; known: boolean }> }
-interface Session { session_id: string; session_version: number; status: string; conflicts: Conflict[]; decisions: Record<string, { digests: string[]; choice: string }>; expected_active_revision: number; result?: Draft }
-function readable(value: unknown): string {
+interface Session { config?: Registry; session_id: string; session_version: number; status: string; conflicts: Conflict[]; decisions: Record<string, { digests: string[]; choice: string }>; expected_active_revision: number; result?: Draft }
+function readable(value: unknown, config: Registry = {}): string {
+  const freshness = freshnessChoiceLabel(config, value);
+  if (freshness) return freshness;
   if (value === true) return uiText('beta3.cde9e58a9a4e');
   if (value === false) return uiText('beta3.90ebc1bde6f3');
   if (value === null) return uiText('beta3.6a4c4c7e8f60');
-  if (typeof value === 'object') return Object.entries(value ?? {}).map(([key, item]) => `${fieldLabel(key)}: ${readable(item)}`).join(' · ');
+  if (typeof value === 'object') return Object.entries(value ?? {}).map(([key, item]) => `${fieldLabel(key)}: ${readable(item, config)}`).join(' · ');
   return String(value);
 }
 
@@ -71,6 +74,6 @@ export function ContinuationDialog({ draft, onClose }: { draft: Draft; onClose: 
     {error && <Notice tone="bad" title={uiText('beta3.630c538a1b8f')}>{error}</Notice>}
     {session?.status === 'halted' && <Notice tone="warn" title={uiText('beta3.1b03130f98c3')}>{uiText('beta3.d34be521e102')}</Notice>}
     {session?.conflicts.length === 0 && <Notice tone="ok" title={uiText('beta3.c01243975e7b')}>{uiText('beta3.a8295234e6c8')}</Notice>}
-    {session?.conflicts.map(conflict => { const parts = conflict.path.split('/'); const value = (side: 'base' | 'draft' | 'current') => conflict.presence?.[side]?.known === false ? uiText('b3.baseUnproven') : conflict.presence?.[side]?.present === false ? uiText('beta3.5728b7b1e370') : ['mode', 'source_type', 'kind', 'target'].includes(parts.at(-1) ?? '') ? codeLabel(conflict[side]) : readable(conflict[side]); return <fieldset key={conflict.path} className="my-4 min-w-0 rounded border border-line p-3"><legend className="break-words">{fieldLabel(parts.at(-1) ?? '')} · {parts[2]}</legend><p>{uiText('beta3.e5c95de28a9b')}{value('base')}</p><label className="flex min-h-11 items-center gap-2"><input type="radio" name={conflict.path} checked={choices[conflict.path] === 'draft'} onChange={() => setChoices({ ...choices, [conflict.path]: 'draft' })} />{uiText('beta3.023bc0649c13')}{value('draft')}</label><label className="flex min-h-11 items-center gap-2"><input type="radio" name={conflict.path} checked={choices[conflict.path] === 'current'} onChange={() => setChoices({ ...choices, [conflict.path]: 'current' })} />{uiText('beta3.fe0b33670e6b')}{value('current')}</label><details><summary>{uiText('alpha10.technical')}</summary><code>{conflict.path}</code></details></fieldset>; })}
+    {session?.conflicts.map(conflict => { const parts = conflict.path.split('/'); const value = (side: 'base' | 'draft' | 'current') => conflict.presence?.[side]?.known === false ? uiText('b3.baseUnproven') : conflict.presence?.[side]?.present === false ? uiText('beta3.5728b7b1e370') : ['mode', 'source_type', 'kind', 'target'].includes(parts.at(-1) ?? '') ? codeLabel(conflict[side]) : readable(conflict[side], session.config); return <fieldset key={conflict.path} className="my-4 min-w-0 rounded border border-line p-3"><legend className="break-words">{parts.at(-1) === 'freshness_selection' ? uiText('b4.title') : fieldLabel(parts.at(-1) ?? '')} · {parts[2]}</legend><p>{uiText('beta3.e5c95de28a9b')}{value('base')}</p><label className="flex min-h-11 items-center gap-2"><input type="radio" name={conflict.path} checked={choices[conflict.path] === 'draft'} onChange={() => setChoices({ ...choices, [conflict.path]: 'draft' })} />{uiText('beta3.023bc0649c13')}{value('draft')}</label><label className="flex min-h-11 items-center gap-2"><input type="radio" name={conflict.path} checked={choices[conflict.path] === 'current'} onChange={() => setChoices({ ...choices, [conflict.path]: 'current' })} />{uiText('beta3.fe0b33670e6b')}{value('current')}</label><details><summary>{uiText('alpha10.technical')}</summary><code>{conflict.path}</code></details></fieldset>; })}
   </Dialog>;
 }

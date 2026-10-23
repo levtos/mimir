@@ -8,11 +8,12 @@ import { asArray, asObject, str, uniqueName } from '@/features/authoring/model';
 import { clone, isObject, type JsonObject } from '@/lib/json';
 import { describeError } from '@/lib/api';
 import { useHaCatalog } from './useHaCatalog';
+import { DurationField, invalidDurations } from '@/components/SecondsField';
 
 export interface CalendarSettings { past: number; future: number; refreshMinutes: number; validMinutes: number }
 export const calendarDefaults: CalendarSettings = { past: 1, future: 14, refreshMinutes: 15, validMinutes: 60 };
 export function validCalendarSettings(value: CalendarSettings) {
-  return Object.values(value).every(Number.isInteger) && value.past >= 0 && value.future >= 1 && value.past + value.future <= 31 && value.refreshMinutes >= 1 && value.refreshMinutes <= 1440 && value.validMinutes >= value.refreshMinutes && value.validMinutes <= 10080;
+  return [value.past, value.future, value.refreshMinutes * 60, value.validMinutes * 60].every(Number.isInteger) && value.past >= 0 && value.future >= 1 && value.past + value.future <= 31 && value.refreshMinutes >= 1 && value.refreshMinutes <= 1440 && value.validMinutes >= value.refreshMinutes && value.validMinutes <= 10080;
 }
 export function planCalendar(config: JsonObject, entity: string, name: string, settings: CalendarSettings) {
   if (!/^calendar\.[a-z0-9_]+$/.test(entity) || !validCalendarSettings(settings)) throw new Error(t('alpha9.form.unavailable'));
@@ -36,7 +37,7 @@ export function CalendarFields({ value, onChange }: { value: CalendarSettings; o
   return <div className="grid gap-3 sm:grid-cols-2">{([
     ['past', 'alpha9.calendar.windowPast', 0, 30], ['future', 'alpha9.calendar.windowFuture', 1, 31],
     ['refreshMinutes', 'alpha9.calendar.refresh', 1, 1440], ['validMinutes', 'alpha9.calendar.validFor', 1, 10080],
-  ] as const).map(([key, label, min, max]) => <Field key={key} label={t(label)}>{props => <Input {...props} type="number" min={min} max={max} step={1} value={Number.isFinite(value[key]) ? value[key] : ''} onChange={event => onChange({ ...value, [key]: event.target.valueAsNumber })} />}</Field>)}</div>;
+  ] as const).map(([key, label, min, max]) => key === 'refreshMinutes' || key === 'validMinutes' ? <DurationField key={key} label={t(label)} value={value[key] * 60} min={min * 60} max={max * 60} integerSeconds onChange={seconds => onChange({ ...value, [key]: seconds / 60 })} /> : <Field key={key} label={t(label)}>{props => <Input {...props} type="number" min={min} max={max} step={1} value={Number.isFinite(value[key]) ? value[key] : ''} onChange={event => onChange({ ...value, [key]: event.target.valueAsNumber })} />}</Field>)}</div>;
 }
 
 export function CalendarSourceDialog({ open, onOpenChange, onAdded }: { open: boolean; onOpenChange: (open: boolean) => void; onAdded: (index: number) => void }) {
@@ -45,7 +46,7 @@ export function CalendarSourceDialog({ open, onOpenChange, onAdded }: { open: bo
   const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
   const selected = ha.entities.find(item => item.entity_id === entity);
   const add = async () => {
-    if (busy || !selected || !validCalendarSettings(settings)) return;
+    if (invalidDurations.size || busy || !selected || !validCalendarSettings(settings)) return;
     setBusy(true); setError('');
     try {
       const current = await doc.ensureDraft(); const result = planCalendar(current, entity, name || selected.display_name, settings);

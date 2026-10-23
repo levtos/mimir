@@ -1,11 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
-import { api, ApiError, describeError, issuesFromBody } from './api';
+import { api, apiText, ApiError, describeError, issuesFromBody } from './api';
 import validBad from '../../test/fixtures/validate-bad.json';
 
 const respond = (status: number, body: unknown) =>
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })));
 
 describe('api client', () => {
+  it('downloads portable JSON without changing historical numeric spelling', async () => {
+    const original = '{"format_version":1,"config":{"interval_s":10800.0}}';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(original)));
+    expect(await apiText('portable/export', { method: 'POST', body: {} })).toBe(original);
+  });
+
   it('uses relative same-origin URLs below the Ingress prefix and no credentials', async () => {
     const fetch = vi.fn().mockResolvedValue(new Response('{"ok":true}'));
     vi.stubGlobal('fetch', fetch);

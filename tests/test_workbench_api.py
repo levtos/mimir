@@ -192,9 +192,7 @@ async def test_explicit_fingerprint_upgrade_and_dependency_impact(runtime, confi
     assert report["diff"]["fingerprint_version"]["context_migration"] is True
     await activate(runtime, upgraded)
     assert runtime.state.tables["node_state"]["fixture.echo"]["fingerprint"] != old
-    assert (
-        runtime.state.tables["contract_lifecycle"]["fixture.echo"]["start_case"] == "incompatible"
-    )
+    assert runtime.state.tables["contract_lifecycle"]["fixture.echo"]["start_case"] == "valid"
     changed = copy.deepcopy(upgraded)
     changed["dependencies"][0]["kind"] = "mqtt"
     report = await runtime.submit("validate", changed)

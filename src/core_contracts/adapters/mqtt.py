@@ -163,6 +163,16 @@ class MQTTAdapter:
 
                     async def ingest() -> None:
                         async for message in client.messages:
+                            from ..reconfiguration import assessment_only
+
+                            current = self.runtime.config
+                            current_revision = self.runtime.state.active_revision
+                            if (
+                                current is None
+                                or current_revision != revision
+                                and not assessment_only(config, current)
+                            ):
+                                return
                             for binding in bindings:
                                 if str(message.topic) != binding.adapter.mqtt_topic:
                                     continue
@@ -172,11 +182,11 @@ class MQTTAdapter:
                                         raise ValueError("non-byte payload")
                                     observation = self.observation(
                                         binding,
-                                        config,
+                                        current,
                                         bytes(raw),
                                         message.retain,
                                         message.qos,
-                                        revision,
+                                        current_revision,
                                     )
                                     if observation:
                                         self.runtime.ingest(observation)
@@ -192,20 +202,28 @@ class MQTTAdapter:
                                             epoch_id=self.runtime.state.epoch_id,
                                             ingest_seq=self.sequence,
                                             reference_version=2
-                                            if config.fingerprint_version >= 2
+                                            if current.fingerprint_version >= 2
                                             else 1,
-                                            registry_revision=revision,
+                                            registry_revision=current_revision,
                                             invalid_timestamp=True,
                                         )
                                     )
                                     LOGGER.warning("mqtt_invalid_message")
 
                     async def changed() -> None:
-                        while (
-                            revision == self.runtime.state.active_revision
-                            and not self.runtime.mqtt_revision_changed.is_set()
-                            and not self.queue_overflow
-                        ):
+                        nonlocal config, revision
+                        from ..reconfiguration import assessment_only
+
+                        while not self.queue_overflow:
+                            if revision != self.runtime.state.active_revision:
+                                current = self.runtime.config
+                                if not assessment_only(config, current):
+                                    return
+                                assert current is not None
+                                config, revision = current, self.runtime.state.active_revision
+                                self.runtime.mqtt_revision_changed.clear()
+                            if self.runtime.mqtt_revision_changed.is_set():
+                                return
                             await self.runtime.clock.sleep(1)
 
                     reader, watcher = asyncio.create_task(ingest()), asyncio.create_task(changed())

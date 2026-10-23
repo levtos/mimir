@@ -172,11 +172,53 @@ def configuration_schema() -> dict[str, Any]:
             "if": {"required": ["definitions"], "properties": {"definitions": {"minItems": 1}}},
             "then": {
                 "required": ["fingerprint_version"],
-                "properties": {"fingerprint_version": {"enum": [2, 3]}},
+                "properties": {"fingerprint_version": {"enum": [2, 3, 4]}},
             },
         }
     ]
     definitions = schema["$defs"]
+    # Runtime resolution injects a concrete rule; the wire schema accepts exactly one representation.
+    source = definitions["Source"]
+    source["required"] = [key for key in source["required"] if key != "freshness"]
+    source["oneOf"] = [
+        {"required": ["freshness"], "not": {"required": ["freshness_selection"]}},
+        {
+            "required": ["freshness_selection"],
+            "properties": {"freshness_selection": {"not": {"type": "null"}}},
+            "not": {"required": ["freshness"]},
+        },
+    ]
+    schema["allOf"].append(
+        {
+            "if": {
+                "required": ["config_schema_version"],
+                "properties": {"config_schema_version": {"const": 4}},
+            },
+            "then": {
+                "required": ["fingerprint_version"],
+                "properties": {
+                    "fingerprint_version": {"const": 4},
+                    "sources": {
+                        "items": {
+                            "required": ["freshness_selection"],
+                            "not": {"required": ["freshness"]},
+                        }
+                    },
+                },
+            },
+            "else": {
+                "properties": {
+                    "fingerprint_version": {"enum": [1, 2, 3]},
+                    "sources": {
+                        "items": {
+                            "required": ["freshness"],
+                            "not": {"required": ["freshness_selection"]},
+                        }
+                    },
+                }
+            },
+        }
+    )
     conditions = {
         "Transform": [
             ("kind", "type_cast", ["target"]),
@@ -302,9 +344,11 @@ def capabilities(config: RegistryConfig | None, base: TypeRegistry) -> dict[str,
         "machine_deadline_v2": True,
         "api_protocol": 1,
         "config_schema_version": 1,
-        "config_schema_versions": [1, 2, 3],
+        "config_schema_versions": [1, 2, 3, 4],
         "bridge_protocol_versions": [1, 2],
-        "fingerprint_versions": [1, 2, 3],
+        "fingerprint_versions": [1, 2, 3, 4],
+        "freshness_templates": True,
+        "portable_format_versions": [1, 2],
         "managed_catalog": {
             "language_version": 4,
             "fingerprint_version": 3,

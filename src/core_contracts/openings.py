@@ -104,8 +104,11 @@ def opening(ctx: Context) -> dict[str, FieldValue]:
             value, float(ctx.contract.parameters["grace_s"]), now, trigger=ctx.origin == "input"
         )
     else:
+        if ctx.origin == "assessment" and temporal.state.grace_until is None:
+            temporal.state = temporal.state.model_copy(update={"grace_armed": False})
         if (
             temporal.state.grace_until is None
+            and ctx.origin != "assessment"
             and temporal.state.grace_armed
             and temporal.state.last_valid
         ):

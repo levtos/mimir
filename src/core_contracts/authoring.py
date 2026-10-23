@@ -10,7 +10,7 @@ from uuid import UUID, uuid4
 
 from .model import checksum
 from .persistence import PersistenceUnavailable
-from .registry import storage_document, validate
+from .registry import RegistryConfig, storage_document, validate
 
 LOGGER = logging.getLogger(__name__)
 
@@ -298,6 +298,7 @@ IDENTITIES = {
     "catalogs": ("catalog_id", "version"),
     "definitions": ("type_id", "type_version"),
     "context_producers": ("producer_id",),
+    "freshness_templates": ("template_id",),
     "inputs": ("name",),
 }
 
@@ -347,6 +348,28 @@ def merge(
     *,
     prefix: str = "",
 ) -> tuple[Any, list[dict[str, Any]]]:
+    if any(
+        isinstance(value, dict) and value.get("config_schema_version") == 4
+        for value in (base, draft, current)
+    ):
+        from .freshness_templates import upgrade_document
+
+        def comparable(value: Any) -> Any:
+            if not isinstance(value, dict) or value.get("config_schema_version") not in (
+                1,
+                2,
+                3,
+                4,
+            ):
+                return value
+            upgraded = upgrade_document(value)
+            try:
+                return storage_document(RegistryConfig.model_validate(upgraded))
+            except ValueError:
+                # Keep unfinished/invalid draft content visible for explicit repair.
+                return upgraded
+
+        base, draft, current = (comparable(value) for value in (base, draft, current))
     conflicts: list[dict[str, Any]] = []
     decisions = decisions or {}
     forced: set[str] = set()
@@ -356,7 +379,15 @@ def merge(
             if isinstance(value, dict):
                 return any(
                     (
-                        k in {"ref", "source_id", "dependency_id", "catalog_id"}
+                        k
+                        in {
+                            "ref",
+                            "source_id",
+                            "dependency_id",
+                            "catalog_id",
+                            "template_id",
+                            "comparison_template_id",
+                        }
                         and isinstance(v, str)
                         and (v == identity or v.startswith(identity + "."))
                     )
@@ -397,12 +428,17 @@ def merge(
                             )
 
     def walk(b: Any, d: Any, c: Any, path: str, field: str) -> Any:
+        # Switching own/shared chooses one complete rule, never a mixed union.
+        selection_switch = (
+            field == "freshness_selection"
+            and len({value.get("kind") for value in (b, d, c) if isinstance(value, dict)}) > 1
+        )
         has_forced_child = any(p.startswith(path + "/") for p in forced)
         if path not in forced and not has_forced_child and (d == c or b == c):
             return deepcopy(d)
         if path not in forced and not has_forced_child and b == d:
             return deepcopy(c)
-        if b == UNKNOWN and all(isinstance(v, dict) for v in (d, c)):
+        if b == UNKNOWN and not selection_switch and all(isinstance(v, dict) for v in (d, c)):
             return {
                 k: value
                 for k in sorted(d.keys() | c.keys())
@@ -413,7 +449,11 @@ def merge(
                 )
                 != MISSING
             }
-        if path not in forced and all(isinstance(v, dict) for v in (b, d, c)):
+        if (
+            path not in forced
+            and not selection_switch
+            and all(isinstance(v, dict) for v in (b, d, c))
+        ):
             return {
                 k: value
                 for k in sorted(b.keys() | d.keys() | c.keys())

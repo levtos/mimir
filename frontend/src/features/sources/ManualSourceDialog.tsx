@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/controls';
 import { Dialog } from '@/components/ui/dialog';
 import { Field, Input, Select } from '@/components/ui/form';
-import { SecondsField } from '@/components/SecondsField';
+import { DurationField as SecondsField, invalidDurations } from '@/components/SecondsField';
 import { FieldSchemaEditor } from '@/editors/FieldSchemaEditor';
 import { asArray, newFieldSchema, str, uniqueName, type FieldSchema } from '@/features/authoring/model';
 import { useWorkingDocument } from '@/features/authoring/WorkingDocument';
@@ -27,7 +27,7 @@ export function planManual(config: JsonObject, name: string, schema: FieldSchema
 export function ManualSourceDialog({ open, onOpenChange, onAdded }: { open: boolean; onOpenChange: (open: boolean) => void; onAdded: (index: number) => void }) {
   const doc = useWorkingDocument(); const [name, setName] = useState(''); const [schema, setSchema] = useState<FieldSchema>(newFieldSchema('bool'));
   const [seconds, setSeconds] = useState<number | null>(3600); const [future, setFuture] = useState(false); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
-  const add = async () => { setBusy(true); setError(''); try { const result = planManual(await doc.ensureDraft(), name, schema, seconds, future); doc.replaceAll(result.config); onOpenChange(false); onAdded(result.sourceIndex); } catch (failure) { setError(describeError(failure)); } finally { setBusy(false); } };
+  const add = async () => { if (invalidDurations.size) { setError(t('b4.time.precision')); return; } setBusy(true); setError(''); try { const result = planManual(await doc.ensureDraft(), name, schema, seconds, future); doc.replaceAll(result.config); onOpenChange(false); onAdded(result.sourceIndex); } catch (failure) { setError(describeError(failure)); } finally { setBusy(false); } };
   return <Dialog open={open} onOpenChange={onOpenChange} title={t('alpha9.manual.title')} description={t('alpha9.manual.description')} footer={<><Button onClick={() => onOpenChange(false)}>{t('alpha7.device.cancel')}</Button><Button variant="primary" disabled={busy || !name.trim() || seconds !== null && (!Number.isFinite(seconds) || seconds <= 0)} onClick={() => void add()}>{t('alpha7.device.add')}</Button></>}>
     <div className="space-y-4"><Field label={t('alpha7.device.name')}>{props => <Input {...props} maxLength={128} value={name} onChange={event => setName(event.target.value)} />}</Field>
       <FieldSchemaEditor compact pointer="/value_schema" value={schema} onChange={setSchema} />

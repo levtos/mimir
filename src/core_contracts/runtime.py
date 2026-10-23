@@ -406,7 +406,15 @@ class Runtime:
                 source.source_id, include_revision=True
             ):
                 previous_revision = document.pop("_registry_revision")
-                old = Source.model_validate(document)
+                historical = await self.store.get("registry_revision", str(previous_revision))
+                if historical and historical["config"].get("config_schema_version") == 4:
+                    old = next(
+                        s
+                        for s in RegistryConfig.model_validate(historical["config"]).sources
+                        if s.source_id == source.source_id
+                    )
+                else:
+                    old = Source.model_validate(document)
                 schema, previous = source.value_schema, old.value_schema
                 inferred = {"boolean": "bool", "numeric": "number", "text": "text"}
                 checks = (
@@ -1326,17 +1334,11 @@ class Runtime:
             )
             next_latches = imported_latches if operation == "activate" else self.latches
             if config:
-                old_fp, new_fp = (
-                    fingerprints(config, self.types),
-                    fingerprints(new_config, self.types),
-                )
-                for binding in new_config.bindings:
-                    if old_fp.get(binding.source_id) != new_fp[binding.source_id]:
-                        state.tables["source_observation_current"].pop(binding.binding_id, None)
+                from .reconfiguration import preserve
+
+                compatible = preserve(state, config, new_config, self.types)
                 next_latches = {
-                    k: v
-                    for k, v in next_latches.items()
-                    if old_fp.get(k.partition(":")[0]) == new_fp.get(k.partition(":")[0])
+                    k: v for k, v in next_latches.items() if k.partition(":")[0] in compatible
                 }
             activation_result = (
                 authoring.complete(
@@ -1345,7 +1347,12 @@ class Runtime:
                 if operation == "activate"
                 else state.tables["registry_revision"][str(revision)]
             )
-            self._evaluate(state, new_config, origin="revision", initial_latches=next_latches)
+            self._evaluate(
+                state,
+                new_config,
+                origin="assessment" if config else "revision",
+                initial_latches=next_latches,
+            )
             await self._commit(state, publication=True)
             old_ha = (
                 {b.model_dump_json() for b in config.bindings if b.adapter.kind.startswith("ha_")}

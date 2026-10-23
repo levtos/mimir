@@ -625,8 +625,19 @@ class BridgeAdapter:
                 pending = {receive, change, overflow}
                 try:
                     done, _ = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
-                    if change in done or overflow in done:
+                    if overflow in done:
                         return
+                    if change in done:
+                        from ..reconfiguration import assessment_only
+
+                        current = self.runtime.config
+                        if not assessment_only(config, current):
+                            return
+                        assert current is not None
+                        config, revision = current, self.runtime.state.active_revision
+                        self.runtime.revision_changed.clear()
+                        if receive not in done:
+                            continue
                     message = receive.result()
                     if message.get("type") == "result" and message.get("id") in connection.pending:
                         if not message.get("success"):

@@ -1,5 +1,6 @@
 import { isObject, type JsonObject } from '@/lib/json';
 import { asArray, str } from './model';
+import { effectiveRule } from '@/features/sources/freshness';
 
 /**
  * Display-only dependency facts derived from a registry document, used to show
@@ -41,7 +42,7 @@ export function consumersOfSource(config: JsonObject | null | undefined, sourceI
   const bindings = asArray(config?.bindings).filter(isObject).filter((b) => str(b.source_id) === sourceId).map((b) => str(b.binding_id));
   const sources = asArray(config?.sources)
     .filter(isObject)
-    .filter((s) => str(asObjectSafe(s.freshness).liveness_source) === sourceId)
+    .filter((s) => str(effectiveRule(config ?? {}, s).liveness_source) === sourceId)
     .map((s) => str(s.source_id));
   return { contracts, bindings, sources };
 }
