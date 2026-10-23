@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, configure, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import WebSocket from 'ws'; // jsdom's global Event and Node's WebSocket are not compatible
 import { IDBFactory } from 'fake-indexeddb';
 import example from '../test/fixtures/example-registry.json';
@@ -73,6 +73,19 @@ async function expectSameAsActive(document: unknown) {
 
 let store: LiveStore;
 
+/** Publication is the engine's acknowledgement, independent of the HTTP budget.
+ * One readback then checks the same value over the real API without polling it. */
+async function expectPublishedValue(contractId: string, expected: { value: unknown; status?: string }) {
+  store.start();
+  await waitFor(() => {
+    expect(store.getSnapshot().connection).toBe('open');
+    expect(store.getSnapshot().contracts?.[contractId]?.fields.value).toMatchObject(expected);
+  });
+  const response = await raw<{ fields: { value: { value: unknown; status: string } } }>(`contracts/${contractId}`);
+  expect(response.status).toBe(200);
+  expect(response.body.fields.value).toMatchObject(expected);
+}
+
 describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
   it('validates all additional GUI-authored operators, freshness modes and bindings against the real engine', async () => {
     const capabilities = (await raw<Capabilities>('capabilities')).body;
@@ -89,7 +102,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     store = new LiveStore({ createSocket: () => new WebSocket(`${base!.replace(/^http/, 'ws')}/api/v1/ws`) as unknown as SocketLike });
     window.location.hash = '#/registry';
   });
-  afterAll(() => {
+  afterEach(() => {
     store?.stop();
     vi.unstubAllGlobals();
   });
@@ -108,12 +121,15 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     await f.createDraft('E2E', "Leere Konfiguration");
     await f.buildExampleRegistry();
     await user.click(await f.saveButton());
-    const drafts = (await waitFor(async () => {
-      const list = (await raw<{ draft_id: string; draft_version: number; config: JsonObject }[]>('registry/drafts')).body;
-      expect(list[0]!.draft_version).toBeGreaterThan(1);
-      expect(list[0]!.config).toEqual(registry);
-      return list;
-    }, { timeout: 15_000 }));
+    // The UI acknowledges the completed PUT. Read back once afterwards: an
+    // async waitFor callback can still be queued in the real 61s budget when its
+    // 15s deadline fires, hiding both the response and the actual assertion.
+    await screen.findByText('Im Entwurf gespeichert');
+    const saved = await raw<{ draft_id: string; draft_version: number; config: JsonObject }[]>('registry/drafts');
+    expect(saved.status).toBe(200);
+    const drafts = saved.body;
+    expect(drafts[0]!.draft_version).toBeGreaterThan(1);
+    expect(drafts[0]!.config).toEqual(registry);
     const draftId = drafts[0]!.draft_id;
     expect(drafts[0]!.config).toEqual(registry); // stored by the real server exactly as built
 
@@ -156,10 +172,10 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     await f.tab(/Ausgaben/);
     await f.setOp('/definitions/5/outputs/value', 'not'); // v2 negates its input (unlocked, never activated)
     await user.click(await f.saveButton());
-    await waitFor(async () => {
-      const current = (await raw<{ config: { definitions: JsonObject[] } }>(`registry/drafts/${reimported.draft_id}`)).body;
-      expect(current.config.definitions).toHaveLength(6);
-    }, { timeout: 15_000 });
+    await screen.findByText('Im Entwurf gespeichert');
+    const changed = await raw<{ config: { definitions: JsonObject[] } }>(`registry/drafts/${reimported.draft_id}`);
+    expect(changed.status).toBe(200);
+    expect(changed.body.config.definitions).toHaveLength(6);
     const second = await f.activateOpenDraft(reimported.draft_id);
     await within(second).findByText("Konfiguration 2 ist übernommen.", {}, { timeout: 65_000 });
     await user.click(within(second).getAllByRole('button', { name: /Konfiguration ansehen|Schließen/ }).at(-1)!);
@@ -204,7 +220,11 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     await screen.findByRole('dialog', { name: /Versionskonflikt/ }, { timeout: 65_000 });
     expect(((await raw<{ config: JsonObject }>(`registry/drafts/${working}`)).body.config as JsonObject).other_session).toBe(true); // the other session's data is intact
     await user.click(screen.getByRole('button', { name: 'Änderungen zusammenführen' }));
-    await waitFor(async () => { const merged = (await raw<Draft>(`registry/drafts/${working}`)).body; expect(merged.config.other_session).toBe(true); expect(JSON.stringify(merged.config)).toContain('Zusatzvertrag'); }, { timeout: 65_000 });
+    await screen.findByText('Im Entwurf gespeichert');
+    const merged = await raw<Draft>(`registry/drafts/${working}`);
+    expect(merged.status).toBe(200);
+    expect(merged.body.config.other_session).toBe(true);
+    expect(JSON.stringify(merged.body.config)).toContain('Zusatzvertrag');
   }, 300_000);
 
   it('routes the untouched UX12 import through guided devices without manual transformations and verifies real engine values', async () => {
@@ -224,10 +244,11 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
       }, { timeout: 65_000 });
     }
     await user.click(await f.saveButton());
-    const saved = await waitFor(async () => {
-      const draft = (await raw<{ config: JsonObject; draft_version: number }>(`registry/drafts/${imported.draft_id}`)).body;
-      expect(draft.draft_version).toBeGreaterThan(1); return draft;
-    }, { timeout: 65_000 });
+    await screen.findByText('Im Entwurf gespeichert');
+    const readback = await raw<{ config: JsonObject; draft_version: number }>(`registry/drafts/${imported.draft_id}`);
+    expect(readback.status).toBe(200);
+    const saved = readback.body;
+    expect(saved.draft_version).toBeGreaterThan(1);
     const document = saved.config;
     const sources = document.sources as JsonObject[];
     const bindings = document.bindings as JsonObject[];
@@ -254,12 +275,8 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     const result = await raw(`registry/drafts/${draft.body.draft_id}/activate`, json('POST', await activationInput(draft.body, active?.revision ?? 0)));
     expect(result.status).toBe(200);
     await expectSameAsActive(document);
-    await waitFor(async () => {
-      const state = (await raw<{ fields: { value: { value: unknown; status: string } } }>('contracts/bad.temperatur')).body;
-      expect(state.fields.value).toMatchObject({ value: 21.5, status: 'valid' });
-      const contact = (await raw<{ fields: { value: { value: unknown; status: string } } }>('contracts/fenster.offen')).body;
-      expect(contact.fields.value).toMatchObject({ value: false, status: 'valid' });
-    }, { timeout: 10_000 });
+    await expectPublishedValue('bad.temperatur', { value: 21.5, status: 'valid' });
+    await expectPublishedValue('fenster.offen', { value: false, status: 'valid' });
   }, 120_000);
 
   it('moves a guided temperature source to text through the checked dialog, versions its template and retains numeric evidence', async () => {
@@ -275,11 +292,11 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     await user.click(within(adding).getByRole('button', { name: 'Vertrag anlegen' }));
     // K.01: the guided objects use the same server comparison in the bar and page.
     await user.click(await f.saveButton());
-    const guided = await waitFor(async () => {
-      const drafts = (await raw<{ draft_id: string; display_name: string; draft_version: number; config: JsonObject }[]>('registry/drafts')).body;
-      const draft = drafts.find(item => item.display_name === 'P8 Quellenumzug')!;
-      expect(draft.draft_version).toBeGreaterThan(1); return draft;
-    }, { timeout: 65_000 });
+    await screen.findByText('Im Entwurf gespeichert');
+    const drafts = await raw<{ draft_id: string; display_name: string; draft_version: number; config: JsonObject }[]>('registry/drafts');
+    expect(drafts.status).toBe(200);
+    const guided = drafts.body.find(item => item.display_name === 'P8 Quellenumzug')!;
+    expect(guided.draft_version).toBeGreaterThan(1);
     const comparison = (await raw<Verdict>('registry/validate', json('POST', guided.config))).body;
     const objectCount = Object.values(comparison.diff.objects).reduce((total, group) => total + group.added.length + group.changed.length + group.removed.length, 0);
     await f.go(`#/changes/drafts/${guided.draft_id}`);
@@ -305,7 +322,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     expect(sessionStorage.getItem('terra.workingDraft')).toBeNull();
     const before = (await raw<JsonObject>('registry/active/export')).body;
     const sourceId = String(objects(before.sources)[0]!.source_id); const contractId = String(objects(before.contracts)[0]!.contract_id);
-    await waitFor(async () => expect((await raw<{ fields: { value: { value: unknown } } }>(`contracts/${contractId}`)).body.fields.value.value).toBe(21.5), { timeout: 65_000 });
+    await expectPublishedValue(contractId, { value: 21.5 });
     const history = (await raw<{ items: JsonObject[] }>(`history/query/observations?source_id=${encodeURIComponent(sourceId)}`)).body.items;
     expect(history.some(item => item.value_raw === '21.5' && item.value_normalized === 21.5 && item.normalized === true)).toBe(true);
     await f.go('#/sources/devices?item=0');
@@ -330,7 +347,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     expect(objects(after.sources)[0]).toEqual(objects(before.sources)[0]);
     expect(objects(after.bindings)).toEqual([expect.objectContaining({ source_id: objects(after.sources)[1]!.source_id, transform: expect.objectContaining({ target: 'text' }) })]);
     expect(objects(after.contracts)[0]).toMatchObject({ type_version: 2, inputs: [expect.objectContaining({ ref: objects(after.sources)[1]!.source_id })] });
-    await waitFor(async () => expect((await raw<{ fields: { value: { value: unknown; status: string } } }>(`contracts/${contractId}`)).body.fields.value).toMatchObject({ value: '21.5', status: 'valid' }), { timeout: 65_000 });
+    await expectPublishedValue(contractId, { value: '21.5', status: 'valid' });
     const retained = (await raw<{ items: JsonObject[] }>(`history/query/observations?source_id=${encodeURIComponent(sourceId)}`)).body.items;
     expect(retained).toEqual(expect.arrayContaining(history));
     expect(retained.every(item => item.value_raw === '21.5' && item.value_normalized === 21.5 && item.normalized === true)).toBe(true);
@@ -532,8 +549,12 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     await user.click(screen.getByRole('button', { name: 'Datei prüfen und Vorschau anzeigen' }));
     await screen.findByText('0 Quellen haben gegenüber der Datei eine andere wirksame Aktualitätsregel.');
     await user.click(screen.getByRole('button', { name: 'Als Entwurf einlesen' }));
-    await waitFor(async () => expect((await raw<Draft>(`registry/drafts/${target.draft_id}`)).body.draft_version).toBe(2));
-    const imported = (await raw<Draft>(`registry/drafts/${target.draft_id}`)).body;
+    await waitFor(() => expect(window.location.hash).toBe(`#/changes/drafts/${target.draft_id}`));
+    await screen.findByText('Im Entwurf gespeichert');
+    const importedResponse = await raw<Draft>(`registry/drafts/${target.draft_id}`);
+    expect(importedResponse.status).toBe(200);
+    const imported = importedResponse.body;
+    expect(imported.draft_version).toBe(2);
     expect((imported.config.sources as JsonObject[]).filter(source => (source.freshness_selection as JsonObject).kind === 'own')).toHaveLength(2);
     expect((await raw<RevisionRow>('registry/active')).body.checksum).toBe(activated.checksum);
   }, 240_000);

@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, expect, it } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import { MachineRestartPanel, type RestartPreview } from '@/features/contracts/MachineRestartPanel';
 import { contractState } from '@/features/contracts/presentation';
@@ -10,6 +10,7 @@ import type { Envelope } from '@/lib/types';
 import { MachineEditor } from '@/editors/MachineEditor';
 import { installFakeApi, reply, sampleConfig } from '../../test/fakeApi';
 import { idleLive, Stateful, wrap } from '../../test/harness';
+import * as requestBudget from '@/lib/request-budget';
 
 const preview: RestartPreview = { contract_id: 'fenster', allowed: true, reason: '', initial: 'bereit', current_state: null, previous_episode: null, registry_revision: 1, state_token: 'a'.repeat(64), direct_contracts: ['direkt'], indirect_contracts: ['danach'], external_automations_known: false, server_time: '2026-10-16T10:00:00Z' };
 beforeEach(() => { sessionStorage.clear(); localStorage.clear(); });
@@ -91,6 +92,27 @@ it('does not send after the component is unmounted while waiting for the server 
   await user.click(within(dialog).getByRole('button', { name: 'Jetzt manuell neu starten' }));
   await waitFor(() => expect(finish).toBeDefined()); view.unmount();
   await act(async () => { finish!(); await new Promise(resolve => setTimeout(resolve, 0)); });
+  expect(api.calls.filter(call => call.path === 'manual-restarts' && call.method === 'POST')).toHaveLength(0);
+});
+
+it('rechecks the confirmed state after waiting for both request slots', async () => {
+  const user = userEvent.setup(); const { api, client } = setup();
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Ablauf neu starten' })).toBeEnabled());
+  const dialog = await confirm(user);
+  const clocksBefore = api.calls.filter(call => call.path === 'info').length;
+  let release!: () => void;
+  const waiting = new Promise<void>(resolve => { release = resolve; });
+  const reserve = vi.spyOn(requestBudget, 'reserveRequest').mockImplementation(async (_signal, count) => { if (count === 2) await waiting; });
+  await user.click(within(dialog).getByRole('button', { name: 'Jetzt manuell neu starten' }));
+  await waitFor(() => expect(reserve).toHaveBeenCalledWith(undefined, 2));
+  expect(api.calls.filter(call => call.path === 'info')).toHaveLength(clocksBefore);
+  await act(async () => {
+    client.setQueriesData({ queryKey: ['manual-restart', 'fenster'] }, { ...preview, state_token: 'b'.repeat(64) });
+    await new Promise(resolve => setTimeout(resolve, 0)); // Deliver React Query's batched notification before releasing the budget.
+  });
+  await act(async () => { release(); });
+  await within(dialog).findByText(/Es ist noch unklar, ob die Anfrage ausgeführt wurde/);
+  expect(api.calls.filter(call => call.path === 'info')).toHaveLength(clocksBefore + 1);
   expect(api.calls.filter(call => call.path === 'manual-restarts' && call.method === 'POST')).toHaveLength(0);
 });
 
