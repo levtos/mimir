@@ -30,9 +30,14 @@ it('creates and takes over a temperature contract through the single draft actio
   const wizard = await screen.findByRole('dialog', { name: 'Neuer Vertrag' });
   expect(await within(wizard).findByText('21,5 °C · Zimmer')).toBeVisible();
   await click(within(wizard).getByRole('radio', { name: 'Temperatur im Zimmer' }));
-  expect(within(wizard).getByLabelText('Gerätetyp für die Aktualität')).toHaveValue('temperature');
-  expect(within(wizard).getByLabelText('Frist in Sekunden')).toHaveValue(900);
-  expect(within(wizard).getByLabelText('Frist in Sekunden')).toHaveAccessibleDescription('= 15 Minuten');
+  expect(within(wizard).getByLabelText('Sensortyp bestätigen')).toHaveValue('temperature');
+  expect(within(wizard).getByLabelText('Wann gilt der Wert als aktuell?')).toHaveValue('');
+  await user.selectOptions(within(wizard).getByLabelText('Wann gilt der Wert als aktuell?'), 'periodic_ttl');
+  const interval = within(wizard).getByLabelText('Wie oft meldet sich der Sensor spätestens?');
+  expect(interval).toHaveValue('');
+  await user.selectOptions(within(wizard).getByLabelText('Einheit'), 'hours');
+  await user.clear(interval); await user.type(interval, '0,25');
+  expect(interval).toHaveAccessibleDescription('15 Minuten');
   await click(within(wizard).getByRole('button', { name: 'Vertrag anlegen' }));
   await click(await screen.findByRole('link', { name: 'Änderungen ansehen' }));
   await click(await screen.findByRole('button', { name: 'Änderungen prüfen' }));
@@ -56,8 +61,8 @@ it('filters the guided selection by area and domain and explains contact freshne
   expect(within(wizard).queryByRole('radio', { name: 'Temperatur im Zimmer' })).not.toBeInTheDocument();
   await user.selectOptions(within(wizard).getByLabelText('Geräteart'), 'binary_sensor');
   await user.click(within(wizard).getByRole('radio', { name: 'Fensterkontakt' }));
-  expect(within(wizard).getByLabelText('Wann gilt der Wert als aktuell?')).toHaveValue('event_stateful');
-  expect(within(wizard).getByText(/Das Alter allein ist kein Mangel/)).toBeVisible();
+  expect(within(wizard).getByLabelText('Wann gilt der Wert als aktuell?')).toHaveValue('report_heartbeat');
+  expect(within(wizard).getByLabelText('Wie oft meldet sich der Sensor spätestens?')).toHaveValue('3');
   expect(within(wizard).queryByLabelText('Frist in Sekunden')).not.toBeInTheDocument();
   expect(within(wizard).getByText('Nein · Flur')).toBeVisible();
 });
@@ -87,21 +92,22 @@ it('adds a missing contract input through the guide and explains an incompatible
 
 it('authors all wiring atomically, preserves extensions and repairs imported wiring by reusing the old source', () => {
   const original = sampleConfig({ x_future: { keep: true } });
-  const first = planDevice(original, temperature, { contract: 'new' });
+  const first = planDevice(original, temperature, { contract: 'new', freshness: { mode: 'periodic_ttl', interval_s: 900, future_tolerance_s: 1 } });
   expect(original.sources).toEqual([]); expect(first.config.x_future).toEqual({ keep: true });
   const binding = (first.config.bindings as Record<string, unknown>[])[0]!; delete binding.transform;
   const second = planDevice(first.config, temperature, { preset: 'temperature' });
   expect(second.reused).toBe(true); expect(second.sourceId).toBe(first.sourceId);
   expect(second.config.sources).toHaveLength(1); expect(second.config.bindings).toHaveLength(1);
   expect(second.config.bindings).toEqual([expect.objectContaining({ transform: { kind: 'type_cast', target: 'number' } })]);
-  expect(freshnessPreset('contact').mode).toBe('event_stateful');
-  expect(freshnessPreset('motion').interval_s).toBeGreaterThan(0);
-  expect(freshnessPreset('counter').mode).toBe('report_heartbeat');
+  expect(freshnessPreset('contact').mode).toBe('report_heartbeat');
+  expect(freshnessPreset('contact').interval_s).toBe(10800);
+  expect(freshnessPreset('motion')).toEqual({});
+  expect(freshnessPreset('counter')).toEqual({});
 });
 
 it('never silently discards malformed imported entries or changes an existing source type', () => {
   expect(() => planDevice(sampleConfig({ sources: [null] }), temperature)).toThrow(/unvollständige Listen/);
-  const first = planDevice(sampleConfig(), temperature);
+  const first = planDevice(sampleConfig(), temperature, { freshness: { mode: 'periodic_ttl', interval_s: 900, future_tolerance_s: 1 } });
   expect(() => planDevice(first.config, temperature, { fieldType: 'bool' })).toThrow(/gesperrt/);
 });
 

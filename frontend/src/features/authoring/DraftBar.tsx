@@ -22,6 +22,7 @@ import { IssueList } from '@/features/registry/IssueList';
 import type { Draft } from '@/lib/types';
 import { CreateDraftDialog } from './CreateDraftDialog';
 import { useWorkingDocument } from './WorkingDocument';
+import { freshnessChoiceLabel } from '@/features/sources/freshness';
 
 export const draftLabel = (draft: Pick<Draft, 'draft_id' | 'display_name'>): string => draft.display_name || uiText('alpha7.draft.unnamed');
 
@@ -81,6 +82,7 @@ export function ConflictDialog() {
   useEffect(() => setChoices({}), [conflict]);
   if (!conflict) return null;
   const same = canonicalJson(conflict.server.config) === canonicalJson(doc.config);
+  const valueText = (path: string, value: unknown) => path.endsWith('/freshness_selection') ? freshnessChoiceLabel(conflict.server.config, value) ?? JSON.stringify(value) : JSON.stringify(value);
   const run = async (choice: Parameters<typeof doc.resolveConflict>[0]) => {
     setBusy(true);
     try {
@@ -110,7 +112,7 @@ export function ConflictDialog() {
       <div className="flex flex-col gap-3 text-sm">
         {same ? <Notice tone="info">{uiText("features.authoring.DraftBar.beide_stande_sind_inhaltlich_gleich_ein_ubernehm_d8a22e")}</Notice> : <Notice tone="warn" title={uiText("features.authoring.DraftBar.die_stande_unterscheiden_sich_0b65e1")}>{uiText("features.authoring.DraftBar.server_stand_ubernehmen_verwirft_ihre_lokalen_an_59393c")}</Notice>}
         <p>{uiText('b3.mergeExplanation')}</p>
-        {conflict.comparison?.conflicts.map(row => <fieldset className="min-w-0 rounded border border-line p-3" key={row.path}><legend>{fieldLabel(row.path.split('/').at(-1) ?? '')}</legend><p>{uiText('b3.lastRead')}: {JSON.stringify(row.base)}</p>{(['draft', 'current'] as const).map(side => <label className="flex min-h-11 items-center gap-2 break-all" key={side}><input type="radio" name={row.path} checked={choices[row.path] === side} onChange={() => setChoices({ ...choices, [row.path]: side })} />{uiText(side === 'draft' ? 'b3.localInput' : 'b3.savedInput')}: {JSON.stringify(row[side])}</label>)}</fieldset>)}
+        {conflict.comparison?.conflicts.map(row => <fieldset className="min-w-0 rounded border border-line p-3" key={row.path}><legend>{row.path.endsWith('/freshness_selection') ? uiText('b4.title') : fieldLabel(row.path.split('/').at(-1) ?? '')}</legend><p>{uiText('b3.lastRead')}: {valueText(row.path, row.base)}</p>{(['draft', 'current'] as const).map(side => <label className="flex min-h-11 items-center gap-2 break-all" key={side}><input type="radio" name={row.path} checked={choices[row.path] === side} onChange={() => setChoices({ ...choices, [row.path]: side })} />{uiText(side === 'draft' ? 'b3.localInput' : 'b3.savedInput')}: {valueText(row.path, row[side])}</label>)}</fieldset>)}
       </div>
     </Dialog>
   );

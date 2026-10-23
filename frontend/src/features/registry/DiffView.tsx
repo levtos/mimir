@@ -7,8 +7,10 @@ import { ContractLink } from '@/components/status-parts';
 import type { Diff } from '@/lib/types';
 import { changedObjectCount } from '@/lib/diff';
 import { countSentence } from '@/lib/valueText';
+import { durationText } from '@/lib/duration';
 
 const GROUP_LABELS: Record<string, string> = {
+  freshness_templates: uiText('b4.title'),
   dependencies: uiText("features.registry.DiffView.dependencies_2e41b1"),
   sources: uiText("features.registry.DiffView.sources_caf85b"),
   bindings: uiText("features.registry.DiffView.bindings_7697ab"),
@@ -53,10 +55,11 @@ export function DiffView({ diff, against }: { diff: Diff; against?: string }) {
         {uiText('alpha7.diff.explanation')} {against && uiText('alpha7.diff.comparison', { against })}</p>
       {nothing && <Notice tone="info" title={uiText("features.registry.DiffView.keine_anderung_gegenuber_der_aktiven_revision_b4a476")} />}
       {diff.fingerprint_version.before === null && !nothing && <p className="text-sm text-muted">{uiText('alpha7.versions.firstStart')}</p>}
-      {migrating && (
+      {migrating && restarted.length > 0 && (
         <Notice tone="warn" title={uiText('alpha7.diff.reinitialize')}>{uiText('alpha7.diff.reinitializeHelp')}</Notice>
       )}
       <dl className="divide-y divide-line rounded-[var(--radius-md)] border border-line px-3">
+        {diff.freshness_effects?.map(effect => <Row key={effect.source_id} label={effect.source_id}>{uiText('b4.beforeAfter', { before: effect.before?.mode === 'event_stateful' ? uiText('b4.noInterval') : durationText(Number(effect.before?.interval_s)), after: effect.after?.mode === 'event_stateful' ? uiText('b4.noInterval') : durationText(Number(effect.after?.interval_s)) })}</Row>)}
         <Row label={uiText("features.registry.DiffView.contracts_hinzugefugt_aa1b10")}><Chips items={diff.added} link /></Row>
         <Row label={uiText("features.registry.DiffView.contracts_entfernt_5c5965")}><Chips items={diff.removed} /></Row>
         <Row label={uiText("features.registry.DiffView.contracts_geandert_59d44d")}><Chips items={diff.changed} link /></Row>

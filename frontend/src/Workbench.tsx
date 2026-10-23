@@ -43,6 +43,7 @@ export function workbenchRoutes(onSetup: () => void): RouteObject[] {
         { path: 'templates/built-in', element: lazyPage(() => import('@/features/contracts/DefinitionsPage')) },
         { path: 'templates/details/:typeId/:version', element: lazyPage(() => import('@/features/contracts/DefinitionDetailPage')) },
         ...['devices', 'bindings', 'catalogs', 'dependencies'].map(section => ({ path: `sources/${section}`, element: lazyPage(() => import('@/features/sources/SourcesPage')) })),
+        { path: 'sources/freshness', element: lazyPage(() => import('@/features/sources/FreshnessPage')) },
         ...['drafts', 'versions'].map(section => ({ path: `changes/${section}`, element: lazyPage(() => import('@/features/registry/RegistryPage')) })),
         { path: 'changes/transfer', element: <LegacyRoute /> },
         { path: 'import-export', element: lazyPage(() => import('@/features/registry/ImportExportPage')) },

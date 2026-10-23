@@ -18,6 +18,7 @@ import type { FieldSchema } from '@/features/authoring/model';
 import { Stateful, wrap } from '../test/harness';
 import { objects } from '@/features/sources/sourceMigration';
 import type { Draft, RevisionRow } from '@/lib/types';
+import { reserveRequest } from '@/lib/request-budget';
 
 /**
  * End-to-end against the REAL API and engine in an isolated, in-memory instance
@@ -37,7 +38,10 @@ const f = flow(user);
 const registry = example as unknown as JsonObject;
 const realFetch = globalThis.fetch;
 const raw = async <T,>(path: string, init?: RequestInit): Promise<{ status: number; body: T }> => {
-  if (path === 'registry/drafts' && init?.method === 'POST') { const body = JSON.parse(String(init.body)); const head = await (await realFetch(`${base}/api/v1/registry/active`)).json(); init = { ...init, body: JSON.stringify({ ...body, expected_active_revision: head?.revision ?? 0 }) }; }
+  if (path === 'registry/drafts' && init?.method === 'POST') { const body = JSON.parse(String(init.body)); await reserveRequest(); const head = await (await realFetch(`${base}/api/v1/registry/active`)).json(); init = { ...init, body: JSON.stringify({ ...body, expected_active_revision: head?.revision ?? 0 }) }; }
+  // Fixture/readback calls share the same real request budget as the UI. They
+  // must not exhaust the server's headroom behind the production client's back.
+  await reserveRequest();
   const response = await realFetch(`${base}/api/v1/${path}`, init);
   const text = await response.text();
   try {
@@ -186,7 +190,10 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     await user.click(await screen.findByRole('button', { name: 'Ohne Gerät anlegen' }));
     const create = await screen.findByRole('dialog', { name: "Neuer Vertrag" });
     await f.type(within(create).getByLabelText("Vertragskennung"), 'fixture.extra');
-    await user.click(within(create).getByRole('button', { name: 'Anlegen' }));
+    await user.selectOptions(within(create).getByLabelText('Vorlage und Version'), 'test.truth@1');
+    const addContract = within(create).getByRole('button', { name: 'Anlegen' });
+    await waitFor(() => expect(addContract).toBeEnabled());
+    await user.click(addContract);
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Neuer Vertrag' })).not.toBeInTheDocument(), { timeout: 65_000 });
     await user.click(await screen.findByRole('tab', { name: 'Konfiguration' }));
     await f.type(screen.getByLabelText(/^(Anzeigename|Name)$/), 'Zusatzvertrag');
@@ -262,6 +269,8 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     await user.click(await screen.findByRole('button', { name: 'Neuer Vertrag' }, { timeout: 65_000 }));
     const adding = await screen.findByRole('dialog', { name: 'Neuer Vertrag' });
     await user.click(await within(adding).findByRole('radio', { name: ux12.sources[0]!.display_name }, { timeout: 65_000 }));
+    await user.selectOptions(within(adding).getByLabelText('Wann gilt der Wert als aktuell?'), 'periodic_ttl');
+    await user.type(within(adding).getByLabelText('Wie oft meldet sich der Sensor spätestens?'), '60');
     await f.type(within(adding).getByLabelText('Name'), 'P8 Temperatur');
     await user.click(within(adding).getByRole('button', { name: 'Vertrag anlegen' }));
     // K.01: the guided objects use the same server comparison in the bar and page.
@@ -274,7 +283,9 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     const comparison = (await raw<Verdict>('registry/validate', json('POST', guided.config))).body;
     const objectCount = Object.values(comparison.diff.objects).reduce((total, group) => total + group.added.length + group.changed.length + group.removed.length, 0);
     await f.go(`#/changes/drafts/${guided.draft_id}`);
-    await user.click(await screen.findByRole('button', { name: 'Änderungen prüfen' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Änderungen prüfen' }) ?? screen.getByRole('button', { name: 'Übernehmen' })).toBeEnabled());
+    const initialCheck = screen.queryByRole('button', { name: 'Änderungen prüfen' });
+    if (initialCheck) await user.click(initialCheck);
     await waitFor(() => expect(screen.getAllByLabelText('Anzahl der Änderungen').map(node => node.textContent)).toEqual([`${objectCount} Änderungen`, `${objectCount} Änderungen`]), { timeout: 65_000 });
     const takeover = async () => {
       const details = screen.queryByRole('link', { name: 'Änderungen ansehen' }); if (details) await user.click(details);
@@ -298,6 +309,9 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     const history = (await raw<{ items: JsonObject[] }>(`history/query/observations?source_id=${encodeURIComponent(sourceId)}`)).body.items;
     expect(history.some(item => item.value_raw === '21.5' && item.value_normalized === 21.5 && item.normalized === true)).toBe(true);
     await f.go('#/sources/devices?item=0');
+    // Activation invalidates cached source views asynchronously. Wait for this
+    // flow's acknowledged source before invoking an action that captures its ID.
+    await user.click(await screen.findByRole('button', { name: name => name.includes(sourceId) }, { timeout: 65_000 }));
     await user.click(await screen.findByRole('button', { name: 'Quelle mit anderem Typ anlegen' }, { timeout: 65_000 }));
     const moving = await screen.findByRole('dialog', { name: 'Quelle umziehen' });
     await user.selectOptions(within(moving).getByLabelText('Neue Werteart'), 'text');
@@ -428,4 +442,99 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     expect(comparison.retention.shortening).toEqual(['raw_days', 'rollup_days']);
     expect(comparison.required_confirmations).toContain('retention');
   }, 120_000);
+
+  it('b4 UX-3/4 authors a shared contact template, confirms seven sources, preserves exact units and exports closed references', async () => {
+    const config: JsonObject = { config_schema_version: 3, fingerprint_version: 3, dependencies: [{ dependency_id: 'dep.b4', kind: 'mqtt', monitor: 'internal' }], sources: [], bindings: [], contracts: [], catalogs: [] };
+    const sources = config.sources as JsonObject[], bindings = config.bindings as JsonObject[], contracts = config.contracts as JsonObject[];
+    for (let index = 0; index < 4; index++) {
+      const inputs: JsonObject[] = [];
+      for (const name of index < 3 ? ['open', 'tilt'] : ['contact']) {
+        const id = `source.b4.${index}.${name}`;
+        sources.push({ source_id: id, display_name: `Synthetic ${index} ${name}`, source_type: 'boolean', source_origin: 'local', dependency_id: 'dep.b4', physical_source_key: id, value_schema: { type: 'bool', required: true, physical_state: true }, freshness: { mode: 'report_heartbeat', interval_s: sources.length >= 5 ? 10800 : 8400, future_tolerance_s: 1 } });
+        bindings.push({ binding_id: id, source_id: id, adapter: { kind: 'mqtt', mqtt_topic: `test/b4/${index}/${name}`, mqtt_value_path: 'value', mqtt_time_path: 'measured_at' } });
+        inputs.push({ name, ref: id });
+      }
+      contracts.push({ contract_id: `test.b4.opening${index}`, type_id: index < 3 ? 'opening.dual_contact' : 'opening.single_contact', type_version: 1, enabled: true, inputs, parameters: { grace_s: 600 } });
+    }
+    for (let index = 0; index < 3; index++) contracts.push({ contract_id: `test.b4.zone${index}`, type_id: 'opening_zone.facts', type_version: 1, enabled: true, inputs: contracts.slice(0, 4).map((contract, i) => ({ name: `member_${i + 1}`, ref: `${String(contract.contract_id)}.value` })), parameters: {} });
+    const staged = await raw<Draft>('registry/drafts', json('POST', { config }));
+    expect(staged.status).toBe(200);
+    const oldActive = (await raw<RevisionRow>('registry/active')).body;
+    expect((await raw(`registry/drafts/${staged.body.draft_id}/activate`, json('POST', await activationInput(staged.body, oldActive?.revision ?? 0)))).status).toBe(200);
+    const baseline = (await raw<RevisionRow>('registry/active')).body;
+    // Other E2E flows deliberately leave several open drafts. Select this flow's
+    // own current draft explicitly; do not rely on list order or auto-selection.
+    const working = await raw<Draft>('registry/drafts', json('POST', { config: baseline.config, display_name: 'Synthetic b4 freshness' }));
+    expect(working.status).toBe(200);
+    sessionStorage.setItem('terra.workingDraft', working.body.draft_id);
+    window.location.hash = '#/sources/freshness';
+    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><Workbench onSetup={() => {}} live={store} /></QueryClientProvider>);
+    const heading = await screen.findByRole('heading', { name: 'Aktualität', level: 1 });
+    // The remembered ID is not an acknowledgement that the async reload has
+    // finished. Wait for the restored working document before starting an edit.
+    await screen.findByText('Synthetic b4 freshness');
+    const editTemplate = within(heading.closest('[data-page-header]') as HTMLElement).getByRole('button', { name: 'Bearbeiten' });
+    await waitFor(() => expect(editTemplate).toBeEnabled());
+    await user.click(editTemplate);
+    let dialog = await screen.findByRole('dialog', { name: 'Kontaktsensoren' });
+    const label = 'Wie oft meldet sich der Sensor spätestens?';
+    expect(within(dialog).getByLabelText(label)).toHaveValue('3');
+    await user.selectOptions(within(dialog).getByLabelText('Einheit'), 'minutes');
+    expect(within(dialog).getByLabelText(label)).toHaveValue('180');
+    await user.selectOptions(within(dialog).getByLabelText('Einheit'), 'hours');
+    await user.clear(within(dialog).getByLabelText(label)); await user.type(within(dialog).getByLabelText(label), '1,5');
+    await user.click(within(dialog).getByRole('button', { name: 'Im Entwurf speichern' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Kontaktsensoren' })).not.toBeInTheDocument());
+    expect((await raw<RevisionRow>('registry/active')).body.checksum).toBe(baseline.checksum);
+    await user.click(within(heading.closest('[data-page-header]') as HTMLElement).getByRole('button', { name: 'Bearbeiten' }));
+    dialog = await screen.findByRole('dialog', { name: 'Kontaktsensoren' });
+    expect(within(dialog).getByLabelText(label)).toHaveValue('90');
+    await user.selectOptions(within(dialog).getByLabelText('Einheit'), 'hours');
+    expect(within(dialog).getByLabelText(label)).toHaveValue('1,5');
+    await user.clear(within(dialog).getByLabelText(label)); await user.type(within(dialog).getByLabelText(label), '3');
+    await user.click(within(dialog).getByRole('button', { name: 'Im Entwurf speichern' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Kontaktsensoren' })).not.toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Vorhandene Quellen zuordnen' }));
+    dialog = await screen.findByRole('dialog', { name: 'Vorhandene Quellen zuordnen' });
+    expect(within(dialog).getByLabelText('Sensortyp bestätigen')).toHaveValue('');
+    await user.selectOptions(within(dialog).getByLabelText('Sensortyp bestätigen'), 'contact');
+    await user.selectOptions(within(dialog).getByLabelText('Aktualität zuordnen'), 'freshness.contact');
+    await user.click(within(dialog).getByRole('button', { name: 'Zuordnung im Entwurf bestätigen' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Vorhandene Quellen zuordnen' })).not.toBeInTheDocument());
+    await screen.findByText(/7 Quellen · 4 Verträge · 0 eigene Abweichungen/);
+    const drafts = (await raw<Draft[]>('registry/drafts')).body;
+    const draft = drafts.find(row => row.draft_id === working.body.draft_id)!;
+    expect(draft.config.config_schema_version).toBe(4);
+    const verdict = (await raw<{ diff: { effective_freshness_changes: string[] } }>('registry/validate', json('POST', draft.config))).body;
+    expect(verdict.diff.effective_freshness_changes).toHaveLength(5);
+    const confirmation = await f.activateOpenDraft(draft.draft_id);
+    await within(confirmation).findByText(`Konfiguration ${baseline.revision + 1} ist übernommen.`);
+    const activated = (await raw<RevisionRow>('registry/active')).body;
+    expect((activated.config.sources as JsonObject[]).every(source => (source.freshness_selection as JsonObject).kind === 'shared')).toBe(true);
+    const exported = (await raw<{ format_version: number; config: JsonObject; manifest: { object_digests: Record<string, string> } }>('portable/export', json('POST', { expected_active_revision: activated.revision, contract_id: 'test.b4.opening0' }))).body;
+    expect(exported.format_version).toBe(2); expect(exported.config.sources).toHaveLength(2); expect(exported.config.freshness_templates).toHaveLength(1);
+    expect(exported.manifest.object_digests['freshness_templates:freshness.contact']).toBeTruthy();
+    await user.click(within(confirmation).getAllByRole('button', { name: /Konfiguration ansehen|Schließen/ }).at(-1)!);
+    const target = (await raw<Draft>('registry/drafts', json('POST', { config: activated.config, display_name: 'Synthetic b4 target' }))).body;
+    await f.go(`#/changes/drafts/${target.draft_id}`);
+    await waitFor(() => expect(sessionStorage.getItem('terra.workingDraft')).toBe(target.draft_id));
+    const initialImport = await raw('portable/preview', json('POST', { package: exported, target_draft_id: target.draft_id, target_draft_version: target.draft_version }));
+    expect(initialImport.status, JSON.stringify(initialImport.body)).toBe(200);
+    await f.go('#/import-export');
+    const text = JSON.stringify(exported); const file = new File([text], 'synthetic-b4.json', { type: 'application/json' });
+    Object.defineProperty(file, 'text', { value: async () => text });
+    await user.upload(await screen.findByLabelText('Datei auswählen'), file);
+    const importPreview = screen.getByRole('button', { name: 'Datei prüfen und Vorschau anzeigen' });
+    await waitFor(() => expect(importPreview).toBeEnabled());
+    await user.click(importPreview);
+    await screen.findByRole('heading', { name: 'Aktualität zuordnen' });
+    await user.selectOptions(screen.getByLabelText('Aktualität zuordnen'), 'own');
+    await user.click(screen.getByRole('button', { name: 'Datei prüfen und Vorschau anzeigen' }));
+    await screen.findByText('0 Quellen haben gegenüber der Datei eine andere wirksame Aktualitätsregel.');
+    await user.click(screen.getByRole('button', { name: 'Als Entwurf einlesen' }));
+    await waitFor(async () => expect((await raw<Draft>(`registry/drafts/${target.draft_id}`)).body.draft_version).toBe(2));
+    const imported = (await raw<Draft>(`registry/drafts/${target.draft_id}`)).body;
+    expect((imported.config.sources as JsonObject[]).filter(source => (source.freshness_selection as JsonObject).kind === 'own')).toHaveLength(2);
+    expect((await raw<RevisionRow>('registry/active')).body.checksum).toBe(activated.checksum);
+  }, 240_000);
 });

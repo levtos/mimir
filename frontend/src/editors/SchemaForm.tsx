@@ -260,7 +260,8 @@ export function SchemaForm(props: SchemaFormProps) {
         label={caption}
         pointer={pointer}
         value={typeof value === 'number' ? value : 0}
-        min={typeof node.minimum === 'number' ? node.minimum : undefined}
+        min={typeof node.minimum === 'number' ? node.minimum : typeof node.exclusiveMinimum === 'number' && /grace_s$/.test(pointer) ? node.exclusiveMinimum + 0.000001 : undefined}
+        max={typeof node.maximum === 'number' ? node.maximum : undefined}
         step={primary === 'integer' ? 1 : undefined}
         hint={typeof node.exclusiveMinimum === "number" ? uiText("editors.SchemaForm.gro_er_als_v0_f2a9b6", { v0: (node.exclusiveMinimum) }) : nullableType ? undefined : undefined}
         onChange={onChange}

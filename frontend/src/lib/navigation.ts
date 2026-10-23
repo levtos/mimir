@@ -11,7 +11,8 @@ export const NAVIGATION: NavigationModule[] = [
     { to: '/templates/built-in', label: t('alpha7.nav.builtinTemplates') },
   ] },
   { id: 'sources', label: t('alpha7.nav.sources'), children: [
-    { to: '/sources/devices', label: t('alpha7.nav.devices') },
+      { to: '/sources/devices', label: t('alpha7.nav.devices') },
+      { to: '/sources/freshness', label: t('b4.title') },
     { to: '/sources/bindings', label: t('alpha7.nav.bindings') },
     { to: '/sources/catalogs', label: t('alpha7.nav.catalogs') },
     { to: '/sources/dependencies', label: t('alpha7.nav.dependencies') },

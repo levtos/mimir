@@ -16,7 +16,7 @@ import { join, type Json, type JsonObject } from '@/lib/json';
 import { useHaEntities } from '@/lib/queries';
 import { sourceCast } from '@/lib/sourceCast';
 import { formatNumber } from '@/lib/format';
-import { DEVICE_PRESETS, freshnessPreset, type DevicePreset } from '@/features/sources/devicePlan';
+import { Link } from 'react-router';
 import { CalendarFields } from '@/features/sources/CalendarSourceDialog';
 import { BindingRefreshEditor } from '@/features/sources/BindingRefreshEditor';
 import { RefreshPlanEditor, type RefreshSource } from './RefreshPlanEditor';
@@ -25,6 +25,7 @@ import { FieldSchemaEditor } from './FieldSchemaEditor';
 import { ValueEditor } from './ValueEditor';
 import { SchemaForm } from './SchemaForm';
 import { Extras } from './Extras';
+import { SourceFreshnessEditor } from '@/features/sources/SourceFreshnessEditor';
 
 function patcher(value: JsonObject, onChange: (next: JsonObject) => void) {
   return (patch: Record<string, Json | undefined>) => {
@@ -84,7 +85,7 @@ export function DependencyEditor({ value, onChange, pointer, sourceIds, schema }
 
 /* ─────────────────────────────── Source ─────────────────────────────── */
 
-export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceIds, livenessSourceIds = sourceIds, sources = [], schema }: { value: JsonObject; onChange: (n: JsonObject) => void; pointer: string; dependencyIds: string[]; sourceIds: string[]; livenessSourceIds?: string[]; sources?: JsonObject[]; schema?: JsonSchema }) {
+export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceIds, livenessSourceIds = sourceIds, sources = [], schema, freshnessConfig }: { value: JsonObject; onChange: (n: JsonObject) => void; pointer: string; dependencyIds: string[]; sourceIds: string[]; livenessSourceIds?: string[]; sources?: JsonObject[]; schema?: JsonSchema; freshnessConfig?: JsonObject }) {
   const set = patcher(value, onChange);
   const freshness = asObject(value.freshness);
   const mode = str(freshness.mode);
@@ -147,11 +148,9 @@ export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceId
       </Collapsible>
       </Collapsible>
 
-      <section className="flex flex-col gap-3">
+      {value.freshness_selection ? <SourceFreshnessEditor value={value} onChange={onChange} sources={sources} config={freshnessConfig} /> : <section className="flex flex-col gap-3">
         <SectionTitle>{uiText("editors.RegistryObjects.frische_freshness_be29ab")}</SectionTitle>
-        {!manual && <Fld label={uiText('alpha7.device.applyPreset')} pointer={fp}>
-          {props => <Select {...props} value="" onChange={event => { if (!event.target.value) return; const next = { ...freshness, ...freshnessPreset(event.target.value as DevicePreset) }; if (next.mode === 'event_stateful') delete next.interval_s; delete next.liveness_source; onChange({ ...value, freshness: next }); }}><option value="">{uiText('alpha7.device.keepSettings')}</option>{DEVICE_PRESETS.map(preset => <option key={preset} value={preset}>{uiText(`alpha7.device.preset.${preset}`)}</option>)}</Select>}
-        </Fld>}
+        {!manual && <Link className="inline-flex min-h-11 items-center underline" to="/sources/freshness">{uiText('b4.assign')}</Link>}
         <p className="text-xs text-muted">{uiText(`alpha7.freshness.${mode}Help`)}</p>
         <IssuesAt pointer={fp} />
         <div className="grid gap-3 sm:grid-cols-4">
@@ -187,7 +186,7 @@ export function SourceEditor({ value, onChange, pointer, dependencyIds, sourceId
         )}
         {mode === 'event_stateful' && <p className="text-xs text-muted">{uiText("editors.RegistryObjects.zustandsbasiert_gilt_bis_ein_neues_ereignis_eint_8c5c3d")}</p>}
         <Extras def="Freshness" value={freshness} pointer={fp} onChange={(next) => onChange({ ...value, freshness: next })} />
-      </section>
+      </section>}
 
       <Collapsible title={uiText('alpha7.device.schemaDetails')}>
         <Switch checked={hasSchema} onCheckedChange={(on) => set({ value_schema: on ? newFieldSchema(value.source_type === 'boolean' ? 'bool' : value.source_type === 'text' ? 'text' : 'number') : undefined })} label={uiText("editors.RegistryObjects.eigenes_wertschema_deklarieren_value_schema_82fd15")} />

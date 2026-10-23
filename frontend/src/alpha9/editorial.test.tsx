@@ -72,6 +72,8 @@ it('keeps metadata on a new draft contract and offers category and room filters 
   await user.click(screen.getByRole('button', { name: 'Neuer Vertrag' }));
   const wizard = await screen.findByRole('dialog', { name: 'Neuer Vertrag' });
   await user.click(await within(wizard).findByRole('radio', { name: 'Temperatur' }));
+  await user.selectOptions(within(wizard).getByLabelText('Wann gilt der Wert als aktuell?'), 'periodic_ttl');
+  await user.type(within(wizard).getByLabelText('Wie oft meldet sich der Sensor spätestens?'), '60');
   await user.selectOptions(within(wizard).getByLabelText('Kategorie'), 'media');
   await user.click(within(wizard).getByRole('button', { name: 'Vertrag anlegen' }));
   await waitFor(() => expect(fake.pendingEditorial.size).toBe(1));

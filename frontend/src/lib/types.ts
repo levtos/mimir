@@ -128,6 +128,8 @@ export interface Diff {
   source_identity_changes: string[];
   binding_identity_changes: string[];
   changed_source_fingerprints: string[];
+  effective_freshness_changes?: string[];
+  freshness_effects?: { source_id: string; before: JsonObject | null; after: JsonObject | null }[];
   possibly_invalidated_contexts: string[];
   restore: { reinitialize_contracts: string[]; retains_absolute_deadlines_if_compatible: boolean };
   snapshot: { revision_changes: boolean; affected_contracts: string[] };

@@ -20,6 +20,7 @@ GROUPS = {
     "catalogs": "catalog_id",
     "definitions": "type_id",
     "context_producers": "producer_id",
+    "freshness_templates": "template_id",
 }
 MAX_BYTES = 50 * 1024 * 1024
 
@@ -66,6 +67,15 @@ def closure(config: RegistryConfig, root: str) -> dict[str, Any]:
             return
         selected["sources"].add(key)
         item = sources[key]
+        if item.freshness_selection:
+            selection = item.freshness_selection
+            template_id = (
+                selection.template_id
+                if selection.kind == "shared"
+                else selection.comparison_template_id
+            )
+            if template_id:
+                selected["freshness_templates"].add(template_id)
         dependency = dependencies[item.dependency_id]
         selected["dependencies"].add(dependency.dependency_id)
         if dependency.source_id:
@@ -123,10 +133,31 @@ def closure(config: RegistryConfig, root: str) -> dict[str, Any]:
     return document
 
 
+def package_checksum(value: Any, format_version: int) -> str:
+    """Format 2 treats JSON's integral numeric spellings identically.
+
+    Browsers serialize 10800.0 as 10800. Historical registry and format-1
+    checksums retain their original contract; only portable format 2 uses this
+    normalization. Values, array order and every object property remain covered.
+    """
+
+    def normalize(item: Any) -> Any:
+        if isinstance(item, dict):
+            return {key: normalize(child) for key, child in item.items()}
+        if isinstance(item, list):
+            return [normalize(child) for child in item]
+        if isinstance(item, float) and item.is_integer():
+            return int(item)
+        return item
+
+    return checksum(normalize(value) if format_version == 2 else value)
+
+
 def payload_digest(package: dict[str, Any]) -> str:
-    return checksum(
+    return package_checksum(
         {key: package[key] for key in ("config", "editorial", "catalog_contents", "scope")}
-        | {"roots": package["manifest"]["roots"]}
+        | {"roots": package["manifest"]["roots"]},
+        package["format_version"],
     )
 
 
@@ -183,7 +214,7 @@ def export(runtime: Any, state: Any, request: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("export_entry_limit")
     result: dict[str, Any] = {
         "format": "wuschel.configuration",
-        "format_version": 1,
+        "format_version": 2 if config.config_schema_version == 4 else 1,
         "scope": "contract" if roots else "configuration",
         "producer": {"name": "Wuschel", "version": __version__},
         "config": document,
@@ -191,8 +222,13 @@ def export(runtime: Any, state: Any, request: dict[str, Any]) -> dict[str, Any]:
         "catalog_contents": contents,
         "manifest": {
             "roots": roots,
-            "object_digests": {key: checksum(row) for key, row in objects(document).items()},
-            "config_digest": checksum(document),
+            "object_digests": {
+                key: package_checksum(row, 2 if config.config_schema_version == 4 else 1)
+                for key, row in objects(document).items()
+            },
+            "config_digest": package_checksum(
+                document, 2 if config.config_schema_version == 4 else 1
+            ),
         },
     }
     result["manifest"]["payload_digest"] = payload_digest(result)
@@ -236,13 +272,17 @@ def read_package(value: Any) -> dict[str, Any]:
             "manifest",
         }
         or value["format"] != "wuschel.configuration"
-        or value["format_version"] != 1
+        or value["format_version"] not in (1, 2)
         or not isinstance(value["scope"], str)
         or value["scope"] not in {"configuration", "contract"}
         or type(value["format_version"]) is not int
     ):
         raise ValueError("import_format_unknown")
     manifest = value["manifest"]
+    if isinstance(value.get("config"), dict) and (
+        value["config"].get("config_schema_version") == 4
+    ) != (value["format_version"] == 2):
+        raise ValueError("import_schema_format_mismatch")
     producer = value["producer"]
     if (
         not isinstance(producer, dict)
@@ -283,13 +323,15 @@ def read_package(value: Any) -> dict[str, Any]:
         raise ValueError("import_format_unknown")
     RegistryConfig.model_validate(value["config"])
     if (
-        checksum(value["config"]) != value["manifest"]["config_digest"]
+        package_checksum(value["config"], value["format_version"])
+        != value["manifest"]["config_digest"]
         or payload_digest(value) != value["manifest"]["payload_digest"]
     ):
         raise ValueError("import_digest_mismatch")
-    if {key: checksum(row) for key, row in objects(value["config"]).items()} != value["manifest"][
-        "object_digests"
-    ]:
+    if {
+        key: package_checksum(row, value["format_version"])
+        for key, row in objects(value["config"]).items()
+    } != value["manifest"]["object_digests"]:
         raise ValueError("import_object_digest_mismatch")
     if (
         not isinstance(value["catalog_contents"], list)
@@ -329,6 +371,11 @@ def preview(runtime: Any, state: Any, request: dict[str, Any]) -> dict[str, Any]
             raise ValueError("import_target_has_plan")
         existing = storage_document(validate(target["config"], runtime.types))
     incoming_doc = storage_document(incoming)
+    if incoming.config_schema_version == 4 or existing.get("config_schema_version") == 4:
+        from .freshness_templates import upgrade_document
+
+        incoming_doc = upgrade_document(incoming_doc)
+        existing = upgrade_document(existing) if existing else {}
     old_objects, new_objects = objects(existing), objects(incoming_doc)
     conflicts = [
         key
@@ -340,6 +387,9 @@ def preview(runtime: Any, state: Any, request: dict[str, Any]) -> dict[str, Any]
         not isinstance(key, str)
         or not (
             value == "keep"
+            or value == "file"
+            and key.startswith("freshness_templates:")
+            and package["scope"] == "configuration"
             or isinstance(value, dict)
             and set(value) == {"new_id"}
             and isinstance(value["new_id"], str)
@@ -387,7 +437,14 @@ def preview(runtime: Any, state: Any, request: dict[str, Any]) -> dict[str, Any]
         if isinstance(value, list):
             return [remap(child, field) for child in value]
         if isinstance(value, str):
-            if field in {*GROUPS.values(), "id", "catalog_id", "liveness_source", "targets"}:
+            if field in {
+                *GROUPS.values(),
+                "id",
+                "catalog_id",
+                "liveness_source",
+                "targets",
+                "comparison_template_id",
+            }:
                 return remaps.get(value, value)
             if field in {"ref", "trigger_ref"}:
                 for before, after in sorted(
@@ -414,7 +471,8 @@ def preview(runtime: Any, state: Any, request: dict[str, Any]) -> dict[str, Any]
     unresolved = [
         key
         for key in conflicts
-        if resolutions.get(key) != "keep" and not isinstance(resolutions.get(key), dict)
+        if resolutions.get(key) not in ("keep", "file")
+        and not isinstance(resolutions.get(key), dict)
     ]
     document = copy.deepcopy(incoming_doc)
     for group, field in GROUPS.items():
@@ -453,6 +511,65 @@ def preview(runtime: Any, state: Any, request: dict[str, Any]) -> dict[str, Any]
         )
     if not unresolved:
         validate(document, runtime.types)
+    freshness_choices = request.get("freshness_choices", {})
+    if not isinstance(freshness_choices, dict):
+        raise ValueError("import_freshness_choices_invalid")
+    freshness_choices = {
+        remaps.get(key, key): remap(value) for key, value in freshness_choices.items()
+    }
+    if freshness_choices:
+        from .freshness_templates import upgrade_document
+
+        document = upgrade_document(document)
+        imported_sources = {source.source_id: source for source in incoming.sources}
+        for row in document["sources"]:
+            source_id = row["source_id"]
+            choice = freshness_choices.get(source_id)
+            if not choice:
+                continue
+            if source_id not in imported_sources or not isinstance(choice, dict):
+                raise ValueError("import_freshness_choices_invalid")
+            if choice.get("sensor_kind"):
+                row["sensor_kind"] = choice["sensor_kind"]
+                row["sensor_kind_origin"] = "confirmed"
+            if choice.get("kind") == "own":
+                row["freshness_selection"] = {
+                    "kind": "own",
+                    "rule": imported_sources[source_id].freshness.model_dump(mode="json"),
+                }
+                original_selection = imported_sources[source_id].freshness_selection
+                comparison_id = (
+                    (
+                        original_selection.template_id
+                        if original_selection.kind == "shared"
+                        else original_selection.comparison_template_id
+                    )
+                    if original_selection
+                    else None
+                )
+                if comparison_id and any(
+                    template["template_id"] == comparison_id
+                    for template in document.get("freshness_templates", [])
+                ):
+                    row["freshness_selection"]["comparison_template_id"] = comparison_id
+            elif choice.get("kind") == "shared":
+                row["sensor_kind"] = choice.get("sensor_kind") or row.get("sensor_kind")
+                row["sensor_kind_origin"] = "confirmed"
+                row["freshness_selection"] = {
+                    "kind": "shared",
+                    "template_id": choice.get("template_id"),
+                    **(
+                        {"liveness_source": choice["liveness_source"]}
+                        if choice.get("liveness_source")
+                        else {}
+                    ),
+                }
+            else:
+                raise ValueError("import_freshness_choices_invalid")
+        if not set(freshness_choices).issubset(imported_sources):
+            raise ValueError("import_freshness_choices_invalid")
+        if not unresolved:
+            validate(document, runtime.types)
     heads = {
         head_key(c): head(state, c)["revision"]
         for c in incoming.catalogs
@@ -507,12 +624,20 @@ def preview(runtime: Any, state: Any, request: dict[str, Any]) -> dict[str, Any]
         "editorial_versions": editorial_versions,
         "editorial_choices": request.get("editorial_choices", {}),
         "resolutions": resolutions,
+        "freshness_choices": freshness_choices,
         "catalog_entries": sum(len(content["entries"]) for content in package["catalog_contents"]),
         "editorial_entries": len(package["editorial"]),
         "target_draft_id": target["draft_id"] if target else None,
         "target_draft_version": target["draft_version"] if target else None,
     }
     if not unresolved:
+        planned = validate(document, runtime.types)
+        from_file = {source.source_id: source.freshness for source in incoming.sources}
+        result["freshness_changed_sources"] = sorted(
+            source.source_id
+            for source in planned.sources
+            if source.source_id in from_file and source.freshness != from_file[source.source_id]
+        )
         probe = state.clone()
         apply(
             runtime,

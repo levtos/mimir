@@ -510,7 +510,8 @@ async def test_B1_14_parameter_source_edits_create_baseline_without_type_version
         assert not rt.state.tables["node_state"]["test.opening0"]["temporal"]["grace_armed"]
         data["sources"][0]["freshness"]["interval_s"] = 9000
         await activate(rt, data)
-        assert field(rt)["status"] == "unknown"
+        # b4 F3: an interval edit reassesses the original report without losing it.
+        assert field(rt)["status"] == "valid"
         assert not rt.state.tables["node_state"]["test.opening0"]["temporal"]["grace_until"]
     finally:
         await rt.stop()

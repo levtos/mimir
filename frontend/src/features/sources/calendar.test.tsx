@@ -21,11 +21,12 @@ describe('calendar source form', () => {
       return <><CalendarFields value={value} onChange={setValue} /><button disabled={!validCalendarSettings(value)}>Speichern</button></>;
     }
     const user = userEvent.setup(); render(<Harness />);
-    const validity = screen.getByLabelText('Ohne neue Antwort gültig für (Minuten)');
+    const validity = screen.getByLabelText('Ohne neue Antwort gültig für');
+    await user.selectOptions(screen.getAllByLabelText('Einheit')[1]!, 'minutes');
     await user.clear(validity); await user.type(validity, '5');
     expect(screen.getByRole('button', { name: 'Speichern' })).toBeDisabled();
     await user.clear(validity); await user.type(validity, '30');
     expect(screen.getByRole('button', { name: 'Speichern' })).toBeEnabled();
-    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: /JSON/ })).not.toBeInTheDocument();
   });
 });

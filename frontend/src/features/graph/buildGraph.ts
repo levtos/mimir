@@ -85,17 +85,13 @@ export function buildGraph(config: JsonObject | null | undefined, options: { str
     const dependencies = new Map(asArray(config?.dependencies).filter(isObject).map((d) => [str(d.dependency_id), d]));
     for (const source of asArray(config?.sources).filter(isObject)) {
       const id = nodeId('source', str(source.source_id));
-      const live = str(asObject(source.freshness).liveness_source);
+      const live = str(effectiveRule(config ?? {}, source).liveness_source);
       if (live && nodes.has(nodeId('source', live))) edges.push({ id: `${nodeId('source', live)}~>${id}`, source: nodeId('source', live), target: id, label: uiText("features.graph.buildGraph.liveness_3f256d"), kind: 'liveness' });
       const monitor = str(dependencies.get(str(source.dependency_id))?.source_id);
       if (monitor && nodes.has(nodeId('source', monitor)) && monitor !== str(source.source_id)) edges.push({ id: `${nodeId('source', monitor)}~dep>${id}`, source: nodeId('source', monitor), target: id, label: uiText("features.graph.buildGraph.dependency_711595"), kind: 'dependency' });
     }
   }
   return { nodes: [...nodes.values()], edges };
-}
-
-function asObject(value: unknown): JsonObject {
-  return isObject(value) ? value : {};
 }
 
 /** Nodes within `depth` hops of `center` (both directions). */
@@ -133,3 +129,4 @@ export function reach(graph: Graph, id: string): { upstream: string[]; downstrea
   };
   return { upstream: walk(id, 'up'), downstream: walk(id, 'down') };
 }
+import { effectiveRule } from '@/features/sources/freshness';

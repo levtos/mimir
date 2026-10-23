@@ -1,6 +1,7 @@
 import { t } from '@/i18n';
 import { asArray, asObject, str } from '@/features/authoring/model';
-import { clone, isObject, type JsonObject } from '@/lib/json';
+import { clone, deepEqual, isObject, type JsonObject } from '@/lib/json';
+import { effectiveRule, ownRule, upgradeFreshness } from './freshness';
 import { sourceCast } from '@/lib/sourceCast';
 import type { HaEntity, Registry } from '@/lib/types';
 
@@ -9,10 +10,7 @@ export const DEVICE_PRESETS: DevicePreset[] = ['temperature', 'contact', 'motion
 export const FRESHNESS_MODES = ['event_stateful', 'report_heartbeat', 'periodic_ttl', 'liveness_source'] as const;
 export class DevicePlanError extends Error {}
 export function freshnessPreset(preset: DevicePreset): JsonObject {
-  return preset === 'temperature' ? { mode: 'periodic_ttl', interval_s: 900, future_tolerance_s: 1 }
-    : preset === 'counter' ? { mode: 'report_heartbeat', interval_s: 3600, future_tolerance_s: 1 }
-    : preset === 'motion' ? { mode: 'report_heartbeat', interval_s: 86400, future_tolerance_s: 1 }
-    : { mode: 'event_stateful', future_tolerance_s: 1 };
+  return preset === 'contact' ? { mode: 'report_heartbeat', interval_s: 10800, future_tolerance_s: 1 } : {};
 }
 export function presetFor(entity: HaEntity): DevicePreset {
   if (entity.device_class === 'temperature') return 'temperature';
@@ -36,6 +34,7 @@ function unique(base: string, ids: string[]): string {
 }
 export interface DeviceOptions {
   preset?: DevicePreset; freshness?: JsonObject; name?: string;
+  freshnessSelection?: JsonObject;
   fieldType?: 'number' | 'bool' | 'text';
   sourceId?: string; contractId?: string;
   contract?: 'new' | { id: string; input: string };
@@ -55,6 +54,7 @@ export function planDevice(config: Registry, entity: HaEntity, options: DeviceOp
   const type = options.fieldType ?? fieldTypeFor(entity);
   const schema = { type, required: true, physical_state: false, ...(type === 'number' && entity.unit ? { unit: entity.unit } : {}) };
   if (!source) {
+    if (!options.freshness?.mode) throw new DevicePlanError(t('alpha7.device.badFreshness'));
     const dependency = dependencies.find(item => item.kind === 'ha' && item.monitor === 'internal');
     const dependencyId = dependency ? str(dependency.dependency_id) : unique('dep.ha', dependencies.map(item => str(item.dependency_id)));
     if (!dependency) dependencies.push({ dependency_id: dependencyId, kind: 'ha', monitor: 'internal' });
@@ -62,6 +62,7 @@ export function planDevice(config: Registry, entity: HaEntity, options: DeviceOp
     if (sources.some(item => item.source_id === sourceId)) throw new DevicePlanError(t('alpha7.device.duplicateSource'));
     source = { source_id: sourceId, display_name: label, source_type: type === 'number' ? 'numeric' : type === 'bool' ? 'boolean' : 'text', value_schema: schema, source_origin: 'local', dependency_id: dependencyId, physical_source_key: `ha.${entity.entity_id}`, freshness: options.freshness ?? freshnessPreset(options.preset ?? presetFor(entity)) };
     sources.push(source);
+    if (options.preset && options.preset !== 'other') { source.sensor_kind = options.preset; source.sensor_kind_origin = 'confirmed'; }
     bindings.push({ binding_id: unique(`binding.${suffix(entity.entity_id)}`, bindings.map(item => str(item.binding_id))), display_name: label, source_id: sourceId, adapter: { kind: 'ha_state', ha_entity_id: entity.entity_id }, transform: sourceCast(source)! });
   } else if (existing) {
     const cast = sourceCast(source);
@@ -69,7 +70,7 @@ export function planDevice(config: Registry, entity: HaEntity, options: DeviceOp
     if (options.fieldType && options.fieldType !== cast.target) throw new DevicePlanError(t('alpha7.device.existingTypeLocked'));
     if (cast.target === 'number' && (asObject(source.value_schema).unit ?? '') !== (entity.unit ?? '')) throw new DevicePlanError(t('alpha7.device.existingTypeLocked'));
     if (options.name?.trim()) source.display_name = options.name.trim();
-    if (options.freshness) source.freshness = options.freshness;
+    if (options.freshness && !deepEqual(options.freshness, effectiveRule(next, source))) Object.assign(source, ownRule(source, options.freshness));
     // Complete a metadata import without reinterpreting the immutable existing source schema.
     if (!existing.transform) existing.transform = cast;
   }
@@ -88,5 +89,11 @@ export function planDevice(config: Registry, entity: HaEntity, options: DeviceOp
     contract.inputs = [...asArray(contract.inputs).filter(item => !isObject(item) || item.name !== target.input), { name: target.input, ref: str(source.source_id) }];
     contractId = target.id;
   }
-  return { config: { ...next, sources, bindings, dependencies, contracts, definitions }, sourceId: str(source.source_id), sourceIndex: sources.findIndex(item => item.source_id === source.source_id), contractId, reused: !!existing };
+  const result = upgradeFreshness({ ...next, sources, bindings, dependencies, contracts, definitions });
+  const authored = asArray(result.sources).filter(isObject).find(item => item.source_id === source!.source_id)!;
+  if (options.preset && options.preset !== 'other') { authored.sensor_kind = options.preset; authored.sensor_kind_origin = 'confirmed'; }
+  if (options.freshnessSelection) {
+    authored.freshness_selection = options.freshnessSelection;
+  }
+  return { config: result, sourceId: str(source.source_id), sourceIndex: sources.findIndex(item => item.source_id === source.source_id), contractId, reused: !!existing };
 }

@@ -10,7 +10,7 @@ import type { FieldSchema } from '@/features/authoring/model';
 import { isObject, type Json } from '@/lib/json';
 import { cn } from '@/lib/utils';
 import { ValueEditor } from './ValueEditor';
-import { minuteHint } from '@/components/SecondsField';
+import { minuteHint, DurationField } from '@/components/SecondsField';
 
 /** Label + control with the server findings for exactly this JSON Pointer shown at the input. */
 export function Fld({
@@ -219,13 +219,14 @@ export function TypedValueEditor({ schema, value, onChange, pointer, label = uiT
 }
 
 /** Number input that tolerates intermediate states ("", "-", "1.") while typing. */
-export function NumberField({ label, pointer, value, onChange, hint, min, step }: { label: ReactNode; pointer: string; value: number; onChange: (next: number) => void; hint?: ReactNode; min?: number; step?: number }) {
+export function NumberField({ label, pointer, value, onChange, hint, min, max, step }: { label: ReactNode; pointer: string; value: number; onChange: (next: number) => void; hint?: ReactNode; min?: number; max?: number; step?: number }) {
   const [text, setText] = useState(String(value));
   const minutes = /(?:_s|_seconds)$/.test(pointer) ? minuteHint(value) : undefined;
   useEffect(() => {
     if (Number(text) !== value) setText(String(value));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
+  if (/(?:_s|_seconds)$/.test(pointer) && (/\/sources\//.test(pointer) || /grace_s$/.test(pointer) || /max_age_s$/.test(pointer))) return <DurationField label={label} value={value} onChange={onChange} min={min ?? 0} max={max ?? (/grace_s$/.test(pointer) ? 31536000 : undefined)} integerSeconds={step === 1} />;
   return (
     <Fld label={label} pointer={pointer} hint={minutes && hint !== minutes ? <>{hint}{hint && ' · '}{minutes}</> : hint}>
       {(props) => (
