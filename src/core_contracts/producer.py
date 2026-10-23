@@ -38,6 +38,7 @@ class Context:
     origin: str
     case: str
     override: MachineState | None
+    reassessment: bool = False
 
     @property
     def now(self) -> datetime:
@@ -97,8 +98,12 @@ class Producer:
         origin: str,
         case: str,
         override: MachineState | None,
+        *,
+        reassessment: bool = False,
     ) -> tuple[dict[str, FieldValue], dict[str, Any], MachineState | None]:
-        ctx = Context(clock, latches, contract, inputs, node, state, origin, case, override)
+        ctx = Context(
+            clock, latches, contract, inputs, node, state, origin, case, override, reassessment
+        )
         if node.get("producer_epoch") != state.epoch_id:
             self.init(ctx)
             node["producer_epoch"] = state.epoch_id

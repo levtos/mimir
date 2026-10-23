@@ -1350,7 +1350,8 @@ class Runtime:
             self._evaluate(
                 state,
                 new_config,
-                origin="assessment" if config else "revision",
+                origin="revision",
+                reassessment=config is not None,
                 initial_latches=next_latches,
             )
             await self._commit(state, publication=True)
@@ -1706,6 +1707,7 @@ class Runtime:
         trigger_source: str | None = None,
         initial_latches: dict[str, Bucket] | None = None,
         catalog_affected: set[str] | None = None,
+        reassessment: bool = False,
     ) -> set[str]:
         """Return transaction-local failures after discarding their staged producer effects."""
         evaluation_errors: set[str] = set()
@@ -1818,6 +1820,11 @@ class Runtime:
                     contract_origin,
                     case,
                     (machine_override or {}).get(key),
+                    **(
+                        {"reassessment": reassessment}
+                        if isinstance(declaration.evaluate, Producer)
+                        else {}
+                    ),
                 )
                 for input_name in node.pop("refresh_requests", []):
                     if input_name not in declaration.refresh_inputs:
