@@ -77,11 +77,12 @@ export interface RequestOptions {
 }
 
 /** Same-origin call below the (relative) Ingress prefix. No credentials are kept in the browser. */
-async function request(path: string, options: RequestOptions): Promise<Response> {
+async function request(path: string, options: RequestOptions, reserved = false): Promise<Response> {
   const method = options.method ?? 'GET';
   let response: Response;
   try {
-    await reserveRequest(options.signal);
+    if (!reserved) await reserveRequest(options.signal);
+    options.signal?.throwIfAborted();
     response = await fetch(`./api/v1/${path}`, {
       method,
       headers: options.body === undefined ? { 'X-Authoring-Protocol': '2' } : { 'Content-Type': 'application/json', 'X-Authoring-Protocol': '2' },
@@ -104,6 +105,16 @@ async function request(path: string, options: RequestOptions): Promise<Response>
 export async function api<T = Json>(path: string, options: RequestOptions = {}): Promise<T> {
   const response = await request(path, options);
   if (response.status === 204) return null as T;
+  return (await response.json()) as T;
+}
+
+/** Reserve both calls before reading the server clock. A short-lived confirmed
+ * operation must not spend its validity window waiting for another budget slot.
+ * Neither call is replayed; the body callback rechecks the confirmation after waiting. */
+export async function apiWithFreshServerTime<T = Json>(path: string, body: (serverTime: string) => unknown, signal?: AbortSignal): Promise<T> {
+  await reserveRequest(signal, 2);
+  const info = await (await request('info', { signal }, true)).json() as { server_time: string };
+  const response = await request(path, { method: 'POST', body: body(info.server_time), signal }, true);
   return (await response.json()) as T;
 }
 

@@ -15,7 +15,7 @@ function db(): Promise<IDBDatabase> {
   });
 }
 
-async function timing(cooldown = 0): Promise<number> {
+async function timing(cooldown = 0, count = 1): Promise<number> {
   const connection = await db();
   return new Promise((resolve, reject) => {
     const tx = connection.transaction('timing', 'readwrite');
@@ -29,8 +29,9 @@ async function timing(cooldown = 0): Promise<number> {
         sent: (previous?.sent ?? []).filter((at) => at > now - WINDOW),
         blockedUntil: Math.max(previous?.blockedUntil ?? 0, cooldown ? now + cooldown : 0),
       };
-      wait = Math.max(0, state.blockedUntil - now, state.sent.length >= LIMIT ? state.sent[0]! + WINDOW - now : 0);
-      if (!cooldown && !wait) state.sent.push(now);
+      const excess = state.sent.length + count - LIMIT;
+      wait = Math.max(0, state.blockedUntil - now, excess > 0 ? state.sent[excess - 1]! + WINDOW - now : 0);
+      if (!cooldown && !wait) state.sent.push(...Array<number>(count).fill(now));
       store.put(state, 'ingress');
     };
     tx.oncomplete = () => resolve(wait);
@@ -48,10 +49,11 @@ function pause(ms: number, signal?: AbortSignal): Promise<void> {
 }
 
 /** Waiting schedules a request once; it never repeats an HTTP operation. */
-export async function reserveRequest(signal?: AbortSignal): Promise<void> {
+export async function reserveRequest(signal?: AbortSignal, count = 1): Promise<void> {
+  if (!Number.isInteger(count) || count < 1 || count > LIMIT) throw new RangeError('invalid_request_count');
   for (;;) {
     signal?.throwIfAborted();
-    const wait = await timing();
+    const wait = await timing(0, count);
     signal?.throwIfAborted();
     if (!wait) return;
     await pause(wait, signal);

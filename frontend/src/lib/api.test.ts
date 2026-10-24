@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { api, apiText, ApiError, describeError, issuesFromBody } from './api';
+import { api, apiText, apiWithFreshServerTime, ApiError, describeError, issuesFromBody } from './api';
 import validBad from '../../test/fixtures/validate-bad.json';
 
 const respond = (status: number, body: unknown) =>
@@ -70,4 +70,29 @@ describe('rate limiting', () => {
     expect(error.kind).toBe('rate_limited');
     expect(describeError(error)).toContain('Zu viele Anfragen');
   });
+});
+
+it('does not construct or send a timed operation when the server clock request fails', async () => {
+  const fetch = vi.fn(async (_path: string) => new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 }));
+  vi.stubGlobal('fetch', fetch);
+  const prepare = vi.fn();
+  const error = await apiWithFreshServerTime('manual-restarts', prepare).catch(error => error);
+  expect(error).toBeInstanceOf(ApiError);
+  expect(error.status).toBe(401);
+  expect(prepare).not.toHaveBeenCalled();
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(fetch.mock.calls[0]![0]).toBe('./api/v1/info');
+});
+
+it('never retries a timed operation after HTTP 429', async () => {
+  const fetch = vi.fn(async (path: string) => path.endsWith('/info')
+    ? new Response(JSON.stringify({ server_time: '2026-10-23T10:00:00Z' }))
+    : new Response(JSON.stringify({ error: 'rate_limited' }), { status: 429 }));
+  vi.stubGlobal('fetch', fetch);
+  const prepare = vi.fn(serverTime => ({ issued_at: serverTime, command_id: 'synthetic' }));
+  const error = await apiWithFreshServerTime('manual-restarts', prepare).catch(error => error);
+  expect(error).toBeInstanceOf(ApiError);
+  expect(error.status).toBe(429);
+  expect(prepare).toHaveBeenCalledTimes(1);
+  expect(fetch.mock.calls.map(call => call[0])).toEqual(['./api/v1/info', './api/v1/manual-restarts']);
 });

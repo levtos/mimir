@@ -9,11 +9,11 @@ import { Dialog } from '@/components/ui/dialog';
 import { Field, Textarea } from '@/components/ui/form';
 import { Panel, PanelHeader } from '@/components/ui/layout';
 import { contractName } from '@/features/overview/overviewModel';
-import { api, describeError } from '@/lib/api';
+import { api, apiWithFreshServerTime, describeError } from '@/lib/api';
 import { deepEqual } from '@/lib/json';
 import { useLive } from '@/lib/live-context';
 import { POLL_MS, useActiveExport } from '@/lib/queries';
-import type { CommandResult, Info } from '@/lib/types';
+import type { CommandResult } from '@/lib/types';
 import { uuid } from '@/lib/uuid';
 
 export interface RestartPreview {
@@ -45,15 +45,16 @@ export function MachineRestartPanel({ contractId }: { contractId: string }) {
       if (!subject || !matches || !checked || !reason.trim() || sent) throw new Error(t('alpha7.restart.reviewAgain'));
       const selected = subject; const explanation = reason.trim(); const id = uuid();
       setSent({ id });
-      const info = await api<Info>('info');
-      const current = latest.current;
-      if (!mounted.current || current.contractId !== selected.contract_id || !deepEqual(subjectKey(selected), subjectKey(current.preview)) || current.revision !== null && current.revision !== undefined && current.revision !== selected.registry_revision) throw new Error(t('alpha7.restart.changed'));
-      const now = Date.parse(info.server_time);
-      return { id, result: await api<CommandResult>('manual-restarts', { method: 'POST', body: {
-        command_id: id, contract_id: selected.contract_id, reason: explanation, confirm: true,
-        expected_registry_revision: selected.registry_revision, expected_state_token: selected.state_token,
-        issued_at: new Date(now).toISOString(), valid_until: new Date(now + 30_000).toISOString(),
-      } }) };
+      return { id, result: await apiWithFreshServerTime<CommandResult>('manual-restarts', serverTime => {
+        const current = latest.current;
+        if (!mounted.current || current.contractId !== selected.contract_id || !deepEqual(subjectKey(selected), subjectKey(current.preview)) || current.revision !== null && current.revision !== undefined && current.revision !== selected.registry_revision) throw new Error(t('alpha7.restart.changed'));
+        const now = Date.parse(serverTime);
+        return {
+          command_id: id, contract_id: selected.contract_id, reason: explanation, confirm: true,
+          expected_registry_revision: selected.registry_revision, expected_state_token: selected.state_token,
+          issued_at: new Date(now).toISOString(), valid_until: new Date(now + 30_000).toISOString(),
+        };
+      }) };
     },
     onSuccess: ({ id, result }) => { setSent({ id, result }); void client.invalidateQueries({ queryKey: ['manual-restart'] }); void client.invalidateQueries({ queryKey: ['history'] }); },
     onError: error => setSent(previous => previous ? { ...previous, error: describeError(error) } : null),
