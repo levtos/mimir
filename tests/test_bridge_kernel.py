@@ -6,6 +6,7 @@ Runs in the dedicated HA CI job. This is not a Supervisor installation test.
 import json
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -18,6 +19,77 @@ from homeassistant.exceptions import Unauthorized
 from custom_components.traber import async_setup_entry
 from custom_components.traber.service_channel import Rejected
 from custom_components.traber.source_metadata import refresh_action, source_metadata
+
+
+@pytest.fixture(autouse=True)
+def forward_platforms(monkeypatch):
+    # These tests call setup directly, outside HA's ConfigEntry manager.
+    from homeassistant.config_entries import ConfigEntries
+
+    forward = AsyncMock()
+    monkeypatch.setattr(ConfigEntries, "async_forward_entry_setups", forward)
+    return forward
+
+
+@pytest.mark.ha
+async def test_projected_sensor_uses_real_ha_state_engine(tmp_path, monkeypatch, forward_platforms):
+    from custom_components.traber.sensor import async_setup_entry as setup_sensor
+
+    hass = HomeAssistant(str(tmp_path))
+    commands, errors, entities, unload = {}, [], [], []
+    monkeypatch.setattr(
+        websocket_api,
+        "async_register_command",
+        lambda hass, handler: commands.update({handler.__name__: handler}),
+    )
+    entry = SimpleNamespace(async_on_unload=unload.append)
+    await async_setup_entry(hass, entry)
+    forward_platforms.assert_awaited_once_with(entry, ["sensor"])
+    await setup_sensor(hass, entry, entities.extend)
+    connection = SimpleNamespace(
+        user=SimpleNamespace(is_admin=True),
+        subscriptions={},
+        send_result=lambda *args: None,
+        send_error=lambda *args: errors.append(args),
+    )
+    installation = str(uuid4())
+    commands["negotiate"](
+        hass, connection, {"id": 1, "supported_versions": [2], "installation_id": installation}
+    )
+    message = {
+        "id": 2,
+        "installation_id": installation,
+        "epoch_id": str(uuid4()),
+        "publication_seq": 1,
+        "contracts": [
+            {
+                "contract_id": "fixture.value",
+                "name": "Fixture",
+                "value": "on",
+                "status": "valid",
+                "quality": "healthy",
+                "since_at": "2026-10-24T00:00:00Z",
+                "unit": None,
+            }
+        ],
+    }
+    commands["project_contracts"](hass, connection, message)
+    assert not errors and len(entities) == 1
+    sensor = entities[0]
+    sensor.hass, sensor.entity_id = hass, "sensor.wuschel_fixture_value"
+    await sensor.async_added_to_hass()
+    sensor.async_write_ha_state()
+    state = hass.states.get(sensor.entity_id)
+    assert state.state == "on" and state.attributes["contract_id"] == "fixture.value"
+    message["publication_seq"] += 1
+    message["contracts"][0].update(status="unknown", value="on", quality="degraded")
+    commands["project_contracts"](hass, connection, message)
+    assert hass.states.get(sensor.entity_id).state == "unknown"
+    assert hass.states.get(sensor.entity_id).attributes["status"] == "unknown"
+    connection.subscriptions[1]()
+    assert hass.states.get(sensor.entity_id).state == "unavailable"
+    commands["project_contracts"](hass, connection, message)
+    assert errors[-1][1] == "unsupported_protocol"
 
 
 @pytest.mark.ha
@@ -45,6 +117,12 @@ async def test_real_state_reported_callback_and_unsubscribe(tmp_path, monkeypatc
     commands["subscribe"](
         hass, connection, {"id": 1, "protocol_version": 1, "entity_ids": ["sensor.fixture"]}
     )
+    snapshot = next(event for event in events if event.get("kind") == "snapshot")
+    initial_state = hass.states.get("sensor.fixture")
+    for name in ("last_changed", "last_updated", "last_reported"):
+        assert (
+            snapshot["states"]["sensor.fixture"][name] == getattr(initial_state, name).isoformat()
+        )
     # The state engine itself emits state_reported with its real event.data.
     hass.states.async_set("sensor.fixture", "on")
     await hass.async_block_till_done()
@@ -53,6 +131,7 @@ async def test_real_state_reported_callback_and_unsubscribe(tmp_path, monkeypatc
     assert (
         reports[0]["last_reported"] == hass.states.get("sensor.fixture").last_reported.isoformat()
     )
+    assert reports[0]["time_fired"]
     for number in range(2, 102):
         commands["subscribe"](
             hass,
