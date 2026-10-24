@@ -6,6 +6,7 @@ import WebSocket from 'ws'; // jsdom's global Event and Node's WebSocket are not
 import { IDBFactory } from 'fake-indexeddb';
 import example from '../test/fixtures/example-registry.json';
 import { flow } from '../test/flow';
+import { clickReadyButton } from '../test/gui';
 import { exerciseCoverage } from '../test/coverage';
 import type { Capabilities } from '@/lib/capabilities';
 import { Workbench } from '@/Workbench';
@@ -307,13 +308,13 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     const takeover = async () => {
       const details = screen.queryByRole('link', { name: 'Änderungen ansehen' }); if (details) await user.click(details);
       const check = screen.queryByRole('button', { name: 'Änderungen prüfen' }); if (check) await user.click(check);
-      await screen.findByRole('button', { name: 'Übernehmen' });
-      await user.click(screen.getByRole('button', { name: 'Übernehmen' }));
+      const apply = await screen.findByRole('button', { name: 'Übernehmen' });
+      await clickReadyButton(user, apply, 'Übernehmen');
       const confirm = await screen.findByRole('dialog', { name: 'Konfiguration übernehmen' });
       const accept = await within(confirm).findByRole('checkbox', { name: /Auswirkungen geprüft/ }, { timeout: 65_000 });
       await waitFor(() => expect(accept).toBeEnabled(), { timeout: 65_000 });
       await user.click(accept);
-      await user.click(within(confirm).getByRole('button', { name: 'Jetzt übernehmen' }));
+      await clickReadyButton(user, within(confirm).getByRole('button', { name: 'Jetzt übernehmen' }), 'Jetzt übernehmen');
       await within(confirm).findByText(/Konfiguration \d+ ist übernommen/, {}, { timeout: 65_000 });
       await user.click(within(confirm).getAllByRole('button', { name: /Konfiguration ansehen|Schließen/ }).at(-1)!);
     };
@@ -546,7 +547,7 @@ describe.skipIf(!base)('Workbench ↔ real engine (isolated instance)', () => {
     await user.click(importPreview);
     await screen.findByRole('heading', { name: 'Aktualität zuordnen' });
     await user.selectOptions(screen.getByLabelText('Aktualität zuordnen'), 'own');
-    await user.click(screen.getByRole('button', { name: 'Datei prüfen und Vorschau anzeigen' }));
+    await clickReadyButton(user, screen.getByRole('button', { name: 'Datei prüfen und Vorschau anzeigen' }), 'Datei prüfen und Vorschau anzeigen');
     await screen.findByText('0 Quellen haben gegenüber der Datei eine andere wirksame Aktualitätsregel.');
     await user.click(screen.getByRole('button', { name: 'Als Entwurf einlesen' }));
     await waitFor(() => expect(window.location.hash).toBe(`#/changes/drafts/${target.draft_id}`));

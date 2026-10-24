@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import type { UserEvent } from '@testing-library/user-event';
 import { expect } from 'vitest';
-import { gui } from './gui';
+import { clickReadyButton, gui } from './gui';
 import { legacyTarget } from '../src/lib/navigation';
 
 /** Application-level user flows, shared by the in-memory and the real-engine tests. */
@@ -119,8 +119,8 @@ export function flow(user: UserEvent) {
     const check = screen.queryByRole('button', { name: 'Änderungen prüfen' });
     if (check) await user.click(check);
     const button = await screen.findByRole('button', { name: 'Übernehmen' }, { timeout: 65_000 });
-    await waitFor(() => { expect(button).toBeEnabled(); expect(button.closest('[data-page-header]')).not.toBeNull(); }, { timeout: 65_000 });
-    await user.click(button);
+    expect(button.closest('[data-page-header]')).not.toBeNull();
+    await clickReadyButton(user, button, 'Übernehmen');
     const dialog = await screen.findByRole('dialog', { name: "Konfiguration übernehmen" }, { timeout: 65_000 });
     await user.click(await within(dialog).findByRole('checkbox', { name: /Auswirkungen geprüft/ }, { timeout: 65_000 }));
     await user.click(within(dialog).getByRole('button', { name: "Jetzt übernehmen" }));

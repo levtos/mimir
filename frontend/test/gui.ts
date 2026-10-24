@@ -1,5 +1,18 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import type { UserEvent } from '@testing-library/user-event';
+import { expect } from 'vitest';
+
+/** Keep the element found before an asynchronous label change. Presence alone
+ * does not acknowledge readiness: validation can temporarily disable/rename it.
+ * Only assertions are retried; the click is sent exactly once. */
+export async function clickReadyButton(user: UserEvent, button: HTMLElement, name: string | RegExp) {
+  await waitFor(() => {
+    expect(button).toBeInTheDocument();
+    expect(button).toHaveAccessibleName(name);
+    expect(button).toBeEnabled();
+  });
+  await user.click(button);
+}
 
 /**
  * User-interaction building blocks shared by the manual-first tests. Everything
