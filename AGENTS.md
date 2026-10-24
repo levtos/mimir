@@ -1,7 +1,13 @@
-# Core Contracts Platform
+# Wuschel
 
-Follow [Codex bootstrap](https://github.com/Levtos/control/blob/main/docs/workflow/codex-bootstrap.md)
-and ADR 0002. The binding assignment is issue #1 and
-`docs/platform-alpha1/codex-build-prompt.md`.
-Phase 1 registers only synthetic `test.*` fixtures. Never change the legacy repository.
-This build stops at its PR: no release, tag, deployment, or live verification.
+Follow the binding [working rules for agents](https://github.com/Levtos/control/blob/main/docs/workflow/working-rules.md),
+the [Codex bootstrap](https://github.com/Levtos/control/blob/main/docs/workflow/codex-bootstrap.md)
+and ADR 0002. The assignment is the GitHub Issue named by Benni; it states size and scope.
+
+Repository-specific:
+
+- Project baseline: `docs/uebergabe.md` (roles, vocabulary, Beta plan, security rules §10).
+- Backend, code and identifiers in English; user interface in German (Du-Form, vocabulary §3).
+- Never commit real media titles, private data, MQTT addresses of the live system, or secrets.
+- Never call tools that return the Wuschel app options (they contain secrets).
+- The legacy integration `benni_core_contracts` is not touched.

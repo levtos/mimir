@@ -23,7 +23,11 @@ steckt, steht nur in der Verknüpfung und lässt sich austauschen, ohne Policy-C
 - **Claude (Chat):** Architektur und Review. Gibt Release-Empfehlung oder fertigen Korrektur-Prompt.
   Installiert nichts selbst. Darf HA read-only prüfen und die Oberfläche in Chrome testen.
 - **Claude Code (Opus):** Analysen.
-- **Ablauf je Release:** A1 Design → STOPP/Review → A2 Bauen → STOPP/Review → „Go“ → Teil B Release/Installation.
+- **Ablauf:** nach den [Arbeitsregeln für Agenten](https://github.com/Levtos/control/blob/main/docs/workflow/working-rules.md) (Entscheidung Benni, 24.10.2026). Aufträge kommen als Issue; Codex berichtet als Issue-Kommentar, Claude reviewt im PR (als `levtos-claude`), Benni gibt „Go“ im Issue.
+  - **Klein** (Fix, Abhängigkeiten, Tests, CI, Doku): bauen → CI grün → mergen → Release/Installation in einem Durchgang.
+  - **Groß** (neue Funktion, DB-Migration, Wahrheitslogik): A1 Design → Review → Go → A2 Bauen → Review → Go → Release/Installation.
+  - Bei Rot korrigiert Codex selbst (höchstens 3 Versuche, jeder mit neuer Korrektur), danach STOPP mit Analyse.
+  - Lokal nur gezielte Tests; die volle Suite läuft in der CI. Berichte höchstens eine Bildschirmseite.
 
 ### Arbeitsregeln für Claude (von Benni ausdrücklich eingefordert)
 
@@ -167,6 +171,8 @@ console.log("Exportiert:", data.version, "Version,", data.entries?.length, "Eint
 - Passwortdateien auf LXC 108 (`/root/*_app.password`) nie ausgeben, protokollieren, committen.
 - PostgreSQL-Admin-Zugang bekommt Wuschel nie.
 - Kein DB-Reset und keine direkten DB-Änderungen ohne Bennis ausdrückliches Go.
+- Keine HA-Sicherung vor App-Updates (enthält die Wuschel-Datenbank auf LXC 108 nicht). Vor Releases mit DB-Migration sichert Benni LXC 108 selbst; das Issue sagt, ob das Voraussetzung ist.
+- Tests, Prüfungen und Schwellen nie löschen, überspringen oder lockern, um CI grün zu bekommen.
 - Legacy v0.2.4, andere Apps und die Einhornzentrale-Konfiguration nicht anfassen.
 - DNS-Änderungen (AdGuard/Unbound) nur an Benni melden.
 - Echte Titel und private Daten nie in GitHub, Tests oder Fixtures.
