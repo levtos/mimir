@@ -22,6 +22,8 @@ Sensoridentität: Installations-ID plus Vertrags-ID. Zustand: veröffentlichter 
 
 Der direkt erzeugte HA-Kernel erhält dazu seinen echten `ConfigEntries(hass, {})`-Manager. Nur die Plattform-Weiterleitung wird im Callback-Test abgefangen und ausdrücklich als `sensor`-Weiterleitung geprüft; die bestehenden Transportprüfungen und die neuen Sensor-Zustandsassertions bleiben erhalten. Das behebt den CI-Aufbaufehler `config_entries is None` ohne Produktionsausnahme.
 
+Der Sensor wird über HA-Loader und echte Sensor-EntityComponent hinzugefügt, damit HA selbst Plattform, Entitätsregistrierung und Zustandsschreiben initialisiert. Direktes manuelles Zuweisen von `hass`/`entity_id` erwies sich im zweiten HA-CI-Versuch als unvollständig (`KeyError: integrations`). Keine Zustandsassertion wird dafür entfernt.
+
 ## C – fester Zeitraum
 
 Alle Felddiagramme verwenden gemeinsam 24 Stunden oder 7 Tage mit festen Zeitgrenzen. Cursor-Seiten werden vollständig geladen, zusätzlich eine gespeicherte Randpublikation vor dem Beginn. Deren wirklicher Zeitpunkt bleibt in Tooltip und Tabelle erhalten. Fehlende Werte und gespeicherte Aufzeichnungslücken unterbrechen Linien. Enum-Werte stehen in Schema-Reihenfolge und werden als Stufen gezeichnet; es gibt keine Zwischenkategorie. Jeder Punkt trägt Zeitpunkt, deutschen Wert und Status, auch per Tastaturfokus.

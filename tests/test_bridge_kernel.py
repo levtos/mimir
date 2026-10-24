@@ -12,10 +12,13 @@ from uuid import uuid4
 import pytest
 
 pytest.importorskip("homeassistant")
+from homeassistant import loader
 from homeassistant.components import websocket_api
+from homeassistant.components.sensor import DATA_COMPONENT
 from homeassistant.config_entries import ConfigEntries
 from homeassistant.core import Context, HomeAssistant, SupportsResponse, callback
 from homeassistant.exceptions import Unauthorized
+from homeassistant.setup import async_setup_component
 
 from custom_components.traber import async_setup_entry
 from custom_components.traber.service_channel import Rejected
@@ -41,6 +44,8 @@ async def test_projected_sensor_uses_real_ha_state_engine(tmp_path, monkeypatch,
     from custom_components.traber.sensor import async_setup_entry as setup_sensor
 
     hass = kernel(tmp_path)
+    loader.async_setup(hass)
+    assert await async_setup_component(hass, "sensor", {})
     commands, errors, entities, unload = {}, [], [], []
     monkeypatch.setattr(
         websocket_api,
@@ -81,9 +86,9 @@ async def test_projected_sensor_uses_real_ha_state_engine(tmp_path, monkeypatch,
     commands["project_contracts"](hass, connection, message)
     assert not errors and len(entities) == 1
     sensor = entities[0]
-    sensor.hass, sensor.entity_id = hass, "sensor.wuschel_fixture_value"
-    await sensor.async_added_to_hass()
-    sensor.async_write_ha_state()
+    await hass.data[DATA_COMPONENT].async_add_entities(entities)
+    await hass.async_block_till_done()
+    assert sensor.entity_id.startswith("sensor.wuschel_fixture_value")
     state = hass.states.get(sensor.entity_id)
     assert state.state == "on" and state.attributes["contract_id"] == "fixture.value"
     message["publication_seq"] += 1
