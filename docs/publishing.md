@@ -11,7 +11,8 @@ Konfiguration `wuschel/config.yaml` verlangt diese öffentlichen Images:
 
 `{arch}` wird mit dem Supervisor-Namen ersetzt; `arm64-wuschel` wäre
 für die zweite Zeile falsch. Version und Image-Vorlage kommen aus der
-Supervisor-Konfiguration; die Python-Paketversion muss dazu passen.
+Supervisor-Konfiguration. Bei einem Release-Marker verwenden Build und Python-Paket
+dessen Kandidaten; der Store bietet weiterhin nur seine bereits veröffentlichte Version an.
 
 ## Explizit veröffentlichen
 
@@ -54,7 +55,9 @@ der bisherigen Version. Kein Image-Build allein ist eine Distributionsfreigabe.
    main-SHA `uv run python dev/promote_store.py --run-id PUBLISH_RUN` ausführen.
    Der dadurch vorbereitete PR darf nur `wuschel/config.yaml` auf den Kandidaten setzen
    und `wuschel/PENDING_RELEASE.json` entfernen. Volle reguläre CI, kein Überspringen
-   von Checks. Nach grünem Merge: strenges Versionsgate, Tag auf diesem Promotion-Commit,
+   von Checks. `dev/store_offer.py` prüft in jeder CI die öffentliche Erreichbarkeit,
+   Version, Plattform und Konfigurations-Digest der angebotenen Version für beide Architekturen.
+   Nach grünem Merge: strenges Versionsgate, Tag auf diesem Promotion-Commit,
    Pre-Release mit Code-/Image-/Publish-/Promotion-Belegen. Erst jetzt bietet HA die Version an.
 7. GitHub-Schreiben erfordert jeweils unmittelbar zuvor die Identität `levtos-codex`.
    Installation folgt nur dem freigegebenen Auftrag. Live-Abnahme bleibt bei Benni.

@@ -13,6 +13,7 @@ import pytest
 
 pytest.importorskip("homeassistant")
 from homeassistant.components import websocket_api
+from homeassistant.config_entries import ConfigEntries
 from homeassistant.core import Context, HomeAssistant, SupportsResponse, callback
 from homeassistant.exceptions import Unauthorized
 
@@ -21,11 +22,15 @@ from custom_components.traber.service_channel import Rejected
 from custom_components.traber.source_metadata import refresh_action, source_metadata
 
 
+def kernel(tmp_path):
+    hass = HomeAssistant(str(tmp_path))
+    hass.config_entries = ConfigEntries(hass, {})
+    return hass
+
+
 @pytest.fixture(autouse=True)
 def forward_platforms(monkeypatch):
     # These tests call setup directly, outside HA's ConfigEntry manager.
-    from homeassistant.config_entries import ConfigEntries
-
     forward = AsyncMock()
     monkeypatch.setattr(ConfigEntries, "async_forward_entry_setups", forward)
     return forward
@@ -35,7 +40,7 @@ def forward_platforms(monkeypatch):
 async def test_projected_sensor_uses_real_ha_state_engine(tmp_path, monkeypatch, forward_platforms):
     from custom_components.traber.sensor import async_setup_entry as setup_sensor
 
-    hass = HomeAssistant(str(tmp_path))
+    hass = kernel(tmp_path)
     commands, errors, entities, unload = {}, [], [], []
     monkeypatch.setattr(
         websocket_api,
@@ -94,7 +99,7 @@ async def test_projected_sensor_uses_real_ha_state_engine(tmp_path, monkeypatch,
 
 @pytest.mark.ha
 async def test_real_state_reported_callback_and_unsubscribe(tmp_path, monkeypatch):
-    hass = HomeAssistant(str(tmp_path))
+    hass = kernel(tmp_path)
     commands = {}
     monkeypatch.setattr(
         websocket_api,
@@ -158,7 +163,7 @@ async def test_real_state_reported_callback_and_unsubscribe(tmp_path, monkeypatc
 
 @pytest.mark.ha
 async def test_v2_negotiation_manifest_admin_services_and_context(tmp_path, monkeypatch):
-    hass = HomeAssistant(str(tmp_path))
+    hass = kernel(tmp_path)
     commands, results, errors, events, calls = {}, {}, [], [], []
     monkeypatch.setattr(
         websocket_api,
@@ -260,7 +265,7 @@ async def test_v2_negotiation_manifest_admin_services_and_context(tmp_path, monk
 async def test_refresh_rejects_push_entities_and_accepts_actual_polling(tmp_path, monkeypatch):
     from homeassistant.helpers.entity_component import DATA_INSTANCES
 
-    hass = HomeAssistant(str(tmp_path))
+    hass = kernel(tmp_path)
     commands, results, calls = {}, {}, []
     monkeypatch.setattr(
         websocket_api,
@@ -306,7 +311,7 @@ async def test_companion_refresh_uses_registered_device_only_and_metadata_prefer
 ):
     from homeassistant.helpers import area_registry, device_registry, entity_registry
 
-    hass = HomeAssistant(str(tmp_path))
+    hass = kernel(tmp_path)
     registration = SimpleNamespace(
         config_entry_id="mobile-entry", platform="mobile_app", area_id="office", device_id="device"
     )
