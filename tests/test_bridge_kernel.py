@@ -45,6 +45,10 @@ async def test_projected_sensor_uses_real_ha_state_engine(tmp_path, monkeypatch,
 
     hass = kernel(tmp_path)
     loader.async_setup(hass)
+    from homeassistant import bootstrap
+
+    # Same base setup HA performs before loading integrations (registries etc.).
+    assert await bootstrap.async_load_base_functionality(hass)
     assert await async_setup_component(hass, "sensor", {})
     commands, errors, entities, unload = {}, [], [], []
     monkeypatch.setattr(

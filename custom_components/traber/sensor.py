@@ -2,6 +2,7 @@
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import callback
+from homeassistant.util import slugify
 
 from .projection import Projection
 
@@ -36,9 +37,8 @@ class ContractSensor(SensorEntity):
         self.installation_id = installation_id
         self.contract_id = contract_id
         self._attr_unique_id = f"{installation_id}:{contract_id}"
-        self._attr_suggested_object_id = (
-            f"wuschel_{contract_id.replace('.', '_').replace('-', '_')}"
-        )
+        # HA 2026.10: an entity suggests its ID by presetting entity_id (unique_id keeps it stable).
+        self.entity_id = f"sensor.wuschel_{slugify(contract_id)}"
 
     @property
     def row(self):
